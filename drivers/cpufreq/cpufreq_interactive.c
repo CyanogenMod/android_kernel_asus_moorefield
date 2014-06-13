@@ -531,6 +531,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 			if (new_freq < tunables->touchboost_freq)
 				new_freq = tunables->touchboost_freq;
 			}
+		if (new_freq > tunables->hispeed_freq &&
+				pcpu->target_freq < tunables->hispeed_freq)
+			new_freq = tunables->hispeed_freq;
 	}
 
 	if (pcpu->target_freq >= tunables->hispeed_freq &&
