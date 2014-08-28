@@ -1573,8 +1573,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	cc->per_bio_data_size = ti->per_bio_data_size =
-				sizeof(struct dm_crypt_io) + cc->dmreq_start +
-				sizeof(struct dm_crypt_request) + cc->iv_size;
+		ALIGN(sizeof(struct dm_crypt_io) + cc->dmreq_start +
+		      sizeof(struct dm_crypt_request) + iv_size_padding + cc->iv_size,
+		      ARCH_KMALLOC_MINALIGN);
 
 	cc->page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!cc->page_pool) {
