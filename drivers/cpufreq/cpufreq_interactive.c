@@ -121,6 +121,7 @@ struct cpufreq_interactive_tunables {
 	int touchboostpulse_duration_val;
 	/* End time of touchboost pulse in ktime converted to usecs */
 	u64 touchboostpulse_endtime;
+	bool boosted;
 	/*
 	 * Max additional time to wait in idle, beyond timer_rate, at speeds
 	 * above minimum before wakeup to reduce speed, or -1 if unnecessary.
@@ -454,7 +455,6 @@ static void cpufreq_interactive_timer(unsigned long data)
 	unsigned int loadadjfreq;
 	unsigned int index;
 	unsigned long flags;
-	bool boosted;
 	bool io_boosted = 0;
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 	u64 cputime_irq;
@@ -513,10 +513,11 @@ static void cpufreq_interactive_timer(unsigned long data)
 	spin_lock_irqsave(&pcpu->target_freq_lock, flags);
 	do_div(cputime_speedadj, delta_time);
 	loadadjfreq = (unsigned int)cputime_speedadj * 100;
-	cpu_load = loadadjfreq / cur;
-	boosted = tunables->boost_val || now < tunables->boostpulse_endtime;
 
-	if (cpu_load >= tunables->go_hispeed_load || boosted || io_boosted) {
+	cpu_load = loadadjfreq / cur;
+	tunables->boosted = tunables->boost_val || now < tunables->boostpulse_endtime;
+
+	if (cpu_load >= tunables->go_hispeed_load || tunables->boosted || io_boosted) {
 		if (pcpu->target_freq < tunables->hispeed_freq) {
 			new_freq = tunables->hispeed_freq;
 		} else {
@@ -581,7 +582,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	 * (or the indefinite boost is turned off).
 	 */
 
-	if (!boosted || new_freq > tunables->hispeed_freq) {
+	if (!tunables->boosted || new_freq > tunables->hispeed_freq) {
 		pcpu->floor_freq = new_freq;
 		pcpu->floor_validate_time = now;
 	}
@@ -739,13 +740,14 @@ static int cpufreq_interactive_speedchange_task(void *data)
 	return 0;
 }
 
-static void cpufreq_interactive_boost(void)
+static void cpufreq_interactive_boost(struct cpufreq_interactive_tunables *tunables)
 {
 	int i;
 	int anyboost = 0;
 	unsigned long flags[2];
 	struct cpufreq_interactive_cpuinfo *pcpu;
-	struct cpufreq_interactive_tunables *tunables;
+
+	tunables->boosted = true;
 
 	spin_lock_irqsave(&speedchange_cpumask_lock, flags[0]);
 
@@ -760,7 +762,8 @@ static void cpufreq_interactive_boost(void)
 			continue;
 		}
 
-		tunables = pcpu->policy->governor_data;
+		if (tunables != pcpu->policy->governor_data)
+			continue;
 
 		spin_lock_irqsave(&pcpu->target_freq_lock, flags[1]);
 		if (pcpu->target_freq < tunables->hispeed_freq) {
@@ -1141,7 +1144,8 @@ static ssize_t store_boost(struct cpufreq_interactive_tunables *tunables,
                 tunables->boost_val = 0;
 	} else if (tunables->boost_val) {
 		trace_cpufreq_interactive_boost("on");
-		cpufreq_interactive_boost();
+		if (!tunables->boosted)
+			cpufreq_interactive_boost(tunables);
 	} else {
 		tunables->boostpulse_endtime = ktime_to_us(ktime_get());
 		trace_cpufreq_interactive_unboost("off");
@@ -1187,7 +1191,8 @@ static ssize_t store_boostpulse(struct cpufreq_interactive_tunables *tunables,
 	tunables->boostpulse_endtime = ktime_to_us(ktime_get()) +
 		tunables->boostpulse_duration_val;
 	trace_cpufreq_interactive_boost("pulse");
-	cpufreq_interactive_boost();
+	if (!tunables->boosted)
+		cpufreq_interactive_boost(tunables);
 	return count;
 }
 
