@@ -45,6 +45,7 @@ ccflags-y += \
 	-I$(RGXINC)/generated/pvrtl_bridge \
 	-I$(RGXINC)/generated/rgxhwperf_bridge \
 	-I$(RGXINC)/generated/regconfig_bridge \
+	-I$(RGXINC)/generated/ion_bridge \
 	-I$(RGXINC)/generated/ri_bridge \
 	-I$(RGXINC)/generated/timerquery_bridge \
 	-I$(RGXINC)/tools/intern/debug/include \
@@ -59,6 +60,7 @@ ccflags-y += \
 	-I$(RGXINC)/services/3rdparty/bufferclass_video \
 	-I$(RGXINC)/services/3rdparty/intel_devfreq \
 	-I$(RGXINC)/services/system/include \
+	-I$(RGXINC)/services/system/common/env/linux \
 	-I$(RGXINC)/services/shared/devices/rgx \
 	-I$(RGXINC)/services/shared/include \
 	-I$(RGXINC)/services/server/env/linux \
@@ -71,6 +73,7 @@ ccflags-y += \
 	-Iinclude/linux \
 	-Iinclude/drm \
 	-Idrivers/staging/android \
+	-Idrivers/staging/android/ion \
 	-Iarch/arm/include
 
 ifeq ($(CONFIG_GFX_RGX_BVNC),)
@@ -97,6 +100,7 @@ ccflags-y += \
 	-DPVR_BUILD_DIR="\"pc_android\"" \
 	-DPVR_LDM_DRIVER_REGISTRATION_NAME="\"pvrsrvkm\"" \
 	-DSUPPORT_RGX=1 \
+	-DSUPPORT_ION=1 \
 	-DPVR_SECURE_HANDLES \
 	-DDISPLAY_CONTROLLER=pvrlfb \
 	-DSUPPORT_RENDER_TARGET_ARRAYS \
@@ -117,7 +121,6 @@ ccflags-y += \
 	-DSUPPORT_RGXFW_LOG \
 	-DMAX_POOL_PAGES=10240 \
 	-DSUPPORT_GPUTRACE_EVENTS \
-	-DLMA \
 	-DPVR_LINUX_PYSMEM_MAX_POOL_PAGES=10240 \
 	-DPVR_ANDROID_NATIVE_WINDOW_HAS_SYNC \
 	-DPVRSRV_NEED_PVR_DPF \
@@ -125,6 +128,7 @@ ccflags-y += \
 	-DSUPPORT_SHARED_SLC \
 	-DPVR_MMAP_USE_VM_INSERT \
 	-DPVR_LINUX_VMALLOC_ALLOCATION_THRESHOLD=16384 \
+    -DPVR_ANDROID_ION_USE_SG_LENGTH \
 	-DPVRSRV_ENABLE_PROCESS_STATS=1 \
 	$(NULL)
 
@@ -177,7 +181,6 @@ ccflags-$(CONFIG_DRM_HANDSET_DEBUG) += \
 	-DBUILD="\"debug\"" \
 	-DPVR_BUILD_TYPE="\"debug\"" \
 	-DDEBUG \
-	-DPVRSRV_ENABLE_PROCESS_STATS \
 	-DDEBUG_LINUX_MEMORY_ALLOCATIONS \
 	-DDEBUG_HANDLEALLOC_KM \
 	-DRGXFW_ALIGNCHECKS \
@@ -241,9 +244,7 @@ $(DRIVER_NAME)-y += \
 	$(RGXDIR)/services/server/common/tlstream.o \
 	$(RGXDIR)/services/server/common/tutils.o \
 	$(RGXDIR)/services/server/common/tlserver.o \
-	$(RGXDIR)/services/shared/common/tlclient.o
-
-#	$(RGXDIR)/services/server/env/linux/physmem_ion.o
+        $(RGXDIR)/services/shared/common/tlclient.o \
 
 # WINDOW_HAS_SYNC
 $(DRIVER_NAME)-y += \
@@ -334,21 +335,15 @@ $(DRIVER_NAME)-y += \
 ccflags-y += \
 	-I$(RGXINC)/generated/smm_bridge
 
-##ifeq ($(SUPPORT_ION),1)
-#merrifield_gfx-y += generated/ion_bridge/server_ion_bridge.o \
-	services/system/common/env/linux/ion_support.o \
-	services/system/common/env/linux/ion_support_generic.o \
-	services/system/common/env/linux/ion_interrupt_support.o \
-	services/system/common/env/linux/ion_lma_heap.o
-##ifeq ($(SUPPORT_OLD_ION_API),1)
-##merrifield_gfx-y += services/server/env/linux/physmem_ion_omap.o
-##else
-#merrifield_gfx-y += services/server/env/linux/physmem_ion.o
-##endif
-#$(DRIVER_NAME)-y += \
-#	$(RGXDIR)/services/server/env/linux/physmem_dmabuf.o \
-#	$(RGXDIR)/generated/dmabuf_bridge/server_dmabuf_bridge.o
-##endif # SUPPORT_ION
+ccflags-y += \
+       -DPVR_ANDROID_ION_HEADER="\"../../drivers/staging/android/ion/ion.h\"" \
+       -DPVR_ANDROID_ION_PRIV_HEADER="\"../../drivers/staging/android/ion/ion_priv.h\"" \
+       -I$(RGXINC)/generated/dmabuf_bridge
+
+$(DRIVER_NAME)-y += \
+       $(RGXDIR)/services/server/env/linux/physmem_dmabuf.o \
+       $(RGXDIR)/generated/dmabuf_bridge/server_dmabuf_bridge.o \
+       $(RGXDIR)/services/system/common/env/linux/ion_support_generic.o
 
 # buffer class video
 $(DRIVER_NAME)-y += \

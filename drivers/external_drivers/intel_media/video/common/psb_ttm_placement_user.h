@@ -73,6 +73,7 @@ struct ttm_pl_create_req {
 struct ttm_pl_create_ub_req {
 	uint64_t size;
 	uint64_t user_address;
+	int32_t  fd;
 	uint32_t placement;
 	uint32_t page_alignment;
 };

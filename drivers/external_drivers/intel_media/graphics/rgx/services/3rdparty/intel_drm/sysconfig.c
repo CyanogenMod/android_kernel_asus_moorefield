@@ -54,6 +54,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "pci_support.h"
 
+#if defined(SUPPORT_ION)
+#include PVR_ANDROID_ION_HEADER
+#include "ion_support.h"
+//#include "ion_sys_private.h"
+#endif
+
 typedef struct _PLAT_DATA_
 {
 	IMG_HANDLE	hRGXPCI;
@@ -189,7 +195,6 @@ PVRSRV_ERROR SysCreateConfigData(PVRSRV_SYSTEM_CONFIG **ppsSysConfig)
 
 	/* Setup other system specific stuff */
 #if defined(SUPPORT_ION)
-	#error "Need to check this function call"
 	IonInit(NULL);
 #endif
 
@@ -207,8 +212,7 @@ IMG_VOID SysDestroyConfigData(PVRSRV_SYSTEM_CONFIG *psSysConfig)
 	OSFreeMem(psPlatData);
 
 #if defined(SUPPORT_ION)
-	#error "Need to check this function call"
-	IonDeinit(NULL);
+	IonDeinit();
 #endif
 }
 
