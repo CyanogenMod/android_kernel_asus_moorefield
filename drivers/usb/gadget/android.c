@@ -995,7 +995,6 @@ static struct android_usb_function audio_source_function = {
 	.attributes	= audio_source_function_attributes,
 };
 
-
 struct dvcdfx_function_config {
 	bool	enabled;
 	u8	bFunctionProtocol;
