@@ -212,6 +212,8 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_eDP, "eDP" },
 	{ DRM_MODE_CONNECTOR_DSI, "DSI" },
 	{ DRM_MODE_CONNECTOR_VIRTUAL, "Virtual" },
+	{ DRM_MODE_CONNECTOR_TMP_DSI, "DSI" },
+	{ DRM_MODE_CONNECTOR_TMP_VIRTUAL, "Virtual" },
 };
 
 static const struct drm_prop_enum_list drm_encoder_enum_list[] =
