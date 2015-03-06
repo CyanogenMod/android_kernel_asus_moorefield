@@ -44,14 +44,6 @@
 #include "mdfld_hdmi_audio_if.h"
 #include <linux/pm_qos.h>
 
-/*  Name changed with kernel 3.10 gen graphics patches. */
-#if !defined DRM_MODE_ENCODER_DSI
-#define DRM_MODE_ENCODER_DSI DRM_MODE_ENCODER_MIPI
-#endif
-#if !defined DRM_MODE_CONNECTOR_DSI
-#define DRM_MODE_CONNECTOR_DSI DRM_MODE_CONNECTOR_MIPI
-#endif
-
 /*Append new drm mode definition here, align with libdrm definition*/
 #define DRM_MODE_SCALE_NO_SCALE   4
 
