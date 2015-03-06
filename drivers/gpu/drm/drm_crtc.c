@@ -757,8 +757,7 @@ int drm_connector_init(struct drm_device *dev,
 	list_add_tail(&connector->head, &dev->mode_config.connector_list);
 	dev->mode_config.num_connector++;
 
-	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL &&
-	    connector_type != DRM_MODE_CONNECTOR_TMP_VIRTUAL)
+	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL)
 		drm_object_attach_property(&connector->base,
 					      dev->mode_config.edid_property,
 					      0);
