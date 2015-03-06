@@ -339,7 +339,7 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 		break;
 	case EXYNOS_DISPLAY_TYPE_VIDI:
-		type = DRM_MODE_CONNECTOR_VIRTUAL;
+		type = DRM_MODE_CONNECTOR_TMP_VIRTUAL;
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 		break;
 	default:

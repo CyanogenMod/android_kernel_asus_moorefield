@@ -172,8 +172,10 @@ void init_panel(struct drm_device *dev, int mipi_pipe, enum panel_type p_type)
 				&dev->mode_config.connector_list, head) {
 			if ((connector->connector_type !=
 						DRM_MODE_CONNECTOR_DSI) &&
-					(connector->connector_type !=
-					 DRM_MODE_CONNECTOR_LVDS))
+			    (connector->connector_type !=
+						 DRM_MODE_CONNECTOR_LVDS) &&
+			    (connector->connector_type !=
+						 DRM_MODE_CONNECTOR_TMP_DSI))
 				connector->polled = DRM_CONNECTOR_POLL_HPD;
 		}
 		mutex_unlock(&dev->mode_config.mutex);

@@ -857,7 +857,8 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 	connector = &qxl_output->base;
 	encoder = &qxl_output->enc;
 	drm_connector_init(dev, &qxl_output->base,
-			   &qxl_connector_funcs, DRM_MODE_CONNECTOR_VIRTUAL);
+			   &qxl_connector_funcs,
+			   DRM_MODE_CONNECTOR_TMP_VIRTUAL);
 
 	drm_encoder_init(dev, &qxl_output->enc, &qxl_enc_funcs,
 			 DRM_MODE_ENCODER_VIRTUAL);

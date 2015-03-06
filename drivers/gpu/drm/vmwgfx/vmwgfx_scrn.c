@@ -455,7 +455,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	sou->base.is_implicit = true;
 
 	drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
-			   DRM_MODE_CONNECTOR_VIRTUAL);
+			   DRM_MODE_CONNECTOR_TMP_VIRTUAL);
 	connector->status = vmw_du_connector_detect(connector, true);
 
 	drm_encoder_init(dev, encoder, &vmw_screen_object_encoder_funcs,
