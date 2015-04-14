@@ -21,7 +21,8 @@
 #include <linux/nls.h>
 
 #define SZ_4K	0x00001000
-#define SZ_2M	0x00200000
+#define SZ_512K	0x00080000
+#define SZ_1_5M	0x00180000
 #define SZ_2_1M	0x00219000
 #define SZ_16M	0x01000000
 
@@ -39,7 +40,8 @@ static struct ramoops_platform_data pstore_ram_data = {
 	.mem_size	= PSTORE_RAM_SIZE_DEFAULT,
 	.mem_address	= PSTORE_RAM_START_DEFAULT,
 	.record_size	= SZ_4K,
-	.console_size	= SZ_2M,
+	.console_size	= SZ_1_5M,
+    .pmsg_size      = SZ_512K,
 	.ftrace_size	= 2*SZ_4K,
 	.dump_oops	= 1,
 };
