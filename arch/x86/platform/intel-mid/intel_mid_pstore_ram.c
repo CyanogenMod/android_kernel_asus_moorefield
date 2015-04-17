@@ -41,7 +41,7 @@ static struct ramoops_platform_data pstore_ram_data = {
 	.mem_address	= PSTORE_RAM_START_DEFAULT,
 	.record_size	= SZ_4K,
 	.console_size	= SZ_1_5M,
-    .pmsg_size      = SZ_512K,
+	.pmsg_size	= SZ_512K,
 	.ftrace_size	= 2*SZ_4K,
 	.dump_oops	= 1,
 };
