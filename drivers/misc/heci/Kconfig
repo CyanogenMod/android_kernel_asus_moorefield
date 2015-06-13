@@ -1,0 +1,5 @@
+config INTEL_ISH
+	tristate "Intel Integrated Sensors Hub"
+	depends on X86 && PCI
+	help
+	  ISH enabled sensors hub functionality on SoC/chipset level.

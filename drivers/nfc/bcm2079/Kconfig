@@ -1,0 +1,9 @@
+config BCM_2079x
+	tristate "BCM 2079x NFC driver"
+	default n
+	---help---
+	  BCM 2079x core driver.
+	  This is a driver based on the HCI NFC kernel layers.
+
+	  To compile this driver as a module, choose m here.
+	  Say N if unsure.
