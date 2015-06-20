@@ -1,0 +1,10 @@
+#
+# Near Field Communication (NFC) devices
+#
+
+config NFC_PN544_PLATFORM_DATA
+       bool "Enable PN544 NFC platform data"
+       ---help---
+        Enables NFC PN544 platform file, required by PN544 I2C driver
+
+source "drivers/external_drivers/drivers/nfc/intel/Kconfig"

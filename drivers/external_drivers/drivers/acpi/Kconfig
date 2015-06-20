@@ -1,0 +1,7 @@
+config INTEL_MID_LPSS
+	bool "Intel MID LPSS ACPI support"
+	depends on ACPI
+	help
+	  This driver is for Intel MID LPSS ACPI support.
+
+	  Say Y here to support Intel MID LPSS ACPI.

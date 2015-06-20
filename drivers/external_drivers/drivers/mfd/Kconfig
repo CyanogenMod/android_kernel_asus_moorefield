@@ -1,0 +1,36 @@
+#
+# Multifunction miscellaneous devices
+#
+
+config CRYSTAL_COVE
+	bool "Support for Intel ValleyView Crystal Cove"
+	depends on I2C=y
+	select MFD_CORE
+	help
+	  Select this option to enable access to Intel
+	  ValleyView PMIC chip.
+
+	  This chip embeds ADC, GPIO, Thermals, Charge, etc.
+	  Devices are used in Intel Baytrail platforms.
+
+	  Crystal Cove driver is a multi function driver which
+	  supports to create all sub-devices inside PMIC.
+	  And it also provides IRQ dispatch function to
+	  sub-device drivers.
+
+config INTEL_MID_PMIC
+	bool "Support for Intel MID PMIC"
+	depends on I2C=y
+	select MFD_CORE
+	help
+	  Select this option to enable support of Intel
+	  PMIC chip.
+
+	  PMIC chip embeds ADC, GPIO, Thermals, Charge, etc.
+	  Devices are used in Intel platforms.
+
+	  PMIC driver is a multi function driver which
+	  supports to create all sub-devices inside PMIC.
+	  And it also provides IRQ dispatch function to
+	  sub-device drivers.
+

@@ -1,0 +1,82 @@
+#
+# Touchscreen driver configuration
+#
+
+if INPUT_TOUCHSCREEN
+
+config TOUCHSCREEN_SYNAPTICS_DSX_I2C_A500CG
+	bool "I2C"
+	depends on I2C && A500CG
+
+config TOUCHSCREEN_SYNAPTICS_DSX_SPI_A500CG
+	bool "SPI"
+	depends on SPI_MASTER && A500CG
+
+config TOUCHSCREEN_SYNAPTICS_DSX_CORE_A500CG
+	tristate "Synaptics DSX core driver module"
+	depends on TOUCHSCREEN_SYNAPTICS_DSX_I2C_A500CG || TOUCHSCREEN_SYNAPTICS_DSX_SPI_A500CG
+	help
+	  Say Y here to enable basic touch reporting functionalities.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_dsx_core.
+
+config TOUCHSCREEN_SYNAPTICS_DSX_RMI_DEV_A500CG
+	tristate "Synaptics DSX touchscreen RMI device module"
+	depends on TOUCHSCREEN_SYNAPTICS_DSX_CORE_A500CG
+	help
+	  Say Y here to enable support for direct RMI register access.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_dsx_rmi_dev.
+
+config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE_A500CG
+	tristate "Synaptics DSX touchscreen firmware update module"
+	depends on TOUCHSCREEN_SYNAPTICS_DSX_CORE_A500CG
+	help
+	  Say Y here to enable support for carrying out firmware update.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_dsx_fw_update.
+
+config TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING_A500CG
+	tristate "Synaptics DSX touchscreen test reporting module"
+	depends on TOUCHSCREEN_SYNAPTICS_DSX_CORE_A500CG
+	help
+	  Say Y here to enable support for retrieving self-test reports.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_dsx_test_reporting.
+
+config TOUCHSCREEN_SYNAPTICS_DSX_PROXIMITY_A500CG
+	tristate "Synaptics DSX touchscreen proximity module"
+	depends on TOUCHSCREEN_SYNAPTICS_DSX_CORE_A500CG
+	help
+	  Say Y here to enable support for proximity functionalities.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_dsx_proximity.
+
+config TOUCHSCREEN_SYNAPTICS_DSX_ACTIVE_PEN_A500CG
+	tristate "Synaptics DSX touchscreen active pen module"
+	depends on TOUCHSCREEN_SYNAPTICS_DSX_CORE_A500CG
+	help
+	  Say Y here to enable support for active pen functionalities.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_dsx_active_pen.
+
+
+endif

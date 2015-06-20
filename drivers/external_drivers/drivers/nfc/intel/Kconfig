@@ -1,0 +1,9 @@
+#
+# Near Field Communication (NFC) devices
+#
+
+config NFC_FDP_PLATFORM_DATA
+       bool "Enable FDP NFC platform data"
+       ---help---
+        Enables NFC FDP platform file, required by FDP I2C driver
+

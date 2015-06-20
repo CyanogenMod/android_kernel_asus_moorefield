@@ -1,0 +1,37 @@
+#
+#  Copyright (c) 2013, ASUSTek, Inc. All Rights Reserved.
+#  Written by chih-hsuan chang chih-hsuan_chang@asus.com
+#
+#  Battery driver configuration
+#
+menuconfig A500CG_BATTERY
+	bool "A500CG Battery support"
+	help
+	  Say Y here. This option doesn't affect the kernel.
+	  If unsure, say Y.
+
+menuconfig ASUS_ENGINEER_MODE
+	bool "A500CG Battery Engineer Mode"
+	help
+	  Say Y here. This option doesn't affect the kernel.
+	  If unsure, say Y.
+
+if A500CG_BATTERY
+
+config A500CG_BATTERY_SMB347
+	tristate "SMB347 battery charger driver"
+	depends on I2C
+	help
+	  Say Y to enable support for the SMB347 switching mode based charger
+	  and sysfs. The driver supports controlling charger-enable and
+	  current limiting capabilities. The driver also lets the
+	  SMB347 be operated as a slave device via the power supply
+	  framework.
+
+endif
+
+config UPI_BATTERY
+       tristate "UPI uG31xx battery driver"
+       depends on I2C
+       help
+         Say Y to support for batteries with uG31xx chip.

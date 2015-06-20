@@ -50,6 +50,6 @@ menuconfig EXTERNAL_CAMERA_IPU
         help
           Enable support to external Intel camera ipu drivers.
 
-source "drivers/external_drivers/ipu/Kconfig"
+#source "drivers/external_drivers/ipu/Kconfig"
 
 endif
