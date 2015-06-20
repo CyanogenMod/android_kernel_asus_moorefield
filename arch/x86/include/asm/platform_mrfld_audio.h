@@ -21,8 +21,15 @@ struct mrfld_audio_platform_data {
 	int spk_gpio;
 };
 
+struct rt5647_custom_config {
+        int format;
+        int rate;
+        int channels;
+};
+
 extern void __init *merfld_audio_platform_data(void *info) __attribute__((weak));
 extern void __init *merfld_wm8958_audio_platform_data(void *info) __attribute__((weak));
 extern void __init *moor_wm8280_audio_platform_data(void *info) __attribute__((weak));
 extern void __init *merfld_rt5647_audio_platform_data(void *info) __attribute__((weak));
+extern void *rt5647_platform_data(void *info) __attribute__((weak));
 #endif

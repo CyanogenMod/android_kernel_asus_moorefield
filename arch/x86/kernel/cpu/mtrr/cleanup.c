@@ -586,6 +586,12 @@ static int __init mtrr_need_cleanup(void)
 }
 
 static unsigned long __initdata range_sums;
+static int total_dram;
+int Read_TOTAL_DRAM(void)
+{
+	return total_dram;
+}
+EXPORT_SYMBOL(Read_TOTAL_DRAM);
 
 static void __init
 mtrr_calc_range_state(u64 chunk_size, u64 gran_size,
@@ -727,7 +733,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 	range_sums = sum_ranges(range, nr_range);
 	printk(KERN_INFO "total RAM covered: %ldM\n",
 	       range_sums >> (20 - PAGE_SHIFT));
-
+	total_dram = range_sums >> (20 - PAGE_SHIFT);
 	if (mtrr_chunk_size && mtrr_gran_size) {
 		i = 0;
 		mtrr_calc_range_state(mtrr_chunk_size, mtrr_gran_size,

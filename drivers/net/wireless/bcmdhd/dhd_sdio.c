@@ -623,9 +623,9 @@ const struct cntry_locales_custom ccode_custom_table[] = {
     {"SG", "SG", 0},
     {"TH", "TH", 5},
     {"TR", "TR", 7},
-    {"TW", "CA", 31},
+    {"TW", "CA", 2},
     {"UA", "UA", 8},
-    {"US", "US", 1},
+    {"US", "US", 151},
     {"VN", "VN", 4},
 
 };
@@ -8071,6 +8071,7 @@ dhdsdio_download_nvram(struct dhd_bus *bus)
 		           __FUNCTION__, MAX_NVRAMBUF_SIZE));
 		goto err;
 	}
+    memset(memblock, '\0', MAX_NVRAMBUF_SIZE);
 
 	/* Download variables */
 	if (nvram_file_exists) {
@@ -8144,22 +8145,41 @@ int override_nvram_ccode(char *memblk, char *ccode)
 {
     int size, i;
     char *ccodePrefix = "ccode=", *regrevPrefix = "regrev=";
-    char *retCcodeStr, *retRevStr, rev[3] = {0};
+    char *retCcodeStr, *retRevStr, rev[4] = {0};
 
     size = ARRAYSIZE(ccode_custom_table);
 
     retCcodeStr = strstr(memblk, ccodePrefix);
     retRevStr = strstr(memblk, regrevPrefix);
+
     for (i = 0; i < size; i++) {
         if (strncmp(ccode, ccode_custom_table[i].iso_abbrev, 2) == 0){
-            DHD_ERROR(("%s: ccode_custom_table[%d]\n", __FUNCTION__, i));
+            DHD_ERROR(("%s: ccode_custom_table[%d]:%s/%d\n", __FUNCTION__, i, 
+                        ccode_custom_table[i].custom_locale, ccode_custom_table[i].custom_locale_rev));
             retCcodeStr[6] = ccode_custom_table[i].custom_locale[0];
             retCcodeStr[7] = ccode_custom_table[i].custom_locale[1];
 
-            sprintf(rev, "%02d", ccode_custom_table[i].custom_locale_rev);
-            retRevStr[7] = rev[0];
-            retRevStr[8] = rev[1];
-            return 0;
+            if (strncmp(ccode, "US", 2) != 0) {
+                sprintf(rev, "%02d", ccode_custom_table[i].custom_locale_rev);
+                retRevStr[7] = rev[0];
+                retRevStr[8] = rev[1];
+                return 0;
+            } else {
+                int string_length = strlen(retRevStr) + 1;
+                int j;
+
+                // Shift string
+                for (j = string_length+1; j >= 7; j--){
+                    retRevStr[j] = retRevStr[j-1];
+                }
+
+                sprintf(rev, "%03d", ccode_custom_table[i].custom_locale_rev);
+                retRevStr[7] = rev[0];
+                retRevStr[8] = rev[1];
+                retRevStr[9] = rev[2];
+
+                return 0;
+            }
         }
     }
     DHD_ERROR(("%s: Can not find conutry from ccode_custom_table\n", __FUNCTION__));

@@ -2592,7 +2592,7 @@ void mmc_rescan(struct work_struct *work)
 		//<ASUS_BSP+>
 		if (i == (ARRAY_SIZE(freqs) - 1))
 		{
-			if ((strcmp(mmc_hostname(host), "mmc1") == 0) && (gpio_get_value(77) != 0)) {   //SDIO_CD# is high
+			if ((strcmp(mmc_hostname(host), "mmc1") == 0) /*&& (gpio_get_value(77) != 0)*/) {   //SDIO_CD# is high
 				intel_scu_ipc_ioread8(0xAF, &value);
 				value &= 0xFD;                          //VSWITCHEN Disable
 				intel_scu_ipc_iowrite8(0xAF, value);

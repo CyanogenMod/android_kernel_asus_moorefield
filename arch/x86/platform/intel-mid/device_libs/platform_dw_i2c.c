@@ -40,6 +40,7 @@ static struct i2c_pin_cfg dw_i2c_pin_cfgs[][10] = {
 	},
 	[BOARD_SALTBAY] =  {
 		[1] = {19, 1, 20, 1},
+		[7] = {29, 1, 30, 1},
 	},
 };
 
@@ -54,6 +55,9 @@ int intel_mid_dw_i2c_abort(int busnum)
 		pins = &dw_i2c_pin_cfgs[BOARD_VTB][busnum];
 		break;
 	case INTEL_MID_CPU_CHIP_TANGIER:
+		pins = &dw_i2c_pin_cfgs[BOARD_SALTBAY][busnum];
+		break;
+	case INTEL_MID_CPU_CHIP_ANNIEDALE:
 		pins = &dw_i2c_pin_cfgs[BOARD_SALTBAY][busnum];
 		break;
 	default:

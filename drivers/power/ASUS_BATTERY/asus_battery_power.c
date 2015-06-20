@@ -60,15 +60,10 @@ enum temperature_type{  //unit: 0.1 degree Celsius
 	IN_450_500,
 	IN_500_600,
 	ABOVE_600,
-	BELOW_0, //ZX550ML
-	IN_0_100,
-	IN_100_450,
-	IN_450_550,
-	ABOVE_550,
 };
 static int temp_type=IN_200_400;
-static int hvdcp_vbat_flag=0, highchgvol_flag=0;
-extern int hvdcp_mode, dcp_mode, early_suspend_flag;
+static int hvdcp_vbat_flag=0, highchgvol_flag=0, aicl_set_flag=0;
+extern int hvdcp_mode, dcp_mode, early_suspend_flag, set_usbin_cur_flag;
 #endif
 #ifdef THERMAL_CTRL
 static int qc_disable=1, temp_1400=60000, temp_700=65000, temp_0=70000;
@@ -84,6 +79,11 @@ static int current_type=LIMIT_NONE;
 
 #ifdef CONFIG_LEDS_ASUS
 extern void led_brightness_set(int led, int brightness);
+#endif
+
+#define FULL_CHARGED_SOC
+#ifdef FULL_CHARGED_SOC
+static int pre_soc=0, full_charged_flag=0;
 #endif
 
 DEFINE_MUTEX(batt_info_mutex);
@@ -697,308 +697,295 @@ static int asus_battery_update_status_no_mutex(int percentage)
 #endif
 
 #ifdef CONFIG_SMB1357_CHARGER
-		//BAT_DBG("smb1357!!!!!%s\n",__func__);
-/*
-		if(cable_status == USB_ADAPTER) {
-			if((dcp_mode==1)&&(smb1357_get_aicl_result() < 0x0d)) {
-				BAT_DBG("DCP in and aicl result < 1200mA, set current again!\n");
-				smb1357_AC_in_current();
-			}else if((dcp_mode==2)&&(smb1357_get_aicl_result() < 0x0b)) {
-				BAT_DBG("other charging port in and aicl result < 1000mA, set current again!\n");
-				smb1357_AC_in_current();
-			}else if(smb1357_get_aicl_result() < 0x04) {
-				BAT_DBG("adaptor in and aicl result < 500mA, set current again!\n");
-				smb1357_AC_in_current();
+		/* read aicl if needed to set input current*/
+		vbat = asus_battery_update_voltage_no_mutex();
+		if((cable_status == USB_ADAPTER)&&(dcp_mode==1)&&(aicl_set_flag==0)) {
+			if(hvdcp_mode==1) {
+				if(Read_PROJ_ID()==PROJ_ID_ZX550ML) {
+					if((smb1357_get_aicl_result()>=0x0b)&&(smb1357_get_aicl_result()<0x12)) {
+						BAT_DBG("HVDCP in and aicl result between 1000~1800mA\n");
+						if(set_usbin_cur_flag==1) {
+							BAT_DBG("setting step current now so ignore!\n");
+						}else {
+							BAT_DBG("set current again!\n");
+							set_QC_inputI_limit(3);
+							aicl_set_flag = 1;
+						}
+					}
+				}else {
+					if((smb1357_get_aicl_result()>=0x0d)&&(smb1357_get_aicl_result()<0x12)) {
+						BAT_DBG("HVDCP in and aicl result between 1200~1800mA\n");
+						if(set_usbin_cur_flag==1) {
+							BAT_DBG("setting step current now so ignore!\n");
+						}else {
+							BAT_DBG("set current again!\n");
+							set_QC_inputI_limit(2);
+							aicl_set_flag = 1;
+						}
+					}
+				}
+			}else {
+				if(Read_PROJ_ID()==PROJ_ID_ZX550ML) {
+					if((smb1357_get_aicl_result()>=0x0b)&&(smb1357_get_aicl_result()<0x10)) {
+						BAT_DBG("DCP in and aicl result between 1000~1500mA\n");
+						if(set_usbin_cur_flag==1) {
+							BAT_DBG("setting step current now so ignore!\n");
+						}else {
+							BAT_DBG("set current again!\n");
+							set_QC_inputI_limit(3);
+							aicl_set_flag = 1;
+						}
+					}else if( (vbat>4300)||(percentage>70) ) {
+						BAT_DBG("DCP in and vbat >4.3V  or soc > 70 \n");
+						if(set_usbin_cur_flag==1) {
+							BAT_DBG("setting step current now so ignore!\n");
+						}else {
+							BAT_DBG("set current again!\n");
+							set_QC_inputI_limit(3);
+							aicl_set_flag = 1;
+						}
+					}
+				}
 			}
 		}
-*/
-		/* read voltage to set recharge voltage*/
-		vbat = asus_battery_update_voltage_no_mutex();
 		
 		/*JEITA rule*/
 		temperature = asus_battery_update_temp_no_mutex();
 		BAT_DBG("get temperature:%d from gauge\n",temperature);
 
-		if(Read_PROJ_ID()==PROJ_ID_ZX550ML) {
-			/*ZX550ML*/
-			/* set recharge voltage */
-			if(vbat < 4250)
-				smb1357_set_recharge(true);
-			else
-				smb1357_set_recharge(false);
-			if ((temperature != ERROR_CODE_I2C_FAILURE)&&(tmp_batt_info.thermal_charging_limit)) {
-				if (temperature <0) {
+		/*ZE550ML/ZE551ML/ZX550ML*/
+		if ((temperature != ERROR_CODE_I2C_FAILURE)&&(tmp_batt_info.thermal_charging_limit)) {
+			if (temperature < 15) {
+				smb1357_set_voltage(false);
+				highchgvol_flag = 0;
+				smb1357_charging_toggle(false);
+				status = POWER_SUPPLY_STATUS_DISCHARGING;
+				temp_type = BELOW_15;
+				goto final;
+			}
+			if( temperature >=15 && temperature <100){
+				if(temp_type<=BELOW_15&&temperature<45){
 					smb1357_set_voltage(false);
 					highchgvol_flag = 0;
-					smb1357_set_Ichg(400);
 					smb1357_charging_toggle(false);
 					status = POWER_SUPPLY_STATUS_DISCHARGING;
-					temp_type = BELOW_0;
 					goto final;
-				}
-				if( temperature >=0 && temperature <100){
-					if(temp_type==BELOW_0&&temperature<30){
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_set_Ichg(400);
-						smb1357_charging_toggle(false);
-						status = POWER_SUPPLY_STATUS_DISCHARGING;
-						goto final;
-					}else{
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_set_Ichg(400);
-						smb1357_charging_toggle(true);
-						temp_type = IN_0_100;
+				}else{
+					smb1357_set_voltage(false);
+					highchgvol_flag = 0;
+					smb1357_set_Ichg(700);
+					smb1357_charging_toggle(true);
+					temp_type = IN_15_100;
+					if(hvdcp_mode==1) {
+						if(percentage<=70)
+							status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
+						else
+							status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
 					}
 				}
-				if( temperature >=100 && temperature <450){
-					if(temp_type==IN_0_100&&temperature<130){
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_set_Ichg(400);
-						smb1357_charging_toggle(true);
-					}else if(temp_type==IN_450_550&&temperature>420){
-					    goto handle450_550;
-					}else{
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						if(hvdcp_mode==1) {
-							BAT_DBG("HVDCP mode in 20 - 50 oC!hvdcp_vbat_flag=%d\n", hvdcp_vbat_flag);
-							if(vbat<4200) {
-								if(hvdcp_vbat_flag) {
-									if(vbat<4000) {
-										smb1357_set_Ichg(2050);
-									hvdcp_vbat_flag = 0;
-									}
-								}else {
-									smb1357_set_Ichg(2050);
+				/*recharge*/
+				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+					smb1357_charging_toggle(false);
+					smb1357_charging_toggle(true);
+				}
+			}
+			if( temperature >=100 && temperature <200){
+				if(temp_type<=IN_15_100&&temperature<130){
+					smb1357_set_voltage(false);
+					highchgvol_flag = 0;
+					smb1357_set_Ichg(700);
+					smb1357_charging_toggle(true);
+				}else{
+					smb1357_set_voltage(false);
+					highchgvol_flag = 0;
+					if(hvdcp_mode==1) {
+						smb1357_set_Ichg(1400);
+						if(percentage<=70)
+							status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
+						else
+							status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
+					} else {
+						if(Read_PROJ_ID()==PROJ_ID_ZX550ML)
+							smb1357_set_Ichg(2000);
+						else
+							smb1357_set_Ichg(2800);
+					}
+					smb1357_charging_toggle(true);
+					temp_type = IN_100_200;
+				}
+				/*recharge*/
+				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+					smb1357_charging_toggle(false);
+					smb1357_charging_toggle(true);
+				}
+			}
+			if( temperature >=200 && temperature <400){
+				if(temp_type<=IN_100_200&&temperature<230){
+					smb1357_set_voltage(false);
+					highchgvol_flag = 0;
+					smb1357_set_Ichg(1400);
+					smb1357_charging_toggle(true);
+				}else if(temp_type>=IN_400_450&&temperature>370){
+				    goto handle400_450;
+				}else{
+					smb1357_set_voltage(false);
+					highchgvol_flag = 0;
+					if(hvdcp_mode==1) {
+						BAT_DBG("HVDCP mode in 20 - 40 oC! hvdcp_vbat_flag=%d\n", hvdcp_vbat_flag);
+						if(vbat<4250) {
+							if(hvdcp_vbat_flag) {
+								if(vbat<4100) {
+									smb1357_set_Ichg(2800);
+								hvdcp_vbat_flag = 0;
 								}
 							}else {
-								smb1357_set_Ichg(1000);
-								hvdcp_vbat_flag = 1;
+								smb1357_set_Ichg(2800);
 							}
-							status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
 						}else {
-							smb1357_set_Ichg(1000);
+							smb1357_set_Ichg(1400);
+							hvdcp_vbat_flag = 1;
 						}
-						smb1357_charging_toggle(true);
-						temp_type = IN_100_450;
+						if(percentage<=70)
+							status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
+						else
+							status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
+					}else {
+						if(Read_PROJ_ID()==PROJ_ID_ZX550ML)
+							smb1357_set_Ichg(2000);
+						else
+							smb1357_set_Ichg(2800);
 					}
+					smb1357_charging_toggle(true);
+					temp_type = IN_200_400;
 				}
-				if(temperature >=450 && temperature <550){
-handle450_550:
-					if(((highchgvol_flag==0)&&(vbat>4000))||(temp_type==ABOVE_550&&temperature>520)){
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_charging_toggle(false);
-						status = POWER_SUPPLY_STATUS_DISCHARGING;
-						goto final;
-					}else{
-						smb1357_set_voltage(true);
-						highchgvol_flag = 1;
-						smb1357_set_Ichg(1000);
-						smb1357_charging_toggle(true);
-						temp_type = IN_450_550;
+				/*recharge*/
+				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+					smb1357_charging_toggle(false);
+					smb1357_charging_toggle(true);
+				}
+			}
+			if( temperature >=400 && temperature <450){
+				if(temp_type>=IN_450_500&&temperature>420){
+				    goto handle450_500;
+				}else{
+handle400_450:
+					smb1357_set_voltage(false);
+					highchgvol_flag = 0;
+					if(hvdcp_mode==1) {
+						BAT_DBG("HVDCP mode in 40 - 45 oC! hvdcp_vbat_flag=%d\n", hvdcp_vbat_flag);
+						if(vbat<4250) {
+							if(hvdcp_vbat_flag) {
+								if(vbat<4100) {
+									smb1357_set_Ichg(2500);
+								hvdcp_vbat_flag = 0;
+								}
+							}else {
+								smb1357_set_Ichg(2500);
+							}
+						}else {
+							smb1357_set_Ichg(1400);
+							hvdcp_vbat_flag = 1;
+						}
+						if(percentage<=70)
+							status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
+						else
+							status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
+					}else {
+						if(Read_PROJ_ID()==PROJ_ID_ZX550ML)
+							smb1357_set_Ichg(2000);
+						else
+							smb1357_set_Ichg(2800);
 					}
+					smb1357_charging_toggle(true);
+					temp_type = IN_400_450;
 				}
-				if(temperature >=550){
+				/*recharge*/
+				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+					smb1357_charging_toggle(false);
+					smb1357_charging_toggle(true);
+				}
+			}
+			if( temperature >=450 && temperature <500){
+				if(temp_type>=IN_500_600&&temperature>470){
+				    goto handle500_600;
+				}else{
+handle450_500:
+					smb1357_set_voltage(false);
+					highchgvol_flag = 0;
+					if(hvdcp_mode==1) {
+						BAT_DBG("HVDCP mode in 45 - 50 oC! hvdcp_vbat_flag=%d\n", hvdcp_vbat_flag);
+						if(vbat<4250) {
+							if(hvdcp_vbat_flag) {
+								if(vbat<4100) {
+									smb1357_set_Ichg(2300);
+								hvdcp_vbat_flag = 0;
+								}
+							}else {
+								smb1357_set_Ichg(2300);
+							}
+						}else {
+							smb1357_set_Ichg(1400);
+							hvdcp_vbat_flag = 1;
+						}
+						if(percentage<=70)
+							status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
+						else
+							status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
+					}else {
+						if(Read_PROJ_ID()==PROJ_ID_ZX550ML)
+							smb1357_set_Ichg(2000);
+						else
+							smb1357_set_Ichg(2800);
+					}
+					smb1357_charging_toggle(true);
+					temp_type = IN_450_500;
+				}
+				/*recharge*/
+				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+					smb1357_charging_toggle(false);
+					smb1357_charging_toggle(true);
+				}
+			}
+			if(temperature >=500 && temperature <600){
+handle500_600:
+				if(((highchgvol_flag==0)&&(vbat>4100))||(temp_type>=ABOVE_600&&temperature>570)){
+					smb1357_set_voltage(false);
+					highchgvol_flag = 0;
+					smb1357_charging_toggle(false);
+					status = POWER_SUPPLY_STATUS_DISCHARGING;
+					goto final;
+				}else{
 					smb1357_set_voltage(true);
 					highchgvol_flag = 1;
-					smb1357_charging_toggle(false);
-					temp_type = ABOVE_550;
-					status = POWER_SUPPLY_STATUS_DISCHARGING;
-					goto final;
-				}
-			}else if(temperature != ERROR_CODE_I2C_FAILURE) {
-				/*thermal protection off*/
-				smb1357_set_voltage(false);
-				highchgvol_flag = 0;
-				smb1357_charging_toggle(true);
-			}
-		}else {
-			/*ZE550ML/ZE551ML*/
-			/* set recharge voltage */
-			if(percentage <= 95)
-				smb1357_set_recharge(true);
-			else
-				smb1357_set_recharge(false);
-			if ((temperature != ERROR_CODE_I2C_FAILURE)&&(tmp_batt_info.thermal_charging_limit)) {
-				if (temperature < 15) {
-					smb1357_set_voltage(false);
-					highchgvol_flag = 0;
-					smb1357_charging_toggle(false);
-					status = POWER_SUPPLY_STATUS_DISCHARGING;
-					temp_type = BELOW_15;
-					goto final;
-				}
-				if( temperature >=15 && temperature <100){
-					if(temp_type<=BELOW_15&&temperature<45){
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_charging_toggle(false);
-						status = POWER_SUPPLY_STATUS_DISCHARGING;
-						goto final;
-					}else{
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_set_Ichg(700);
-						smb1357_charging_toggle(true);
-						temp_type = IN_15_100;
-					}
-				}
-				if( temperature >=100 && temperature <200){
-					if(temp_type<=IN_15_100&&temperature<130){
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_set_Ichg(700);
-						smb1357_charging_toggle(true);
-					}else{
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_set_Ichg(1400);
-						smb1357_charging_toggle(true);
-						temp_type = IN_100_200;
-					}
-				}
-				if( temperature >=200 && temperature <400){
-					if(temp_type<=IN_100_200&&temperature<230){
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_set_Ichg(1400);
-						smb1357_charging_toggle(true);
-					}else if(temp_type>=IN_400_450&&temperature>370){
-					    goto handle400_450;
-					}else{
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						if(hvdcp_mode==1) {
-							BAT_DBG("HVDCP mode in 20 - 40 oC! hvdcp_vbat_flag=%d\n", hvdcp_vbat_flag);
-							if(vbat<4250) {
-								if(hvdcp_vbat_flag) {
-									if(vbat<4100) {
-										smb1357_set_Ichg(2800);
-									hvdcp_vbat_flag = 0;
-									}
-								}else {
-									smb1357_set_Ichg(2800);
-								}
-							}else {
-								smb1357_set_Ichg(1400);
-								hvdcp_vbat_flag = 1;
-							}
-							if(percentage<=70)
-								status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
-							else
-								status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
-						}else {
-							smb1357_set_Ichg(1400);
-						}
-						smb1357_charging_toggle(true);
-						temp_type = IN_200_400;
-					}
-				}
-				if( temperature >=400 && temperature <450){
-					if(temp_type>=IN_450_500&&temperature>420){
-					    goto handle450_500;
-					}else{
-handle400_450:
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						if(hvdcp_mode==1) {
-							BAT_DBG("HVDCP mode in 40 - 45 oC! hvdcp_vbat_flag=%d\n", hvdcp_vbat_flag);
-							if(vbat<4250) {
-								if(hvdcp_vbat_flag) {
-									if(vbat<4100) {
-										smb1357_set_Ichg(2500);
-									hvdcp_vbat_flag = 0;
-									}
-								}else {
-									smb1357_set_Ichg(2500);
-								}
-							}else {
-								smb1357_set_Ichg(1400);
-								hvdcp_vbat_flag = 1;
-							}
-							if(percentage<=70)
-								status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
-							else
-								status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
-						}else {
-							smb1357_set_Ichg(1400);
-						}
-						smb1357_charging_toggle(true);
-						temp_type = IN_400_450;
-					}
-				}
-				if( temperature >=450 && temperature <500){
-					if(temp_type>=IN_500_600&&temperature>470){
-					    goto handle500_600;
-					}else{
-handle450_500:
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						if(hvdcp_mode==1) {
-							BAT_DBG("HVDCP mode in 45 - 50 oC! hvdcp_vbat_flag=%d\n", hvdcp_vbat_flag);
-							if(vbat<4250) {
-								if(hvdcp_vbat_flag) {
-									if(vbat<4100) {
-										smb1357_set_Ichg(2300);
-									hvdcp_vbat_flag = 0;
-									}
-								}else {
-									smb1357_set_Ichg(2300);
-								}
-							}else {
-								smb1357_set_Ichg(1400);
-								hvdcp_vbat_flag = 1;
-							}
-							if(percentage<=70)
-								status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
-							else
-								status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
-						}else {
-							smb1357_set_Ichg(1400);
-						}
-						smb1357_charging_toggle(true);
-						temp_type = IN_450_500;
-					}
-				}
-				if(temperature >=500 && temperature <600){
-handle500_600:
-					if(((highchgvol_flag==0)&&(vbat>4100))||(temp_type>=ABOVE_600&&temperature>570)){
-						smb1357_set_voltage(false);
-						highchgvol_flag = 0;
-						smb1357_charging_toggle(false);
-						status = POWER_SUPPLY_STATUS_DISCHARGING;
-						goto final;
-					}else{
-						smb1357_set_voltage(true);
-						highchgvol_flag = 1;
-						/* set recharge voltage */
-						if(vbat < 4000)
-							smb1357_set_recharge(true);
+					/* set recharge voltage */
+					if(vbat < 4000)
+						smb1357_set_recharge(true);
+					else
+						smb1357_set_recharge(false);
+					smb1357_set_Ichg(1400);
+					smb1357_charging_toggle(true);
+					temp_type = IN_500_600;
+					if(hvdcp_mode==1) {
+						if(percentage<=70)
+							status = POWER_SUPPLY_STATUS_QUICK_CHARGING;
 						else
-							smb1357_set_recharge(false);
-						smb1357_set_Ichg(1400);
-						smb1357_charging_toggle(true);
-						temp_type = IN_500_600;
+							status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
 					}
 				}
-				if(temperature >=600){
-					smb1357_set_voltage(false);
-					highchgvol_flag = 0;
-					smb1357_charging_toggle(false);
-					temp_type = ABOVE_600;
-					status = POWER_SUPPLY_STATUS_DISCHARGING;
-					goto final;
-				}
-			}else if(temperature != ERROR_CODE_I2C_FAILURE) {
-				/*thermal protection off*/
+			}
+			if(temperature >=600){
 				smb1357_set_voltage(false);
 				highchgvol_flag = 0;
-				smb1357_charging_toggle(true);
+				smb1357_charging_toggle(false);
+				temp_type = ABOVE_600;
+				status = POWER_SUPPLY_STATUS_DISCHARGING;
+				goto final;
 			}
+		}else if(temperature != ERROR_CODE_I2C_FAILURE) {
+			/*thermal protection off*/
+			smb1357_set_voltage(false);
+			highchgvol_flag = 0;
+			smb1357_charging_toggle(true);
 		}
 #endif
 
@@ -1059,28 +1046,24 @@ handle500_600:
 #endif
 #ifdef THERMAL_CTRL
 #ifdef CONFIG_SMB1357_CHARGER
-		/*for QC thermal shutdown issue, so add monitoring SYSTHERM2 function*/
-		if(qc_disable&&hvdcp_mode&&(!early_suspend_flag)) {
+		/*for QC thermal shutdown issue, so add monitoring SYSTHERM2 function for ZE550ML/ZE551ML*/
+		if(qc_disable&&hvdcp_mode&&(!early_suspend_flag)&&(Read_PROJ_ID()!=PROJ_ID_ZX550ML)) {
 			if(systherm2_temp<temp_1400) {
 				if(current_type>=LIMIT_1400 && systherm2_temp>(temp_1400-3000)) {
-					set_QC_inputI_limit(false);
 					smb1357_set_voltage(false);
 					smb1357_set_Ichg(1400);
 					smb1357_charging_toggle(true);
 					current_type=LIMIT_1400;
 				}else {
-					set_QC_inputI_limit(true);
 					current_type=LIMIT_NONE;
 				}
 			}else if(systherm2_temp>=temp_1400 && systherm2_temp<temp_700) {
 				if(current_type>=LIMIT_700 && systherm2_temp>(temp_700-3000)) {
-					set_QC_inputI_limit(false);
 					smb1357_set_voltage(false);
 					smb1357_set_Ichg(700);
 					smb1357_charging_toggle(true);
 					current_type=LIMIT_700;
 				}else {
-					set_QC_inputI_limit(false);
 					smb1357_set_voltage(false);
 					smb1357_set_Ichg(1400);
 					smb1357_charging_toggle(true);
@@ -1094,7 +1077,6 @@ handle500_600:
 					status = POWER_SUPPLY_STATUS_DISCHARGING;
 					goto final;
 				}else {
-					set_QC_inputI_limit(false);
 					smb1357_set_voltage(false);
 					smb1357_set_Ichg(700);
 					smb1357_charging_toggle(true);
@@ -1115,6 +1097,9 @@ handle500_600:
                     switch (percentage) {
                        case 100:
                           status = POWER_SUPPLY_STATUS_FULL;
+#ifdef FULL_CHARGED_SOC
+			full_charged_flag = 1;
+#endif
                           break;
                        case 99:
 #if defined(CONFIG_A500CG_BATTERY_SMB347)
@@ -1127,6 +1112,9 @@ handle500_600:
                              //check if Full-charged is detected
                              BAT_DBG("Full-charged is detected when in 99%% !\n");
                              status = POWER_SUPPLY_STATUS_FULL;
+#ifdef FULL_CHARGED_SOC
+				full_charged_flag = 1;
+#endif
                           } else {
                              //smb347_charging_toggle(true);
                           }
@@ -1141,6 +1129,9 @@ handle500_600:
                 }
         } else {
                         status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+#ifdef CONFIG_SMB1357_CHARGER
+			aicl_set_flag = 0;
+#endif
         }
 
 final:
@@ -1244,6 +1235,23 @@ static void asus_battery_get_info_no_mutex(void)
         if (battery_remaining_capacity < 0) battery_remaining_capacity = 0;
         battery_current            = tmp_batt_info.batt_current;
 
+#ifdef FULL_CHARGED_SOC
+	BAT_DBG("WA for full-charged issue, full_charged_flag=%d, pre_soc=%d, percentage=%d, cable_status=%d\n", full_charged_flag, pre_soc, tmp_batt_info.percentage, tmp_batt_info.cable_status);
+	if (tmp_batt_info.cable_status == NO_CABLE)
+		full_charged_flag = 0;
+	if ((full_charged_flag==1)&&(tmp_batt_info.cable_status ==USB_ADAPTER)&&(tmp_batt_info.percentage>=98)) {
+		tmp_batt_info.percentage = 100;
+		tmp_batt_info.status = POWER_SUPPLY_STATUS_FULL;
+	} else if (pre_soc!=0) {
+		if(pre_soc >= (tmp_batt_info.percentage+2)) {
+			tmp_batt_info.percentage = tmp_batt_info.percentage + 1;
+		}else if((pre_soc+2) <= tmp_batt_info.percentage) {
+			tmp_batt_info.percentage = tmp_batt_info.percentage - 1;
+		}
+	}
+	pre_soc = tmp_batt_info.percentage;
+#endif
+
 	printk(KERN_WARNING "[BATT] battery info (P:%d %%, V:%d mV, C:%d mA, T:%d C)\n",
                 tmp_batt_info.percentage,
                 tmp_batt_info.batt_volt,
@@ -1342,16 +1350,16 @@ void usb_to_battery_callback(u32 usb_cable_state)
                 smb347_AC_in_current();
             }
 #elif defined(CONFIG_SMB1357_CHARGER)
-            if (batt_info.cable_status == USB_ADAPTER) {
 		smb1357_set_fast_charge();
 		smb1357_charging_toggle(false); // for not charging when almost full battery workaround
 		smb1357_set_voltage(false);
 		smb1357_charging_toggle(true); // for not charging when almost full battery workaround
 		smb1357_watchdog_timer_enable();
-                //smb1357_AC_in_current();
-            }
-            highchgvol_flag = 0;
-            smb1357_control_JEITA(true);
+		if ((batt_info.cable_status == USB_ADAPTER)&&(Read_PROJ_ID()!=PROJ_ID_ZX550ML)) {
+			smb1357_AC_in_current();
+		}
+		highchgvol_flag = 0;
+		smb1357_control_JEITA(true);
 #endif
         }
 
@@ -1380,10 +1388,14 @@ void usb_to_battery_callback(u32 usb_cable_state)
                 }
             }
         }
-
         mutex_unlock(&batt_info_mutex);
 
         queue_delayed_work(battery_work_queue, &detect_cable_work, 0.1*HZ);
+#if defined(CONFIG_SMB1357_CHARGER)
+	if ((batt_info.cable_status == USB_ADAPTER)&&(Read_PROJ_ID()==PROJ_ID_ZX550ML)) {
+		smb1357_AC_in_current();
+	}
+#endif
 }
 EXPORT_SYMBOL(usb_to_battery_callback);
 

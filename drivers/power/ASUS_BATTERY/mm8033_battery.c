@@ -115,6 +115,7 @@ struct mm8033_chip {
 
 /* global variables */
 extern int Read_HW_ID(void);
+extern int Read_PROJ_ID(void);
 static struct switch_dev mm8033_batt_dev;
 static struct dev_func mm8033_tbl;
 static struct mm8033_chip *g_mm8033_chip;
@@ -930,11 +931,11 @@ int mm8033_read_percentage(void)
 		return 50;
 	}else {
 		//GAUGE_INFO("percentage = %d\n", soc / 256);
-		/*if > 99.5%(256*99.5), set to 100%*/
-		if (soc>=25472)
+		/*>.5% + 1%*/
+		if (((soc+127) / 256)>100)
 			return 100;
 		else
-			return soc / 256;
+			return (soc+127) / 256;
 	}
 }
 int mm8033_read_current(void)
@@ -987,10 +988,10 @@ int mm8033_read_fcc(void)
 
 	if (fcc < 0) {
 		GAUGE_ERR("error in reading battery fcc = 0x%04x\n", fcc);
-		return 2000;
+		return 3000;
 	}else {
 		//GAUGE_INFO("fcc = %d\n", fcc);
-		return fcc;
+		return 3000;
 	}
 }
 int mm8033_read_rm(void)
@@ -999,7 +1000,7 @@ int mm8033_read_rm(void)
 
 	if (rm < 0) {
 		GAUGE_ERR("error in reading battery rm = 0x%04x\n", rm);
-		return 1000;
+		return 1500;
 	}else {
 		//GAUGE_INFO("rm = %d\n", rm);
 		return rm;
@@ -1009,8 +1010,12 @@ int mm8033_read_rm(void)
 
 static void batt_state_func(struct work_struct *work)
 {
+	u8 buf[8];
 
 	GAUGE_INFO("%s +++ in every 60s \n",__func__);
+	mm8033_readx_reg(g_mm8033_chip->client, 0xBE, buf, (u16)8);
+	parameter_version = ((buf[7] & 0xff) << 8) | (buf[6] & 0xff);
+	battery_ctrlcode = ((buf[5] & 0xff) << 8) | (buf[4] & 0xff);
 	GAUGE_INFO("0x00=0x%04x, 0x06=0x%04x, 0x08=0x%04x, 0x09=0x%04x, 0x0A=0x%04x, 0x0C=0x%04x, 0x10=0x%04x, 0x17=0x%04x, 0x18=0x%04x, 0x1D=0x%04x, 0x23=0x%04x\n",
 				  mm8033_read_reg(g_mm8033_chip->client, REG_STATUS),
 				  mm8033_read_reg(g_mm8033_chip->client, REG_SOC),
@@ -1141,7 +1146,7 @@ static int mm8033_probe(struct i2c_client *client, const struct i2c_device_id *i
 			GAUGE_ERR("asus_battery_init fail\n");
 	}
 #else
-	for(i=0;i<5;i++) {
+	for(i=0;i<1;i++) {
 		if (ret) {
 			GAUGE_ERR("error in checkdevice with ret: %d in loop %d\n", ret, i);
 			msleep(50);
@@ -1222,9 +1227,12 @@ static int __init mm8033_init(void)
 {
 	int ret;
 
-	GAUGE_INFO("%s ++\n", __func__);
+	GAUGE_INFO("%s +++\n", __func__);
 	if(Read_HW_ID()==HW_ID_EVB) {
 		GAUGE_INFO("HW version is EVB, so donot init\n");
+		return 0;
+	}else if (Read_PROJ_ID()==PROJ_ID_ZX550ML) {
+		GAUGE_INFO("Project version is ZX550ML, so donot init\n");
 		return 0;
 	}
 
@@ -1236,6 +1244,8 @@ static int __init mm8033_init(void)
 	if (ret)
 		GAUGE_ERR("%s: i2c_register_board_info failed\n", __func__);
 #endif
+
+	GAUGE_INFO("%s ---\n", __func__);
 	return ret;
 }
 late_initcall(mm8033_init);

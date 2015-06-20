@@ -9,3 +9,4 @@ obj-$(CONFIG_BATTERY_MM8033)		+= mm8033_battery.o
 obj-$(CONFIG_SMB1357_CHARGER)		+= smb1357_charger.o
 obj-$(CONFIG_A500CG_BATTERY_SMB347)	+= battery_smb347.o
 obj-$(CONFIG_ASUS_BATTERY_POWER)        += asus_battery_power.o
+obj-$(CONFIG_BATTERY_MAX17058)      	+= max17058_battery.o

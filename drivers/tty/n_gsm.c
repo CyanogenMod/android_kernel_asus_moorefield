@@ -2117,7 +2117,6 @@ static int gsm_add_one_mux_entry(struct gsm_mux *gsm)
 		pr_debug(DRVNAME": Config exists\n");
 		p = strstr(mux_base_config, gsm->tty->name);
 		if (p != NULL) {
-			pr_err(DRVNAME": Config=%s, gsm->tty->name=%s\n", mux_base_config, gsm->tty->name);
 			if (sscanf(p+strlen(gsm->tty->name)+1, "%d", &i) != 1) {
 				pr_err(DRVNAME": Config not correct, abort : %s - %s - %s\n",
 						gsm->tty->name, p, p+strlen(gsm->tty->name) + 1);
@@ -2131,11 +2130,8 @@ static int gsm_add_one_mux_entry(struct gsm_mux *gsm)
 			if (gsm_mux[i] != NULL) {
 				spin_unlock(&gsm_mux_lock);
 				pr_err(DRVNAME": Mux base %d already taken, abort\n", i);
-				WARN_ON(1);
 				return -EBUSY;
 			}
-			pr_err(DRVNAME": Assign mux base %d\n", i);
-			WARN_ON(1);
 			gsm->num = i;
 			gsm_mux[i] = gsm;
 			spin_unlock(&gsm_mux_lock);

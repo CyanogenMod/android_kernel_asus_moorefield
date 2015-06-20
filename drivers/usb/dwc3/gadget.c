@@ -273,9 +273,14 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 
 	if (dwc->ep0_bounced && dep->number == 0)
 		dwc->ep0_bounced = false;
-	else if (!dep->ebc)
+	else if (!dep->ebc) {
+		if (req->roundup_size) {
+			req->request.length -= req->roundup_size;
+			req->roundup_size = 0;
+		}
 		usb_gadget_unmap_request(&dwc->gadget, &req->request,
 				req->direction);
+	}
 
 	dev_dbg(dwc->dev, "request %p from %s completed %d/%d ===> %d\n",
 			req, dep->name, req->request.actual,
@@ -1239,9 +1244,14 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 		 * here and stop, unmap, free and del each of the linked
 		 * requests instead of what we do now.
 		 */
-		if (!dep->ebc)
+		if (!dep->ebc) {
+			if (req->roundup_size) {
+				req->request.length -= req->roundup_size;
+				req->roundup_size = 0;
+			}
 			usb_gadget_unmap_request(&dwc->gadget, &req->request,
 					req->direction);
+		}
 		list_del(&req->list);
 		return ret;
 	}
@@ -1308,9 +1318,12 @@ static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
 
 static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 {
-	struct dwc3		*dwc = dep->dwc;
 	int			ret;
+	struct dwc3		*dwc = dep->dwc;
+	struct usb_ep *ep = &dep->endpoint;
+	struct usb_request              *request = &req->request;
 
+	req->roundup_size = 0;
 	req->request.actual	= 0;
 	req->request.status	= -EINPROGRESS;
 	req->direction		= dep->direction;
@@ -1355,6 +1368,22 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 			dep->direction);
 	if (ret)
 		return ret;
+
+	/* We cheat controller that our buffer aligned with wMaxPacketSize.
+	 * The controller will never touch the extended part due to gadget driver
+	 * know the exact data size will be received.
+	 */
+	if (!IS_ALIGNED(request->length, ep->desc->wMaxPacketSize)
+			&& !(dep->number & 1) && (dep->number != DWC3_EP_EBC_OUT_NB)) {
+		unsigned len;
+		len = roundup(request->length,
+				(u32) ep->desc->wMaxPacketSize);
+		req->roundup_size = len - request->length;
+		request->length = len;
+		/* set flag for bulk-out short request */
+		if (usb_endpoint_is_bulk_out(dep->endpoint.desc))
+			req->short_packet = true;
+	}
 
 	list_add_tail(&req->list, &dep->request_list);
 
@@ -1438,17 +1467,6 @@ static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 	}
 	dev_vdbg(dwc->dev, "queing request %p to %s length %d\n",
 			request, ep->name, request->length);
-
-	/* pad OUT endpoint buffer to MaxPacketSize per databook requirement*/
-	req->short_packet = false;
-	if (!IS_ALIGNED(request->length, ep->desc->wMaxPacketSize)
-		&& !(dep->number & 1) && (dep->number != DWC3_EP_EBC_OUT_NB)) {
-		request->length = roundup(request->length,
-					(u32) ep->desc->wMaxPacketSize);
-		/* set flag for bulk-out short request */
-		if (usb_endpoint_is_bulk_out(dep->endpoint.desc))
-			req->short_packet = true;
-	}
 
 	ret = __dwc3_gadget_ep_queue(dep, req);
 	spin_unlock_irqrestore(&dwc->lock, flags);

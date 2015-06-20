@@ -113,6 +113,8 @@ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 	void *ret;
 
 	flags |= (__GFP_COMP | __GFP_KMEMCG);
+	/* Force allocate large buffer from DMA32 zone */
+	flags |= __GFP_DMA32;
 	ret = (void *) __get_free_pages(flags, order);
 	kmemleak_alloc(ret, size, 1, flags);
 	return ret;

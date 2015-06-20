@@ -2291,6 +2291,8 @@ struct rt5647_priv {
 	int dsp_sw; /* expected parameter setting */
 	bool dsp_play_pass;
 	bool dsp_rec_pass;
+
+	struct rt5647_custom_config *custom_cfg;
 };
 
 int rt5647_headset_detect(struct snd_soc_codec *codec, int jack_insert);

@@ -50,11 +50,11 @@ void *sky81296_platform_data_func(void *info)
 	platform_sky81296_data.fl1_by_pin = true;
 	platform_sky81296_data.fl2_by_pin = true;
 	platform_sky81296_data.current_limit = 2600;
-	platform_sky81296_data.disable_short_led_report = true;
+	platform_sky81296_data.disable_short_led_report = false;
 	platform_sky81296_data.shutoff_on_inhibit_mode = true;
 	platform_sky81296_data.enable_voltage_monitor = true;
-	platform_sky81296_data.input_voltage_threshold = 3400;
-	platform_sky81296_data.input_voltage_hysteresis = 3500;
+	platform_sky81296_data.input_voltage_threshold = 3300;
+	platform_sky81296_data.input_voltage_hysteresis = 3400;
 	printk("sky81296_platform_data_func\n");
 	return &platform_sky81296_data;
 }

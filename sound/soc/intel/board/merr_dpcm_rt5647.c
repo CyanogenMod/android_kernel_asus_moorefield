@@ -48,6 +48,7 @@
 #include "../../codecs/rt5647.h"
 #include "../platform-libs/controls_v2_dpcm.h"
 #include <linux/lnw_gpio.h>
+#include <linux/HWVersion.h>
 
 #define DEFAULT_MCLK       (19200000)
 
@@ -55,6 +56,7 @@
 #define PCB_PRE_PR 4
 #define PCB_MP 7
 extern int Read_HW_ID(void);
+extern int Read_PROJ_ID(void);
 
 static unsigned int codec_clk_rate = (48000 * 512);
 static struct class* headset_class;
@@ -62,10 +64,15 @@ static struct device* headset_dev;
 static struct class* gpio_userCtrl_class;
 static struct device* gpio_userCtrl_dev;
 int headset_state;
+int uart_gpio = 121;
 int button_play_status = 0;
 int mrfld_play_enable = 0;
 int mrfld_hs_enable = 0;
 int mrfld_hs_status = 0;
+
+/* get audio android mode is incall or not */
+bool is_incall;
+
 /* Register address for OSC Clock */
 #define MERR_OSC_CLKOUT_CTRL0_REG_ADDR  0xFF00BC04
 /* Size of osc clock register */
@@ -498,7 +505,9 @@ static int mrfld_jack_gpio_pr_detect(void)
 	struct snd_soc_jack *jack = gpio->jack;
 	struct snd_soc_codec *codec = jack->codec;
 
-	printk("%s: enter\n", __func__);
+	if (gpio_get_value(uart_gpio) != 0)
+		printk("%s: enter\n", __func__);
+
 	mrfld_hs_enable = gpio_get_value(gpio->gpio);
 
 	if (!gpio->invert)
@@ -506,7 +515,8 @@ static int mrfld_jack_gpio_pr_detect(void)
 
 	if (mrfld_hs_enable) {
 		mrfld_hs_status = rt5647_headset_detect(codec, 1);
-		printk("%s: headset insert, status %d\n", __func__, mrfld_hs_status);
+		if (gpio_get_value(uart_gpio) != 0)
+			printk("%s: headset insert, status %d\n", __func__, mrfld_hs_status);
 		if (mrfld_hs_status == SND_JACK_HEADSET) {
 		        msleep(200);
 		        rt5647_enable_push_button_irq(codec, jack);
@@ -514,7 +524,8 @@ static int mrfld_jack_gpio_pr_detect(void)
 	}
 	else {
 		mrfld_hs_status = rt5647_headset_detect(codec, 0);
-		printk("%s: headset removal, status %d\n", __func__, mrfld_hs_status);
+		if (gpio_get_value(uart_gpio) != 0)
+			printk("%s: headset removal, status %d\n", __func__, mrfld_hs_status);
 	}
 	return mrfld_hs_status;
 }
@@ -552,7 +563,9 @@ static int mrfld_jack_gpio_pr_detect_bp_up_down(void)
 	int btn_type;
 	int status = 0;
 
-	printk("%s: enter\n", __func__);
+	if (gpio_get_value(uart_gpio) != 0)
+		printk("%s: enter\n", __func__);
+
 	btn_type = rt5647_button_detect(codec);
 	pr_debug("%s: type = %x\n", __func__, btn_type);
 	btn_type = btn_type & 0x2480;
@@ -560,17 +573,17 @@ static int mrfld_jack_gpio_pr_detect_bp_up_down(void)
 	switch (btn_type) {
 		case 0x2000:
 			status = SND_JACK_BTN_1;
-			pr_debug("%s: button up\n", __func__);
+			printk("%s: button up\n", __func__);
 			break;
 		case 0x0400:
 			if (!mrfld_play_enable) {
 				status = SND_JACK_BTN_3;
-				pr_debug("%s: button voice \n", __func__);
+				printk("%s: button voice \n", __func__);
 			}
                         break;
 		case 0x0080:
 			status = SND_JACK_BTN_2;
-			pr_debug("%s: button down\n", __func__);
+			printk("%s: button down\n", __func__);
 			break;
 		}
 	return status;
@@ -720,6 +733,8 @@ static const struct snd_kcontrol_new ssp_comms_controls[] = {
 };
 
 #define AUDIO_GET_SPK_UNMUTE_DELAY_TIME	_IOW('T', 0x05, int)
+#define SET_AUDIO_MODE			_IOW('U', 0x06, int)
+
 static int switch_ctrl_open(struct inode *i_node, struct file *file_ptr)
 {
 	pr_debug("%s\n", __func__);
@@ -748,6 +763,19 @@ static long switch_ctrl_ioctl(struct file *file_ptr,
 
 			if (rt5647_codec)
 				set_spk_unmute_delay_time(spk_unmute_delay_time);
+			break;
+		}
+		case SET_AUDIO_MODE: {
+			int audio_mode;
+			is_incall = false;
+			if (copy_from_user(&audio_mode, (void __user *)arg,
+					   sizeof(audio_mode)))
+				return -EFAULT;
+			pr_info("%s: audio_mode %d\n", __func__, audio_mode);
+
+			is_incall = (audio_mode == 2); /* true when android_mode is incall */
+			pr_info("%s: is_incall status %s\n", __func__, is_incall ? "true" : "false");
+
 			break;
 		}
 		default:
@@ -843,7 +871,7 @@ static int mrfld_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	if (Read_HW_ID() == PCB_PR || Read_HW_ID() == PCB_PRE_PR || Read_HW_ID() == PCB_MP) {
+	if (Read_HW_ID() == PCB_PR || Read_HW_ID() == PCB_PRE_PR || Read_HW_ID() == PCB_MP || Read_PROJ_ID() == PROJ_ID_ZX550ML) {
 		pr_info("%s: hs_gpio array size %d\n", __func__, NUM_HS_GPIOS_PR);
 		ret = snd_soc_jack_add_gpios(&ctx->jack, NUM_HS_GPIOS_PR, hs_gpio_pr);
 	}
@@ -1104,7 +1132,6 @@ static int snd_mrfld_mc_probe(struct platform_device *pdev)
 	int ret_val = 0;
 	struct mrfld_mc_private *drv;
 	struct mrfld_audio_platform_data *pdata;
-	static int hp_enable;
 
 	pr_debug("Entry %s\n", __func__);
 
@@ -1140,7 +1167,7 @@ static int snd_mrfld_mc_probe(struct platform_device *pdev)
 	}
 	pdata = pdev->dev.platform_data;
 
-if (Read_HW_ID() == PCB_PR || Read_HW_ID() == PCB_PRE_PR || Read_HW_ID() == PCB_MP) {
+if (Read_HW_ID() == PCB_PR || Read_HW_ID() == PCB_PRE_PR || Read_HW_ID() == PCB_MP || Read_PROJ_ID() == PROJ_ID_ZX550ML) {
 	lnw_gpio_set_alt(187,0);
 	hs_gpio_pr[MRFLD_HSDET_PR].gpio = 161;
 	hs_gpio_pr[MRFLD_HOOKDET_PLAY].gpio = 187;
@@ -1151,19 +1178,17 @@ else {
 }
 
 #ifdef UART_DEBUG
-	hp_enable = 121;
-	ret_val = gpio_request_one(hp_enable, GPIOF_DIR_OUT, "AUDIO_DEBUG#");
+	ret_val = gpio_request_one(uart_gpio, GPIOF_DIR_OUT, "AUDIO_DEBUG#");
 	if (ret_val)
 		pr_info("%s: gpio_request AUDIO_DEBUG failed!\n", __func__);
 
-	gpio_direction_output(hp_enable, 0);
+	gpio_direction_output(uart_gpio, 0);
 #else
-	hp_enable = 121;
-	ret_val = gpio_request_one(hp_enable, GPIOF_DIR_OUT, "AUDIO_DEBUG#");
+	ret_val = gpio_request_one(uart_gpio, GPIOF_DIR_OUT, "AUDIO_DEBUG#");
 	if (ret_val)
 		pr_info("%s: gpio_request AUDIO_DEBUG failed!\n", __func__);
 
-	gpio_direction_output(hp_enable, 1);
+	gpio_direction_output(uart_gpio, 1);
 #endif
 
 	/* ioremap the register */
@@ -1197,7 +1222,7 @@ static int snd_mrfld_mc_remove(struct platform_device *pdev)
 	struct snd_soc_card *soc_card = platform_get_drvdata(pdev);
 	struct mrfld_mc_private *drv = snd_soc_card_get_drvdata(soc_card);
 
-	if (Read_HW_ID() == PCB_PR || Read_HW_ID() == PCB_PRE_PR || Read_HW_ID() == PCB_MP)
+	if (Read_HW_ID() == PCB_PR || Read_HW_ID() == PCB_PRE_PR || Read_HW_ID() == PCB_MP || Read_PROJ_ID() == PROJ_ID_ZX550ML)
 		snd_soc_jack_free_gpios(&drv->jack, NUM_HS_GPIOS_PR, hs_gpio_pr);
 	else
 		snd_soc_jack_free_gpios(&drv->jack, NUM_HS_GPIOS, hs_gpio);
@@ -1215,7 +1240,7 @@ static void snd_mrfld_mc_shutdown(struct platform_device *pdev)
 	struct snd_soc_card *soc_card = platform_get_drvdata(pdev);
 	struct mrfld_mc_private *drv = snd_soc_card_get_drvdata(soc_card);
 
-	if (Read_HW_ID() == PCB_PR || Read_HW_ID() == PCB_PRE_PR || Read_HW_ID() == PCB_MP)
+	if (Read_HW_ID() == PCB_PR || Read_HW_ID() == PCB_PRE_PR || Read_HW_ID() == PCB_MP || Read_PROJ_ID() == PROJ_ID_ZX550ML)
 		snd_soc_jack_free_gpios(&drv->jack, NUM_HS_GPIOS_PR, hs_gpio_pr);
 	else
 		snd_soc_jack_free_gpios(&drv->jack, NUM_HS_GPIOS, hs_gpio);

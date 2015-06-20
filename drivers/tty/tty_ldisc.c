@@ -499,6 +499,11 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 static int tty_ldisc_wait_idle(struct tty_struct *tty, long timeout)
 {
 	long ret;
+
+	/* Caller should have locked ldisc_mutex */
+	if (!tty->ldisc)
+		return -EIO;
+
 	ret = wait_event_timeout(tty->ldisc->wq_idle,
 			atomic_read(&tty->ldisc->users) == 1, timeout);
 	return ret > 0 ? 0 : -EBUSY;
@@ -930,7 +935,9 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 
 	tty_ldisc_debug(tty, "closing ldisc: %p\n", tty->ldisc);
 
+	mutex_lock(&tty->ldisc_mutex);
 	tty_ldisc_halt(tty, o_tty, MAX_SCHEDULE_TIMEOUT);
+	mutex_unlock(&tty->ldisc_mutex);
 
 	tty_lock_pair(tty, o_tty);
 	/* This will need doing differently if we need to lock */

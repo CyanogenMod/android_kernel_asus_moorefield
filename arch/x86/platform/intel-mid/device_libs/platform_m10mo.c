@@ -51,6 +51,7 @@
 #else
 #define MSIC_VPROG1_MRFLD_CTRL       (0xac)
 #define MSIC_VPROG1_ON_2P8           (0xc1)
+#define MSIC_VPROG1_ON_1P8           (0x43)
 #define MSIC_VPROG1_OFF              (0x0)
 #define MSIC_VPROG2_MRFLD_CTRL       (0xad)
 #define MSIC_VPROG2_ON_1P8           (0x41)
@@ -61,7 +62,6 @@ static int camera_1p2_en = -1;
 static int camera_2p8_en = -1;
 static int camera_isp_1p2_en = -1;
 static int camera_reset = -1;
-static int camera_3p3_en = -1;
 static int camera_3p3_en2 = -1;
 static void setup_m10mo_spi(struct m10mo_atomisp_spi_platform_data *spi_pdata,
 			    void *data);
@@ -117,7 +117,7 @@ static int m10mo_gpio_ctrl(struct v4l2_subdev *sd, int flag)
 		gpio_set_value(camera_reset, 0);
 
 		usleep_range(100, 200);
-
+        printk("@%s %d, project zx550ml pull up GPIO%d\n", __func__, __LINE__, camera_reset);
 		gpio_set_value(camera_reset, 1);
 
 		usleep_range(1000, 1500);
@@ -170,6 +170,10 @@ static int m10mo_power_ctrl(struct v4l2_subdev *sd, int flag)
 {
 	int ret = 0;
 	pr_info("M10MO power control. flag=%d\n", flag);
+	if(Read_PROJ_ID() != PROJ_ID_ZX550ML){
+	     pr_err("M10MO, this is not ZX550ML, break! \n");
+		 return -1;
+	}
 	set_flis_value(0x3221, 0x2D18);
 #ifdef CONFIG_CRYSTAL_COVE
 
@@ -208,6 +212,36 @@ static int m10mo_power_ctrl(struct v4l2_subdev *sd, int flag)
         printk(KERN_INFO "M10MO, gpio number, camera_1p2_en is %d\n", camera_1p2_en);
     }
 
+switch (Read_HW_ID()) {
+	case HW_ID_SR2:
+    	if (camera_3p3_en2 < 0) {
+		gpio_free(58);/////// temp WA.
+        	lnw_gpio_set_alt(58, LNW_GPIO);
+        	ret = camera_sensor_gpio(58, "3X_I2C_LED", GPIOF_DIR_OUT, 0);
+        	if (ret < 0){
+            		printk("GPIO58 is not available.\n");
+        	}else{
+            		camera_3p3_en2 = ret;
+            		printk(KERN_INFO "M10MO, gpio number, camera_3p3_en2 is %d\n", camera_3p3_en2);
+        	}
+    	}
+	break;
+
+	default:
+    	if (camera_3p3_en2 < 0) {
+		gpio_free(54);/////// temp WA.
+        	lnw_gpio_set_alt(54, LNW_GPIO);
+        	ret = camera_sensor_gpio(54, "3X_I2C_LED", GPIOF_DIR_OUT, 0);
+        	if (ret < 0){
+            		printk("GPIO54 is not available.\n");
+        	}else{
+            		camera_3p3_en2 = ret;
+            		printk(KERN_INFO "M10MO, gpio number, camera_3p3_en2 is %d\n", camera_3p3_en2);
+        	}
+    	}
+	break;
+}//switch
+
     if (camera_2p8_en < 0) {
         lnw_gpio_set_alt(56, LNW_GPIO);
         ret = camera_sensor_gpio(56,"INT_CAM_2V8_EN", GPIOF_DIR_OUT, 0);
@@ -219,44 +253,6 @@ static int m10mo_power_ctrl(struct v4l2_subdev *sd, int flag)
         printk(KERN_INFO "M10MO, gpio number, camera_2p8_en is %d\n", camera_2p8_en);
     }
 
-    if(Read_PROJ_ID() == PROJ_ID_ZX550ML){
-        if (camera_3p3_en < 0) {
-            lnw_gpio_set_alt(45, LNW_GPIO);
-            ret = camera_sensor_gpio(45, "P_+3VSO_EN_5", GPIOF_DIR_OUT, 0);
-            if (ret < 0){
-                printk("GPIO45 is not available.\n");
-            }
-            else{
-                camera_3p3_en = ret;
-                printk(KERN_INFO "M10MO, gpio number, camera_3p3_en is %d\n", camera_3p3_en);
-            }
-        }
-        if (camera_3p3_en2 < 0) {
-            lnw_gpio_set_alt(54, LNW_GPIO);
-            ret = camera_sensor_gpio(54, "3X_I2C_LED", GPIOF_DIR_OUT, 0);
-            if (ret < 0){
-                printk("GPIO54 is not available.\n");
-            }
-            else{
-                camera_3p3_en2 = ret;
-                printk(KERN_INFO "M10MO, gpio number, camera_3p3_en2 is %d\n", camera_3p3_en2);
-            }
-        }
-    }
-
-    if(Read_HW_ID() == HW_ID_EVB){
-        if (camera_isp_1p2_en < 0) {
-            lnw_gpio_set_alt(45, LNW_GPIO);
-            ret = camera_sensor_gpio(45,"ISP_1V2_EN", GPIOF_DIR_OUT, 0);
-            if (ret < 0){
-                printk("camera_isp_1p2_en not available.\n");
-                return ret;
-            }
-            camera_isp_1p2_en = ret;
-            printk(KERN_INFO "M10MO, gpio number, camera_isp_1p2_en is %d\n", camera_isp_1p2_en);
-        }
-    }
-
 	if (flag) {
 
 /*
@@ -264,35 +260,35 @@ static int camera_1p2_en = -1;
 static int camera_2p8_en = -1;
 static int camera_isp_1p2_en = -1;
 */
-		gpio_set_value(camera_1p2_en, 1);
-
+		if(camera_1p2_en > 0){
+            printk("@%s %d, project zx550ml pull up GPIO%d\n", __func__, __LINE__, camera_1p2_en);
+            gpio_set_value(camera_1p2_en, 1);
+        }
+#if 0
 		ret = intel_scu_ipc_iowrite8(MSIC_VPROG2_MRFLD_CTRL, MSIC_VPROG2_ON_1P8);
 		if (ret) {
 			pr_err("Failed to power on M10MO MSIC_VPROG2_ON_1P8.\n");
 			return ret;
 		}
-        if(Read_PROJ_ID() != PROJ_ID_ZX550ML){
-            ret = intel_scu_ipc_iowrite8(MSIC_VPROG1_MRFLD_CTRL ,MSIC_VPROG1_ON_2P8);
-            if (ret) {
-                pr_err("Failed to power on M10MO MSIC_VPROG1_ON_2P8.\n");
-                return ret;
-            }
+#endif
+        if(camera_3p3_en2 > 0){
+            mdelay(1);
+            printk("@%s %d, project zx550ml pull up GPIO%d\n", __func__, __LINE__, camera_3p3_en2);
+            gpio_set_value(camera_3p3_en2, 1);
         }
-        if(Read_HW_ID() == HW_ID_EVB){
-            gpio_set_value(camera_isp_1p2_en, 1);
-        }
+        mdelay(1);
+		ret = intel_scu_ipc_iowrite8(MSIC_VPROG1_MRFLD_CTRL, MSIC_VPROG1_ON_1P8);
 
-        gpio_set_value(camera_2p8_en, 1);
+        if (ret) {
+            pr_err("Failed to power on M10MO MSIC_VPROG1_ON_1P8.\n");
+            return ret;
+        }else{
+		    printk("@%s %d, project zx550ml pull up Vprog1, 1.8V \n", __func__, __LINE__);
+		}
 
-        if(Read_PROJ_ID() == PROJ_ID_ZX550ML){
-            if(camera_3p3_en > 0){
-                printk("@%s %d, project zx550ml pull up GPIO%d\n", __func__, __LINE__, camera_3p3_en);
-                gpio_set_value(camera_3p3_en, 1);
-            }
-            if(camera_3p3_en2 > 0){
-                printk("@%s %d, project zx550ml pull up GPIO%d\n", __func__, __LINE__, camera_3p3_en2);
-                gpio_set_value(camera_3p3_en2, 1);
-            }
+		if(camera_2p8_en > 0){
+            printk("@%s %d, project zx550ml pull up GPIO%d\n", __func__, __LINE__, camera_2p8_en);
+            gpio_set_value(camera_2p8_en, 1);
         }
 
 		/* Wait for 8ms to make all the power supplies to be stable. */
@@ -303,23 +299,10 @@ static int camera_1p2_en = -1;
 static int camera_2p8_en = -1;
 static int camera_isp_1p2_en = -1;
 */
-        ret = intel_scu_ipc_iowrite8(MSIC_VPROG2_MRFLD_CTRL, MSIC_VPROG2_OFF);
+        ret = intel_scu_ipc_iowrite8(MSIC_VPROG1_MRFLD_CTRL, MSIC_VPROG1_OFF);
         if (ret) {
-            pr_err("Failed to power off M10MO MSIC_VPROG2_ON_1P8.\n");
+            pr_err("Failed to power off M10MO MSIC_VPROG1_ON_2P8.\n");
             return ret;
-        }
-        if(Read_PROJ_ID() != PROJ_ID_ZX550ML){
-            ret = intel_scu_ipc_iowrite8(MSIC_VPROG1_MRFLD_CTRL ,MSIC_VPROG1_OFF);
-            if (ret) {
-                pr_err("Failed to power off M10MO MSIC_VPROG1_ON_2P8.\n");
-                return ret;
-            }
-        }
-
-        if(Read_HW_ID() == HW_ID_EVB){
-            gpio_set_value(camera_isp_1p2_en, 0);
-            camera_sensor_gpio_free(camera_isp_1p2_en);
-            camera_isp_1p2_en = -1;
         }
 
         gpio_set_value(camera_2p8_en, 0);
@@ -330,20 +313,9 @@ static int camera_isp_1p2_en = -1;
         camera_sensor_gpio_free(camera_1p2_en);
         camera_1p2_en = -1;
 
-        if(Read_PROJ_ID() == PROJ_ID_ZX550ML){
-            if(camera_3p3_en > 0){
-                printk("@%s %d, project zx550ml free GPIO%d\n", __func__, __LINE__, camera_3p3_en);
-                gpio_set_value(camera_3p3_en, 0);
-                camera_sensor_gpio_free(camera_3p3_en);
-                camera_3p3_en = -1;
-            }
-            if(camera_3p3_en2 > 0){
-                printk("@%s %d, project zx550ml free GPIO%d\n", __func__, __LINE__, camera_3p3_en2);
-                gpio_set_value(camera_3p3_en2, 0);
-                camera_sensor_gpio_free(camera_3p3_en2);
-                camera_3p3_en2 = -1;
-            }
-        }
+		gpio_set_value(camera_3p3_en2, 0);
+		camera_sensor_gpio_free(camera_3p3_en2);
+        camera_3p3_en2 = -1;
 
         camera_sensor_gpio_free(camera_reset);
         camera_reset = -1;
@@ -361,20 +333,7 @@ static int m10mo_csi_configure(struct v4l2_subdev *sd, int flag)
 }
 
 static struct m10mo_fw_id fw_ids[] = {
-	{ "TEST",        M10MO_FW_TYPE_0 },
-	{ "S13F0SAHE01", M10MO_FW_TYPE_3 },
-	{ "O13F0SAHE01", M10MO_FW_TYPE_3 },
-	{ "O13F0SAHF02", M10MO_FW_TYPE_4 },
-	{ "S13F0SAHF01", M10MO_FW_TYPE_3 },
-	{ "S13F0SAHF02", M10MO_FW_TYPE_4 },
-	{ "O13F0SAHF01", M10MO_FW_TYPE_3 },
-	{ "T13F0SAHE01", M10MO_FW_TYPE_1 },
-	{ "T13F0SAHF01", M10MO_FW_TYPE_1 },
-	{ "T13F0SAHF02", M10MO_FW_TYPE_1 },
-	{ "T13F0SAHF03", M10MO_FW_TYPE_1 },
-	{ "T13F0SAHF04", M10MO_FW_TYPE_1 },
-	{ "T13F0SAHF05", M10MO_FW_TYPE_5 },
-	{ "T13F0SAHF06", M10MO_FW_TYPE_5 },
+	{ "L13F0PAHK01", M10MO_FW_TYPE_0 },
 	{ NULL, 0},
 };
 

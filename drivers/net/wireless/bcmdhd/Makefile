@@ -54,7 +54,10 @@ DHDCFLAGS += -DENABLE_INSMOD_NO_FW_LOAD
 else
 DHDCFLAGS += -DENABLE_INSMOD_NO_FW_LOAD
 endif
+# Only enable WAPI in CN related SKU.
+ifneq ($(filter CN CUCC CMCC,$(TARGET_SKU)),)
 DHDCFLAGS += -DBCMWAPI_WPI -DBCMWAPI_WAI
+endif
 
 #########################
 # Chip dependent feature

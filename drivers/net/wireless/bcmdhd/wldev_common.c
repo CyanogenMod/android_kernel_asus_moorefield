@@ -321,6 +321,7 @@ int wldev_set_country(
 	struct net_device *dev, char *country_code, bool notify, bool user_enforced)
 {
 	int error = -1;
+	wl_country_t cspec_orig = {{0}, 0, {0}};
 	wl_country_t cspec = {{0}, 0, {0}};
 	scb_val_t scbval;
 	char smbuf[WLC_IOCTL_SMLEN];
@@ -338,6 +339,20 @@ int wldev_set_country(
 	if ((error < 0) ||
 	    (strncmp(country_code, cspec.country_abbrev, WLC_CNTRY_BUF_SZ) != 0)) {
 
+		cspec_orig.rev = cspec.rev;
+		memcpy(cspec_orig.country_abbrev, cspec.country_abbrev, WLC_CNTRY_BUF_SZ);
+		memcpy(cspec_orig.ccode, cspec.ccode, WLC_CNTRY_BUF_SZ);
+
+		cspec.rev = -1;
+		memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
+		memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
+		dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
+
+		if ((strncmp(cspec_orig.ccode, cspec.ccode, WLC_CNTRY_BUF_SZ) == 0)
+				&& (cspec_orig.rev == cspec.rev)) {
+			return 0;
+		}
+
 		if (user_enforced) {
 			bzero(&scbval, sizeof(scb_val_t));
 			error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), true);
@@ -347,11 +362,6 @@ int wldev_set_country(
 				return error;
 			}
 		}
-
-		cspec.rev = -1;
-		memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
-		memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
-		dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
 		error = wldev_iovar_setbuf(dev, "country", &cspec, sizeof(cspec),
 			smbuf, sizeof(smbuf), NULL);
 		if (error < 0) {

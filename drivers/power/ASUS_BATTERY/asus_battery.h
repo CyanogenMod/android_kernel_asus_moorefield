@@ -198,7 +198,7 @@ struct battery_info_reply {
 #define TEST_INFO_NO_REG_POWER  BIT0 
 #define TEST_INFO_PROC_DUMP     BIT2
 
-#define BATTERY_DEFAULT_POLL_TIME   (10 * HZ) //10 seconds
+#define BATTERY_DEFAULT_POLL_TIME   (20 * HZ) //20 seconds
 #define BATTERY_CRITICAL_POLL_TIME  (5 * HZ)  //5 seconds
 
 /* ADC Channel Numbers */

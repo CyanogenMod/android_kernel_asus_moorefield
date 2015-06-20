@@ -166,9 +166,9 @@ static void __cpuinit smp_callin(void)
 	 */
 
 	/*
-	 * Waiting 2s total for startup (udelay is not yet working)
+	 * Waiting 60s total for startup (udelay is not yet working)
 	 */
-	timeout = jiffies + 2*HZ;
+	timeout = jiffies + 60*HZ;
 	while (time_before(jiffies, timeout)) {
 		/*
 		 * Has the boot CPU finished it's STARTUP sequence?

@@ -1266,6 +1266,12 @@ static inline struct page *alloc_slab_page(gfp_t flags, int node,
 
 	flags |= __GFP_NOTRACK;
 
+	/*HACK: Force slub allocate 32-bits memory to workaround intel bad silicon
+	 *design which have no IO-MMU support even there have 32-bits peripherals
+	 *and more than 4G DDR.
+	 */
+	flags |= __GFP_DMA32;
+
 	if (node == NUMA_NO_NODE)
 		return alloc_pages(flags, order);
 	else

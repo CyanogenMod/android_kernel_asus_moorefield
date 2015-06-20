@@ -1019,6 +1019,7 @@ static int ifx_spi_create_port(struct ifx_spi_device *ifx_dev)
 	int ret = 0;
 	struct tty_port *pport = &ifx_dev->tty_port;
 
+        spin_lock_init(&ifx_dev->timer_lock);
 	spin_lock_init(&ifx_dev->fifo_lock);
 	lockdep_set_class_and_subclass(&ifx_dev->fifo_lock,
 		&ifx_spi_key, 0);

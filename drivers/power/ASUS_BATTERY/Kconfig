@@ -50,5 +50,13 @@ config BATTERY_MM8033
 	depends on I2C
 	help
 	  Say Y here to enable support for batteries with MM8033 chips.
+
+config BATTERY_MAX17058
+	tristate "Maxim MAX17058 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17058 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17058 is configured
+	  to operate with a single lithium cell.
 endif
 

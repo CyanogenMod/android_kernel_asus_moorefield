@@ -111,6 +111,7 @@ static int t4k37_power_ctrl(struct v4l2_subdev *sd, int flag)
 	case PROJ_ID_ZE551ML:
 	case PROJ_ID_ZR550ML:
 	case PROJ_ID_ZX550ML:
+	case PROJ_ID_ZE551ML_CKD:
 	    switch (Read_HW_ID()) {
 		case HW_ID_EVB:
 			pr_info("Hardware VERSION = EVB, t4k37 does not support.\n");
@@ -158,6 +159,7 @@ static int t4k37_power_ctrl(struct v4l2_subdev *sd, int flag)
 	    	    case PROJ_ID_ZE551ML:
 		    case PROJ_ID_ZR550ML:
 		    case PROJ_ID_ZX550ML:
+		    case PROJ_ID_ZE551ML_CKD:
 			switch (Read_HW_ID()) {
 			    case HW_ID_EVB:
 				pr_info("Hardware VERSION = EVB, t4k37 does not support.\n");
@@ -258,6 +260,7 @@ static int t4k37_power_ctrl(struct v4l2_subdev *sd, int flag)
 	            case PROJ_ID_ZE551ML:
 		    case PROJ_ID_ZR550ML:
 		    case PROJ_ID_ZX550ML:
+		    case PROJ_ID_ZE551ML_CKD:
 			switch (Read_HW_ID()) {
 			    case HW_ID_EVB:
 				pr_info("Hardware VERSION = EVB, t4k37 does not support.\n");

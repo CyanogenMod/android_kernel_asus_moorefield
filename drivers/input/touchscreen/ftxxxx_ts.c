@@ -116,6 +116,7 @@ extern int gesture_mode;
 
 extern int glove_mode;
 extern int cover_mode;
+int sleep_mode = 0;
 
 struct ts_event {
 	u16 au16_x[CFG_MAX_TOUCH_POINTS];	/*x coordinate */
@@ -239,7 +240,7 @@ int ftxxxx_i2c_Read(struct i2c_client *client, char *writebuf,
 		}
 	}
 
-	if (retry == retrycount) {
+	if ((retry == retrycount) && (sleep_mode != 1)) {
 		dev_err(&client->dev, "%s: i2c read error. error code = %d\n", __func__, ret);	
 		dev_err(&client->dev, "%s: execute IC reset\n", __func__);
 
@@ -276,7 +277,7 @@ int ftxxxx_i2c_Write(struct i2c_client *client, char *writebuf, int writelen)
 		msleep(1);
 	}
 
-	if (retry == retrycount) {
+	if ((retry == retrycount) && (sleep_mode != 1)) {
 		dev_err(&client->dev, "%s: i2c write error. error code = %d\n", __func__, ret);	
 		dev_err(&client->dev, "%s: execute IC reset\n", __func__);
 
@@ -935,7 +936,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":580:1330:180:100"  
 				"\n");
 		}
-		else if (Read_PROJ_ID() == PROJ_ID_ZE551ML)
+		else if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 		{
 			return sprintf(buf,  
 				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2045:260:250"  
@@ -962,7 +963,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":590:1330:160:100"  
 				"\n");
 		}
-		else if (Read_PROJ_ID() == PROJ_ID_ZE551ML)
+		else if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 		{
 			return sprintf(buf,  
 				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":160:2045:240:250"  
@@ -973,9 +974,9 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 		else if (Read_PROJ_ID() == PROJ_ID_ZX550ML)
 		{
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":160:2045:240:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":520:2045:250:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":880:2045:240:250"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2045:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2045:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2045:260:250"  
 				"\n");
 		}
 	}
@@ -1147,13 +1148,23 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	printk("[ftxxxx] Read_PROJ_ID: %x\n", Read_PROJ_ID());
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		printk(KERN_ERR "[ftxxxx] %s: i2c check functionality error\n", __func__);
 		err = -ENODEV;
 		goto exit_check_functionality_failed;
 	}
 
+	//uc_reg_addr = 0x9f;
+	//flag = ftxxxx_i2c_Read(client, &uc_reg_addr, 1, &uc_reg_value, 1);
+	//if (flag<0) {
+	//	printk(KERN_ERR "[ftxxxx] %s: i2c test failed\n", __func__);
+	//	err = -ENODEV;
+	//	goto exit_check_functionality_failed;
+	//}
+
 	ftxxxx_ts = kzalloc(sizeof(struct ftxxxx_ts_data), GFP_KERNEL);
 
 	if (!ftxxxx_ts) {
+		printk(KERN_ERR "[ftxxxx] %s: alloc data failed\n", __func__);
 		err = -ENOMEM;
 		goto exit_alloc_data_failed;
 	}
@@ -1178,7 +1189,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	ftxxxx_ts->client = client;
 	ftxxxx_ts->suspend_flag = 0;
 	ftxxxx_ts->pdata = pdata;
-	if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZR550ML || Read_PROJ_ID() == PROJ_ID_ZX550ML)
+	if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZR550ML || Read_PROJ_ID() == PROJ_ID_ZX550ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 	{
 		ftxxxx_ts->x_max = 1080 - 1;
 		ftxxxx_ts->y_max = 1920 - 1;
@@ -1236,7 +1247,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	ftxxxx_ts->input_dev = input_dev;
 
-	if (Read_PROJ_ID() == PROJ_ID_ZE550ML || Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZX550ML)
+	if (Read_PROJ_ID() == PROJ_ID_ZE550ML || Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZX550ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 	{
 		virtual_keys_init();	//<ASUS_virtual_key+>
 	}
@@ -1386,31 +1397,31 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	ftxxxx_write_reg(client, 0xd8, 0x00);
 	if (Read_PROJ_ID() == PROJ_ID_ZE550ML)
 	{
-		ftxxxx_write_reg(client, 0xda, 0x14);
+		ftxxxx_write_reg(client, 0xda, 0x64);
 		ftxxxx_write_reg(client, 0xdb, 0x00);
 		ftxxxx_write_reg(client, 0xdc, 0x40);
 		ftxxxx_write_reg(client, 0xdd, 0x05);
-		ftxxxx_write_reg(client, 0xde, 0x14);
+		ftxxxx_write_reg(client, 0xde, 0x64);
 		ftxxxx_write_reg(client, 0xdf, 0x00);
-		ftxxxx_write_reg(client, 0xe0, 0xbc);
+		ftxxxx_write_reg(client, 0xe0, 0x6c);
 		ftxxxx_write_reg(client, 0xe1, 0x02);
-		ftxxxx_write_reg(client, 0xe2, 0x19);
-		ftxxxx_write_reg(client, 0xe3, 0x08);
+		ftxxxx_write_reg(client, 0xe2, 0x20);
+		ftxxxx_write_reg(client, 0xe3, 0x10);
 		ftxxxx_write_reg(client, 0xe4, 0x3e);
 		ftxxxx_write_reg(client, 0xe5, 0x06);
 	}
-	else if (Read_PROJ_ID() == PROJ_ID_ZE551ML)
+	else if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 	{
-		ftxxxx_write_reg(client, 0xda, 0x1e);
+		ftxxxx_write_reg(client, 0xda, 0x96);
 		ftxxxx_write_reg(client, 0xdb, 0x00);
 		ftxxxx_write_reg(client, 0xdc, 0xe0);
 		ftxxxx_write_reg(client, 0xdd, 0x07);
-		ftxxxx_write_reg(client, 0xde, 0x1e);
+		ftxxxx_write_reg(client, 0xde, 0x96);
 		ftxxxx_write_reg(client, 0xdf, 0x00);
-		ftxxxx_write_reg(client, 0xe0, 0x1a);
-		ftxxxx_write_reg(client, 0xe1, 0x04);
-		ftxxxx_write_reg(client, 0xe2, 0x25);
-		ftxxxx_write_reg(client, 0xe3, 0x0c);
+		ftxxxx_write_reg(client, 0xe0, 0xa2);
+		ftxxxx_write_reg(client, 0xe1, 0x03);
+		ftxxxx_write_reg(client, 0xe2, 0x30);
+		ftxxxx_write_reg(client, 0xe3, 0x18);
 		ftxxxx_write_reg(client, 0xe4, 0x3e);
 		ftxxxx_write_reg(client, 0xe5, 0x06);
 	}
@@ -1456,16 +1467,17 @@ exit_request_reset:
 #endif
 #endif
 
+exit_irq_request_failed:
 exit_init_gpio:
 	fts_un_init_gpio_hw(ftxxxx_ts);
 
-exit_irq_request_failed:
 	i2c_set_clientdata(client, NULL);
 	if (ftxxxx_ts->ftxxxx_wq)
 	{
 		destroy_workqueue(ftxxxx_ts->ftxxxx_wq);
 	}
 	mutex_destroy(&ftxxxx_ts->mutex_lock);
+	wake_lock_destroy(&ftxxxx_ts->wake_lock);
 
 exit_create_wq_failed:
 	kfree(ftxxxx_ts);
@@ -1516,6 +1528,8 @@ static void ftxxxx_ts_suspend(struct early_suspend *handler)
 	disable_irq_nosync(ts->pdata->gpio_irq);
 	ftxxxx_write_reg(ts->client,0xa5,0x03);
 	msleep(20);
+	//sleep mode
+	sleep_mode = 1;
 	#ifdef FTS_GESTURE//zax 20140922
 	}
 	#endif
@@ -1584,31 +1598,31 @@ static void ftxxxx_ts_resume(struct early_suspend *handler)
 	ftxxxx_write_reg(ts->client, 0xd8, 0x00);
 	if (Read_PROJ_ID() == PROJ_ID_ZE550ML)
 	{
-		ftxxxx_write_reg(ts->client, 0xda, 0x14);
+		ftxxxx_write_reg(ts->client, 0xda, 0x64);
 		ftxxxx_write_reg(ts->client, 0xdb, 0x00);
 		ftxxxx_write_reg(ts->client, 0xdc, 0x40);
 		ftxxxx_write_reg(ts->client, 0xdd, 0x05);
-		ftxxxx_write_reg(ts->client, 0xde, 0x14);
+		ftxxxx_write_reg(ts->client, 0xde, 0x64);
 		ftxxxx_write_reg(ts->client, 0xdf, 0x00);
-		ftxxxx_write_reg(ts->client, 0xe0, 0xbc);
+		ftxxxx_write_reg(ts->client, 0xe0, 0x6c);
 		ftxxxx_write_reg(ts->client, 0xe1, 0x02);
-		ftxxxx_write_reg(ts->client, 0xe2, 0x19);
-		ftxxxx_write_reg(ts->client, 0xe3, 0x08);
+		ftxxxx_write_reg(ts->client, 0xe2, 0x20);
+		ftxxxx_write_reg(ts->client, 0xe3, 0x10);
 		ftxxxx_write_reg(ts->client, 0xe4, 0x3e);
 		ftxxxx_write_reg(ts->client, 0xe5, 0x06);
 	}
-	else if (Read_PROJ_ID() == PROJ_ID_ZE551ML)
+	else if (Read_PROJ_ID() == PROJ_ID_ZE551ML  || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 	{
-		ftxxxx_write_reg(ts->client, 0xda, 0x1e);
+		ftxxxx_write_reg(ts->client, 0xda, 0x96);
 		ftxxxx_write_reg(ts->client, 0xdb, 0x00);
 		ftxxxx_write_reg(ts->client, 0xdc, 0xe0);
 		ftxxxx_write_reg(ts->client, 0xdd, 0x07);
-		ftxxxx_write_reg(ts->client, 0xde, 0x1e);
+		ftxxxx_write_reg(ts->client, 0xde, 0x96);
 		ftxxxx_write_reg(ts->client, 0xdf, 0x00);
-		ftxxxx_write_reg(ts->client, 0xe0, 0x1a);
-		ftxxxx_write_reg(ts->client, 0xe1, 0x04);
-		ftxxxx_write_reg(ts->client, 0xe2, 0x25);
-		ftxxxx_write_reg(ts->client, 0xe3, 0x0c);
+		ftxxxx_write_reg(ts->client, 0xe0, 0xa2);
+		ftxxxx_write_reg(ts->client, 0xe1, 0x03);
+		ftxxxx_write_reg(ts->client, 0xe2, 0x30);
+		ftxxxx_write_reg(ts->client, 0xe3, 0x18);
 		ftxxxx_write_reg(ts->client, 0xe4, 0x3e);
 		ftxxxx_write_reg(ts->client, 0xe5, 0x06);
 	}
@@ -1621,6 +1635,8 @@ static void ftxxxx_ts_resume(struct early_suspend *handler)
 		ftxxxx_write_reg(ts->client, 0xC1, 0);
 		ftxxxx_write_reg(ts->client, 0xC3, 0);
 	}
+	//sleep mode
+	sleep_mode = 0;
 	enable_irq(ts->pdata->gpio_irq);
 	#ifdef FTS_GESTURE//zax 20140922
 	}

@@ -359,8 +359,9 @@ static ssize_t gpio_keys_wakeup_enable(struct device *dev,
 
 	for (i = 0; i < pdata->nbuttons; i++) {
 		struct gpio_keys_button *button = &pdata->buttons[i];
-		if ((int)code == button->code)
+		if ((int)code == button->code){
 			button->wakeup = enable_wakeup;
+		}
 		if (button->wakeup)
 			wakeup = button->wakeup;
 	}
@@ -459,7 +460,24 @@ static void gpio_keys_gpio_work_func(struct work_struct *work)
 static void gpio_keys_gpio_timer(unsigned long _data)
 {
 	struct gpio_button_data *bdata = (struct gpio_button_data *)_data;
+	const struct gpio_keys_button *button;
+	unsigned int type;
+	int state;
 
+	BUG_ON(!bdata);
+	BUG_ON(!bdata->button);
+	
+	button = bdata->button;
+	state = (gpio_keys_getval(button->gpio) ? 1 : 0) ^ button->active_low;
+
+	type = button->type ?: EV_KEY;
+    if( state == 1 &&
+        type == EV_KEY &&
+		button->wakeup == 1 &&
+        (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN) ){
+			wake_lock_timeout(&gpio_wake_lock, msecs_to_jiffies(2000));
+    }
+	
 	schedule_work(&bdata->work);
 }
 
@@ -485,9 +503,10 @@ static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 		bdata->ddata->force_trigger = 0;
 	}
 
-	if (bdata->timer_debounce)
+	if (bdata->timer_debounce) {
 		mod_timer(&bdata->timer,
 			jiffies + msecs_to_jiffies(bdata->timer_debounce));
+	}
 	else{
             type = button->type ?: EV_KEY;
             if( state == 0 &&
@@ -587,6 +606,11 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 			if (error < 0)
 				bdata->timer_debounce =
 						button->debounce_interval;
+		}
+
+		if (button->code == KEY_VOLUMEDOWN || button->code == KEY_VOLUMEUP) {
+			bdata->timer_debounce =
+						button->debounce_interval;	
 		}
 
 		irq = gpio_to_irq(button->gpio);

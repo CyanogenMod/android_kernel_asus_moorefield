@@ -540,6 +540,10 @@ int gpiodump_show(struct seq_file *s, void *unused)
 		if (gpio_sleep_buffer == NULL)
 			gpio_sleep_buffer = kmalloc(20000, GFP_ATOMIC);
 
+		if (gpio_sleep_buffer == NULL) {
+			pr_err("gpiodebug: gpiodump_show allocate memory fail\n");
+			return 0;
+		}
 		memset(gpio_sleep_buffer, 0, sizeof(gpio_sleep_buffer));
 		len = 0;
 	}

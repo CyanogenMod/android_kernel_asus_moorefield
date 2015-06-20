@@ -192,3 +192,15 @@ void *merfld_rt5647_audio_platform_data(void *info)
 	// i2c_register_board_info(1, &rt5647_board_info, 1);
 	return NULL;
 }
+
+static struct  rt5647_custom_config custom_config = {
+        .format = 6,
+        .rate = 48000,
+        .channels = 2,
+};
+
+void __init *rt5647_platform_data(void *info)
+{
+	struct rt5647_custom_config *cfg = &custom_config;
+	return cfg;
+}

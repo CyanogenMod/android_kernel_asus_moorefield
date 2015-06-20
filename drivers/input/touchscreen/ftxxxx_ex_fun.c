@@ -39,43 +39,46 @@ static int FWvendorid = 0;
 static int CTPM_FW_SIZE = 0;
 static unsigned char *CTPM_FW;
 static unsigned char CTPM_FW_ZE550ML_31[] = {
-#include "ASUS_ZE550ML_5446_0x31_0xA7_20150302_app.i"
+#include "ASUS_ZE550ML_5446_0x31_0xAD_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE550ML_71[] = {
-#include "ASUS_ZE550ML_5446_0x71_0xA9_20150302_app.i"
+#include "ASUS_ZE550ML_5446_0x71_0xB6_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE550ML_72[] = {
-#include "ASUS_ZE550ML_5446_0x72_0xAA_20150302_app.i"
+#include "ASUS_ZE550ML_5446_0x72_0xB5_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE550ML_81[] = {
-#include "ASUS_ZE550ML_5446_0x81_0xA9_20150302_app.i"
+#include "ASUS_ZE550ML_5446_0x81_0xB6_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE550ML_82[] = {
-#include "ASUS_ZE550ML_5446_0x82_0xAA_20150302_app.i"
+#include "ASUS_ZE550ML_5446_0x82_0xB5_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE551ML_31[] = {
-#include "ASUS_ZE551ML_5446_0x31_0xA7_20150302_app.i"
+#include "ASUS_ZE551ML_5446_0x31_0xAD_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE551ML_71[] = {
-#include "ASUS_ZE551ML_5446_0x71_0xA7_20150302_app.i"
+#include "ASUS_ZE551ML_5446_0x71_0xB6_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE551ML_73[] = {
-#include "ASUS_ZE551ML_5446_0x73_0xA8_20150305_app.i"
+#include "ASUS_ZE551ML_5446_0x73_0xB5_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE551ML_75[] = {
 #include "ASUS_ZE551ML_5446_0x75_0x4A_20150109_app.i"
 };
 static unsigned char CTPM_FW_ZE551ML_81[] = {
-#include "ASUS_ZE551ML_5446_0x81_0xA8_20150302_app.i"
+#include "ASUS_ZE551ML_5446_0x81_0xB8_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE551ML_83[] = {
-#include "ASUS_ZE551ML_5446_0x83_0xAA_20150303_app.i"
+#include "ASUS_ZE551ML_5446_0x83_0xB7_20150521_app.i"
 };
 static unsigned char CTPM_FW_ZE551ML_85[] = {
 #include "ASUS_ZE551ML_5446_0x80_0x41_20141212_app.i"
 };
 static unsigned char CTPM_FW_ZX550ML_71[] = {
 #include "ASUS_ZX550ML_5446_0x71_0x22_20141230_app.i"
+};
+static unsigned char CTPM_FW_ZX550ML_81[] = {
+#include "ASUS_ZX550ML_5446_0x81_0x21_20150511_app.i"
 };
 
 //zax 20141116 ++++++++++++++
@@ -389,6 +392,13 @@ int fts_ctpm_auto_upgrade(struct i2c_client * client)
 		FWvendorid = 71;
 		CTPM_FW = CTPM_FW_ZX550ML_71;
 		CTPM_FW_SIZE = sizeof(CTPM_FW_ZX550ML_71);
+	}
+	else if (strcmp(projectcode, "ZX550ML") == 0 && uc_tp_vender_id == 0x81)
+	{
+		printk("[FTS] Project: ZX550ML, TP: Jtouch\n");
+		FWvendorid = 81;
+		CTPM_FW = CTPM_FW_ZX550ML_81;
+		CTPM_FW_SIZE = sizeof(CTPM_FW_ZX550ML_81);
 	}
 	else
 	{

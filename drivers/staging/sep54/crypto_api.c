@@ -181,6 +181,7 @@ static struct crypto_alg dx_ablkcipher_algs[] = {
 		   }
 	 },
 #endif /* USE_SEP54_AES */
+#ifdef USE_SEP54_DES
 	{			/* ecb(des) */
 	 .cra_name = "ecb(des)",
 	 .cra_driver_name = MODULE_NAME "-des-ecb",
@@ -225,6 +226,7 @@ static struct crypto_alg dx_ablkcipher_algs[] = {
 				  .ivsize = SEP_DES_IV_SIZE}
 		   }
 	 }
+#endif /* USE_SEP54_DES */
 };				/* ablkcipher_algs[] */
 
 #define DX_ABLKCIPHER_NUM \
@@ -238,10 +240,12 @@ static const enum dxdi_sym_cipher_type dx_algs_cipher_types[] = {
 	DXDI_SYMCIPHER_AES_CTR,
 	DXDI_SYMCIPHER_AES_XTS,
 #endif
+#ifdef USE_SEP54_DES
 	DXDI_SYMCIPHER_DES_ECB,
 	DXDI_SYMCIPHER_DES_CBC,
 	DXDI_SYMCIPHER_DES_ECB,
 	DXDI_SYMCIPHER_DES_CBC,
+#endif
 };
 
 /*********************************************/

@@ -63,7 +63,7 @@ extern int smb1357_control_JEITA(bool on);
 extern int smb1357_set_voltage(bool on);
 extern int smb1357_get_aicl_result(void);
 extern bool smb1357_has_charger_error(void);
-extern int set_QC_inputI_limit(bool hvdcp);
+extern int set_QC_inputI_limit(int type);
 /*
  * To set fast charge current
  */
@@ -164,7 +164,7 @@ static int smb1357_set_recharge(bool high)
 {
 	return 0;
 }
-static int set_QC_inputI_limit(bool hvdcp)
+static int set_QC_inputI_limit(int type)
 {
 	return 0;
 }

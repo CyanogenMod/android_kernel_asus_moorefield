@@ -43,6 +43,7 @@
 
 #define MSIC_VPROG1_MRFLD_CTRL       (0xac)
 #define MSIC_VPROG1_ON_2P8           (0xc1)
+#define MSIC_VPROG1_ON_1P8           (0x41)
 #define MSIC_VPROG1_OFF              (0x0)
 #define MSIC_VPROG2_MRFLD_CTRL       (0xad)
 #define MSIC_VPROG2_ON_1P8           (0x41)
@@ -150,10 +151,28 @@ static int ov5670_power_ctrl(struct v4l2_subdev *sd, int flag)
 
     if (flag) {
         switch (Read_PROJ_ID()) {
+            case PROJ_ID_ZX550ML:
+                        //turn on power 1.8V
+                        if (!camera_vprog2_on) {
+                            camera_vprog2_on = 1;
+                            ret = intel_scu_ipc_iowrite8(MSIC_VPROG1_MRFLD_CTRL, MSIC_VPROG1_ON_1P8);
+                            if (ret){
+                                printk(KERN_INFO "set vprog2 fails\n");
+                                return -1;
+                            }
+                            msleep(1);
+                        }
+                        pr_info("ov5670 --> HW_ID = 0x%x\n", Read_HW_ID());
+                        //turn on power 2.8V
+                        if (camera_2v8 >= 0){
+                            gpio_set_value(camera_2v8, 1);
+                            printk(KERN_ALERT "ov5670 <<< camera_2v8 = 1\n");
+                        }
+                 break;
             case PROJ_ID_ZE550ML:
             case PROJ_ID_ZE551ML:
             case PROJ_ID_ZR550ML:
-            case PROJ_ID_ZX550ML:
+            case PROJ_ID_ZE551ML_CKD:
                 switch (Read_HW_ID()) {
                     case HW_ID_EVB:
                         pr_info("Hardware VERSION = EVB, ov5670 does not support.\n");
@@ -248,10 +267,30 @@ static int ov5670_power_ctrl(struct v4l2_subdev *sd, int flag)
         camera_1p2_en = -1;
 
         switch (Read_PROJ_ID()) {
+
+            case PROJ_ID_ZX550ML:
+        		//turn off power 1.8V
+        		if (camera_vprog2_on) {
+            		    camera_vprog2_on = 0;
+            		    ret = intel_scu_ipc_iowrite8(MSIC_VPROG1_MRFLD_CTRL, MSIC_VPROG1_OFF);
+            		    if (ret) {
+                		printk(KERN_ALERT "Failed to disable regulator vprog2\n");
+                		return ret;
+            		    }
+            		    printk("<<< 1.8V= 0\n");
+        		}
+                        //turn off power 2.8V
+                        if (camera_2v8 >= 0){
+                            gpio_set_value(camera_2v8, 0);
+                            gpio_free(camera_2v8);
+                            camera_2v8 = -1;
+                            printk("<<< camera_2v8 = 0\n");
+                        }
+                break;
             case PROJ_ID_ZE550ML:
             case PROJ_ID_ZE551ML:
             case PROJ_ID_ZR550ML:
-            case PROJ_ID_ZX550ML:
+            case PROJ_ID_ZE551ML_CKD:
                 switch (Read_HW_ID()) {
                     case HW_ID_EVB:
                         pr_info("Hardware VERSION = EVB, ov5670 does not support.\n");
@@ -272,6 +311,16 @@ static int ov5670_power_ctrl(struct v4l2_subdev *sd, int flag)
                             camera_2v8 = -1;
                             printk("<<< camera_2v8 = 0\n");
                         }
+        		//turn off power 1.8V
+        		if (camera_vprog2_on) {
+            		    camera_vprog2_on = 0;
+            		    ret = intel_scu_ipc_iowrite8(MSIC_VPROG2_MRFLD_CTRL, MSIC_VPROG2_OFF);
+            		    if (ret) {
+                		printk(KERN_ALERT "Failed to disable regulator vprog2\n");
+                		return ret;
+            		    }
+            		    printk("<<< 1.8V= 0\n");
+        		}
                         break;
                     default:
                         pr_info("ov5670 --> HW_ID is not defined\n");
@@ -293,7 +342,17 @@ static int ov5670_power_ctrl(struct v4l2_subdev *sd, int flag)
                             }
                             printk("<<< 2.8V = 0\n");
                         }
+        		//turn off power 1.8V
+        		if (camera_vprog2_on) {
+            			camera_vprog2_on = 0;
+            			ret = intel_scu_ipc_iowrite8(MSIC_VPROG2_MRFLD_CTRL, MSIC_VPROG2_OFF);
+            			if (ret) {
+                			printk(KERN_ALERT "Failed to disable regulator vprog2\n");
+                		return ret;
+            		}
+            		printk("<<< 1.8V= 0\n");
                         break;
+		}
                     case HW_ID_SR1:
                     case HW_ID_SR2:
                     case HW_ID_ER:
@@ -313,16 +372,7 @@ static int ov5670_power_ctrl(struct v4l2_subdev *sd, int flag)
                 break;
         }//end switch
 
-        //turn off power 1.8V
-        if (camera_vprog2_on) {
-            camera_vprog2_on = 0;
-            ret = intel_scu_ipc_iowrite8(MSIC_VPROG2_MRFLD_CTRL, MSIC_VPROG2_OFF);
-            if (ret) {
-                printk(KERN_ALERT "Failed to disable regulator vprog2\n");
-                return ret;
-            }
-            printk("<<< 1.8V= 0\n");
-        }
+
     }//end if
 
     return 0;
