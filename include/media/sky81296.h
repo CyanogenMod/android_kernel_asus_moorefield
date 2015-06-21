@@ -152,7 +152,7 @@ enum sky81296_torch_current{
 };
 
 
-int inline mapping_torch_intensity(int light_intensity_percentage){
+static int inline mapping_torch_intensity(int light_intensity_percentage){
     int ret;
     ret = SKY81296_TORCH_CURRENT_25MA;
     if(light_intensity_percentage > 10)
