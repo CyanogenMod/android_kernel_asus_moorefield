@@ -730,7 +730,7 @@ static void __exit bcm43xx_bluetooth_exit(void)
 }
 
 
-module_init(bcm43xx_bluetooth_init);
+late_initcall(bcm43xx_bluetooth_init);
 module_exit(bcm43xx_bluetooth_exit);
 
 MODULE_ALIAS("platform:bcm43xx");
