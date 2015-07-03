@@ -1875,6 +1875,7 @@ EXPORT_SYMBOL_GPL(intel_scu_ipc_write_oemnib);
 /*
  * This reads the OEMNIB from the internal RAM of the SCU.
  */
+#if 0
 static int intel_scu_ipc_read_oemnib(u8 *oemnib, int len, int offset)
 {
 	int i, ret = 0;
@@ -1944,6 +1945,7 @@ exit:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(intel_scu_ipc_read_oemnib);
+#endif
 
 #ifdef DUMP_OSNIB
 /*
