@@ -17,3 +17,5 @@ config VIDEO_ATOMISP_TMP
 
 config VIDEO_ATOMISP_CTP
        tristate "temporary Kconfig variable for atomisp2 on CTP"
+
+source drivers/external_drivers/camera/drivers/media/pci/atomisp2/Kconfig
