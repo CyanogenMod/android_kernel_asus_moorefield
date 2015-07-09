@@ -58,9 +58,6 @@ static const unsigned int tacc_mant[] = {
 		__res & __mask;						\
 	})
 
-extern int intel_scu_ipc_ioread8(u16 addr, u8 *data);
-extern int intel_scu_ipc_iowrite8(u16 addr, u8 data);
-
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
@@ -220,7 +217,6 @@ static int mmc_read_ssr(struct mmc_card *card)
 	unsigned int au, es, et, eo;
 	int err, i, max_au;
 	u32 *ssr;
-	int value;      //<ASUS_BSP+>
 
 	if (!(card->csd.cmdclass & CCC_APP_SPEC)) {
 		pr_warning("%s: card lacks mandatory SD Status "
@@ -263,14 +259,6 @@ static int mmc_read_ssr(struct mmc_card *card)
 	} else {
 		pr_warning("%s: SD Status: Invalid Allocation Unit "
 			"size.\n", mmc_hostname(card->host));
-		//<ASUS_BSP+>
-		if ((strcmp(mmc_hostname(card->host), "mmc1") == 0) /*&& (gpio_get_value(77) != 0)*/) {   //SDIO_CD# is high
-				intel_scu_ipc_ioread8(0xAF, &value);
-				value &= 0xFD;                          //VSWITCHEN Disable
-				intel_scu_ipc_iowrite8(0xAF, value);
-				//printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
-		}
-		//<ASUS_BSP->
 	}
 out:
 	kfree(ssr);

@@ -38,6 +38,7 @@
 #define TSB_OTP_START_ADDR	0x3504
 #define TSB_OTP_PAGE_REG	0x3502
 #define TSB_OTP_ENABLE		0x3500
+#define TSB_OTP_PCLK            0x3545
 #define TSB_OTP_PAGE_SIZE	24
 #define TSB_OTP_DATA_SIZE	512
 #define TSB_OTP_READ_ONETIME	24
@@ -120,9 +121,9 @@ static int __tsb_otp_read(struct v4l2_subdev *sd, struct tsb_af_data *buf)
         int i;
         u8 read_value[24];
 
-        ret = tsb_write_reg(client, TSB_8BIT, TSB_OTP_ENABLE, 0x81);
+        ret = tsb_write_reg(client, TSB_8BIT, TSB_OTP_PCLK, 0x05);
         if (ret) {
-                dev_err(&client->dev, "failed to write otp enable.\n");
+                dev_err(&client->dev, "failed to write OTP input clock\n");
                 return ret;
         }
 
@@ -132,6 +133,12 @@ static int __tsb_otp_read(struct v4l2_subdev *sd, struct tsb_af_data *buf)
                 ret = tsb_write_reg(client, TSB_8BIT, TSB_OTP_PAGE_REG, i);
                 if (ret) {
                         dev_err(&client->dev, "failed to prepare OTP page\n");
+                        return ret;
+                }
+
+                ret = tsb_write_reg(client, TSB_8BIT, TSB_OTP_ENABLE, 0x81);
+                if (ret) {
+                        dev_err(&client->dev, "failed to write otp enable.\n");
                         return ret;
                 }
 

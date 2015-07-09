@@ -1399,7 +1399,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	{
 		ftxxxx_write_reg(client, 0xda, 0x64);
 		ftxxxx_write_reg(client, 0xdb, 0x00);
-		ftxxxx_write_reg(client, 0xdc, 0x40);
+		ftxxxx_write_reg(client, 0xdc, 0x00);
 		ftxxxx_write_reg(client, 0xdd, 0x05);
 		ftxxxx_write_reg(client, 0xde, 0x64);
 		ftxxxx_write_reg(client, 0xdf, 0x00);
@@ -1414,7 +1414,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	{
 		ftxxxx_write_reg(client, 0xda, 0x96);
 		ftxxxx_write_reg(client, 0xdb, 0x00);
-		ftxxxx_write_reg(client, 0xdc, 0xe0);
+		ftxxxx_write_reg(client, 0xdc, 0x80);
 		ftxxxx_write_reg(client, 0xdd, 0x07);
 		ftxxxx_write_reg(client, 0xde, 0x96);
 		ftxxxx_write_reg(client, 0xdf, 0x00);

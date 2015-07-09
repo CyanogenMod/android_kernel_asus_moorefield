@@ -932,10 +932,10 @@ int mm8033_read_percentage(void)
 	}else {
 		//GAUGE_INFO("percentage = %d\n", soc / 256);
 		/*>.5% + 1%*/
-		if (((soc+127) / 256)>100)
+		if (((soc+128) / 256)>100)
 			return 100;
 		else
-			return (soc+127) / 256;
+			return (soc+128) / 256;
 	}
 }
 int mm8033_read_current(void)

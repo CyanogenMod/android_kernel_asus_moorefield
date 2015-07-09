@@ -452,7 +452,7 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.sh_fmt = CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 10"
 	}, { //18, added for m10mo in ASUS ZX551ML
-		.pixelformat = V4L2_PIX_FMT_SGBRG10,
+		.pixelformat = V4L2_PIX_FMT_SGBRG8,
 		.depth = 16,
 		.mbus_code = V4L2_MBUS_FMT_UYVY8_1X16,
 		.sh_fmt = CSS_FRAME_FORMAT_RAW,
@@ -2197,6 +2197,7 @@ static int atomisp_s_ctrl(struct file *file, void *fh,
 	case V4L2_CID_EXPOSURE:
 	case V4L2_CID_SCENE_MODE:
 	case V4L2_CID_ISO_SENSITIVITY:
+		printk("DDDDD @%s V4L2_CID_ISO_SENSITIVITY \n",__func__);
 	case V4L2_CID_ISO_SENSITIVITY_AUTO:
 	case V4L2_CID_POWER_LINE_FREQUENCY:
 	case V4L2_CID_EXPOSURE_METERING:
@@ -2211,8 +2212,12 @@ static int atomisp_s_ctrl(struct file *file, void *fh,
 	case V4L2_CID_TEST_PATTERN_COLOR_GB:
 	case V4L2_CID_TEST_PATTERN_COLOR_B:
 		rt_mutex_unlock(&isp->mutex);
-		return v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, s_ctrl, control);
+		if(control->id == V4L2_CID_ISO_SENSITIVITY){
+			printk("DDDDD V4L2_CID_ISO_SENSITIVITY ret = %d\n",ret);
+		}
+		return ret;
 	case V4L2_CID_COLORFX:
 		ret = atomisp_color_effect(asd, 1, &control->value);
 		break;

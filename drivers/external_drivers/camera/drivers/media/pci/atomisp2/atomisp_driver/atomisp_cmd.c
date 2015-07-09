@@ -4348,12 +4348,14 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 		}
 
 		if (0 == strncmp(isp->inputs[asd->input_curr].camera->name, "m10mo", strlen("m10mo"))){
-			if(pix->pixelformat == V4L2_PIX_FMT_SGBRG10){
+			if(pix->pixelformat == V4L2_PIX_FMT_SGBRG8){
 			    printk(KERN_INFO "ASUSBSP --- To capture RAW10, WA for m10mo on ASUS ZX551ML! \n");
 			    input_format_temporary_keep = mipi_info->input_format;
-				mipi_info->input_format = ATOMISP_INPUT_FORMAT_RAW_10;
+				mipi_info->raw_bayer_order = atomisp_bayer_order_gbrg;
+				mipi_info->input_format = ATOMISP_INPUT_FORMAT_RAW_8;
 			}else if (pix->pixelformat == V4L2_PIX_FMT_NV12 && input_format_temporary_keep != 0){
 			    printk(KERN_INFO "ASUSBSP --- To preview after capturing RAW10, WA for m10mo on ASUS ZX551ML! \n");
+				mipi_info->raw_bayer_order = 0;
 				mipi_info->input_format = input_format_temporary_keep;
 				input_format_temporary_keep = 0;
 			}

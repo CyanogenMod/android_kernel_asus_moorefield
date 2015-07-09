@@ -2578,6 +2578,7 @@ static int fsg_main_thread(void *common_)
 
 /*************************** DEVICE ATTRIBUTES ***************************/
 
+static DEVICE_ATTR(cdrom, 0644, fsg_show_cdrom, fsg_store_cdrom);
 static DEVICE_ATTR(ro, 0644, fsg_show_ro, fsg_store_ro);
 static DEVICE_ATTR(nofua, 0644, fsg_show_nofua, fsg_store_nofua);
 static DEVICE_ATTR(file, 0644, fsg_show_file, fsg_store_file);
@@ -2698,6 +2699,11 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		}
 
 		rc = device_create_file(&curlun->dev,
+					 &dev_attr_cdrom);
+		if (rc)
+			goto error_luns;
+
+		rc = device_create_file(&curlun->dev,
 					curlun->cdrom
 				      ? &dev_attr_ro_cdrom
 				      : &dev_attr_ro);
@@ -2744,10 +2750,10 @@ buffhds_first_it:
 	/* Prepare inquiryString */
 	i = get_default_bcdDevice();
 	snprintf(common->inquiry_string, sizeof common->inquiry_string,
-		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
+		 "%-8s%-16s%04x", cfg->vendor_name ?: "ASUS",
 		 /* Assume product name dependent on the first LUN */
 		 cfg->product_name ?: (common->luns->cdrom
-				     ? "File-Stor Gadget"
+				     ? "Device CD-ROM"
 				     : "File-CD Gadget"),
 		 i);
 
@@ -2838,6 +2844,7 @@ static void fsg_common_release(struct kref *ref)
 					   lun->removable
 					 ? &dev_attr_file
 					 : &dev_attr_file_nonremovable);
+			device_remove_file(&lun->dev, &dev_attr_cdrom);
 			fsg_lun_close(lun);
 			device_unregister(&lun->dev);
 		}

@@ -96,9 +96,6 @@
 #define ADC_COEFFICIENT         269
 #define TEMP_OFFSET             273150
 
-long systherm2_temp=0;
-EXPORT_SYMBOL(systherm2_temp);
-
 /* Structure for thermal event notification */
 struct thermal_event {
 	int sensor;	/* Sensor type */
@@ -573,10 +570,20 @@ static int update_temp(struct thermal_zone_device *tzd, long *temp)
 
 	ret = adc_to_temp(td_info->sensor->direct, tdata->cached_vals[indx],
 								temp);
-	if(indx==2)
-		systherm2_temp = *temp;
 	return ret;
 }
+
+long read_systherm2_temp(void)
+{
+	int ret;
+	long cur_temp;
+	struct thermal_zone_device *tzd = tdata->tzd[2];
+
+	ret = update_temp(tzd, &cur_temp);
+	printk("[PMIC] systherm2 = %ld\n", cur_temp);
+	return cur_temp;
+}
+EXPORT_SYMBOL(read_systherm2_temp);
 
 static int show_emul_temp(struct thermal_zone_device *tzd, long *temp)
 {

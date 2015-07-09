@@ -102,6 +102,7 @@ static struct power_supply_cable_props g_cap = {0};
 #endif
 #if defined(CONFIG_A500CG_BATTERY_SMB347) || defined(CONFIG_SMB1357_CHARGER)
 extern int Read_PROJ_ID(void);
+extern int uv_flag;
 enum power_supply_charger_cable_type usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_NONE;
 static BLOCKING_NOTIFIER_HEAD(cable_status_notifier_list);
 /**
@@ -1384,8 +1385,10 @@ static void sdp_report_queue(struct work_struct *work)
 #endif
 	atomic_notifier_call_chain(&chc.otg->notifier, USB_EVENT_CHARGER, &g_cap);
 #if defined(CONFIG_A500CG_BATTERY_SMB347) || defined(CONFIG_SMB1357_CHARGER)
-	usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_USB_SDP;
-	cable_status_notifier_call_chain(usb_cable_status, &g_cap);
+	if (Read_PROJ_ID()!=PROJ_ID_ZX550ML) {
+		usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_USB_SDP;
+		cable_status_notifier_call_chain(usb_cable_status, &g_cap);
+	}
 #endif
 }
 #endif
@@ -1424,11 +1427,19 @@ static void handle_internal_usbphy_notifications(int mask)
 #if defined(CONFIG_A500CG_BATTERY_SMB347) || defined(CONFIG_SMB1357_CHARGER)
 			usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_NONE;
 			cable_status_notifier_call_chain(usb_cable_status, &cap);
-	}else if ((cap.chrg_type == POWER_SUPPLY_CHARGER_TYPE_USB_SDP)&&(Read_PROJ_ID()!=PROJ_ID_ZX550ML)) {
-#else
-	}else if (cap.chrg_type == POWER_SUPPLY_CHARGER_TYPE_USB_SDP) {
 #endif
+	}else if (cap.chrg_type == POWER_SUPPLY_CHARGER_TYPE_USB_SDP) {
+#if defined(CONFIG_SMB1357_CHARGER)
+		if (Read_PROJ_ID()==PROJ_ID_ZX550ML) {
+			/* ZX550ML report SDP first to control gpio 51 then detect again*/
+			usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_USB_SDP;
+			cable_status_notifier_call_chain(usb_cable_status, &cap);
+			schedule_delayed_work(&sdp_work, 4*HZ);
+		} else
+			schedule_delayed_work(&sdp_work, 1.5*HZ);
+#else
 		schedule_delayed_work(&sdp_work, 1.5*HZ);
+#endif
 	}else {
 		atomic_notifier_call_chain(&chc.otg->notifier, USB_EVENT_CHARGER, &cap);
 #if defined(CONFIG_A500CG_BATTERY_SMB347) || defined(CONFIG_SMB1357_CHARGER)
@@ -1505,7 +1516,11 @@ int pmic_handle_low_supply(void)
 			break;
 		}
 	}
+#if defined(CONFIG_SMB1357_CHARGER)
+	if (!(val & SCHRGRIRQ1_SVBUSDET_MASK)||uv_flag) {
+#else
 	if (!(val & SCHRGRIRQ1_SVBUSDET_MASK)) {
+#endif
 		int mask = 0;
 
 		dev_info(chc.dev, "USB VBUS Removed. Notifying OTG driver\n");

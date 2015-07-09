@@ -27,6 +27,7 @@
 
 #define DISABLE_CHARGING_AT_LOW_TEMP false
 #define VWARN1_CFG_REG	0x3C
+#define VPROG2_CFG_REG	0xAD
 #define THERMAL_CTRL		1
 
 static unsigned int  battery_current;
@@ -37,7 +38,8 @@ module_param(battery_remaining_capacity , uint, 0644);
 
 extern int Read_HW_ID(void);
 extern int Read_PROJ_ID(void);
-static int boot_mode;
+int boot_mode;
+EXPORT_SYMBOL(boot_mode);
 
 //struct delayed_work battery_low_init_work;		//battery low init
 struct delayed_work battery_poll_data_work;		//polling data
@@ -67,7 +69,8 @@ extern int hvdcp_mode, dcp_mode, early_suspend_flag, set_usbin_cur_flag;
 #endif
 #ifdef THERMAL_CTRL
 static int qc_disable=1, temp_1400=60000, temp_700=65000, temp_0=70000;
-extern long systherm2_temp;
+long systherm2_temp;
+extern long read_systherm2_temp(void);
 enum systherm2_control_current_block{
 	LIMIT_NONE=0,
 	LIMIT_1400,
@@ -745,6 +748,26 @@ static int asus_battery_update_status_no_mutex(int percentage)
 							aicl_set_flag = 1;
 						}
 					}
+				}else if(Read_PROJ_ID()==PROJ_ID_ZE551ML_CKD) {
+					if((smb1357_get_aicl_result()>=0x0b)&&(smb1357_get_aicl_result()<0x12)) {
+						BAT_DBG("BZ SKU: DCP in and aicl result between 1000~1800mA\n");
+						if(set_usbin_cur_flag==1) {
+							BAT_DBG("setting step current now so ignore!\n");
+						}else {
+							BAT_DBG("set current again!\n");
+							set_QC_inputI_limit(3);
+							aicl_set_flag = 1;
+						}
+					}else if(vbat>3800) {
+						BAT_DBG("BZ SKU: DCP in and vbat >3.8V\n");
+						if(set_usbin_cur_flag==1) {
+							BAT_DBG("setting step current now so ignore!\n");
+						}else {
+							BAT_DBG("set current again!\n");
+							set_QC_inputI_limit(3);
+							aicl_set_flag = 1;
+						}
+					}
 				}
 			}
 		}
@@ -1047,6 +1070,7 @@ handle500_600:
 #ifdef THERMAL_CTRL
 #ifdef CONFIG_SMB1357_CHARGER
 		/*for QC thermal shutdown issue, so add monitoring SYSTHERM2 function for ZE550ML/ZE551ML*/
+		systherm2_temp = read_systherm2_temp();
 		if(qc_disable&&hvdcp_mode&&(!early_suspend_flag)&&(Read_PROJ_ID()!=PROJ_ID_ZX550ML)) {
 			if(systherm2_temp<temp_1400) {
 				if(current_type>=LIMIT_1400 && systherm2_temp>(temp_1400-3000)) {
@@ -1244,9 +1268,15 @@ static void asus_battery_get_info_no_mutex(void)
 		tmp_batt_info.status = POWER_SUPPLY_STATUS_FULL;
 	} else if (pre_soc!=0) {
 		if(pre_soc >= (tmp_batt_info.percentage+2)) {
-			tmp_batt_info.percentage = tmp_batt_info.percentage + 1;
+			if ((tmp_batt_info.status != POWER_SUPPLY_STATUS_NOT_CHARGING)&&(tmp_batt_info.status != POWER_SUPPLY_STATUS_DISCHARGING))
+				tmp_batt_info.percentage = tmp_batt_info.percentage + 1;
 		}else if((pre_soc+2) <= tmp_batt_info.percentage) {
 			tmp_batt_info.percentage = tmp_batt_info.percentage - 1;
+		}else if ((tmp_batt_info.status == POWER_SUPPLY_STATUS_NOT_CHARGING)||(tmp_batt_info.status == POWER_SUPPLY_STATUS_DISCHARGING)) {
+			if (tmp_batt_info.percentage>pre_soc) {
+				BAT_DBG("not charging but percentage=%d > pre_soc=%d so donnot increase\n", tmp_batt_info.percentage, pre_soc);
+				tmp_batt_info.percentage = pre_soc;
+			}
 		}
 	}
 	pre_soc = tmp_batt_info.percentage;
@@ -1808,6 +1838,10 @@ int asus_battery_init(
 
 	//set PMIC voltage drop warning
 	intel_scu_ipc_iowrite8(VWARN1_CFG_REG, 0xFF);
+	if(Read_PROJ_ID()==PROJ_ID_ZX550ML) {
+		//set PMIC VPROG2 1V8 default on in ZX550ML
+		intel_scu_ipc_iowrite8(VPROG2_CFG_REG, 0x4B);
+	}
 
         BAT_DBG("%s: success\n", __func__);
 

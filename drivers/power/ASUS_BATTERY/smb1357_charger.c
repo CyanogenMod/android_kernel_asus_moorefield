@@ -43,6 +43,7 @@
 #define CFG_FLOAT_VOLTAGE_REG 				0x1e
 #define CFG_TEMP_BEHAVIOR_REG 			0x1a
 #define RESULT_AICL_REG 					0x46
+#define RESULT_STATUS_REG 					0x47
 #define CFG_AICL_REG 						0x0d
 #define CFG_INPUT_CURRENT_LIMIT_REG 		0x0c
 #define CFG_OTG_I_LIMIT_REG 				0x12
@@ -57,6 +58,7 @@
 #define CMD_CHG_REG   					0x42
 #define WATCHDOG_REG					0x10
 #define HVDCP_STATUS_REG					0x0e
+#define IRQ_E_REG							0x54
 
 /*smb1357 config values*/
 #define CFG_HOT_LIMIT 					0x1b
@@ -131,15 +133,17 @@ static char *smb1357_power_supplied_to[] = {
 static struct smb1357_charger *smb1357_dev;
 static int not_ready_flag=1, dcp_count=0, g_cable_status=0, debug_flag=0, first_out_flag=0, usb_detect_flag=0, gpio57_flag=0;
 static struct delayed_work inok_work; //WA for HTC 5W adaptor
-int hvdcp_mode=0, dcp_mode=0, set_usbin_cur_flag=0;
+int hvdcp_mode=0, dcp_mode=0, set_usbin_cur_flag=0, uv_flag=0;
 EXPORT_SYMBOL(hvdcp_mode);
 EXPORT_SYMBOL(dcp_mode);
 EXPORT_SYMBOL(set_usbin_cur_flag);
+EXPORT_SYMBOL(uv_flag);
 
 extern int Read_HW_ID(void);
 extern int Read_PROJ_ID(void);
 extern struct battery_info_reply batt_info;
 extern unsigned int query_cable_status(void);
+extern int boot_mode;
 struct wake_lock wakelock_cable, wakelock_cable_t;
 
 static int smb1357_read(struct smb1357_charger *smb, u8 reg)
@@ -1082,6 +1086,8 @@ out:
 
 static void smb1357_inok_debounce_queue(struct work_struct *work)
 {
+	int ret=0;
+
 	CHR_INFO("%s +++\n", __func__);
 	cancel_delayed_work(&smb1357_dev->query_DCPmode_wrkr);
 	flush_delayed_work(&smb1357_dev->query_DCPmode_wrkr);
@@ -1089,6 +1095,11 @@ static void smb1357_inok_debounce_queue(struct work_struct *work)
 	hvdcp_mode=0;
 	first_out_flag=0;
 	usb_detect_flag = 0;
+	uv_flag = 0;
+	ret = smb1357_read(smb1357_dev, IRQ_E_REG);
+	if  ((ret >= 0)&&(ret&0x1))
+		uv_flag = 1;
+	CHR_INFO("IRQ_E_REG 0x54=0x%02x\n", ret);
 	pmic_handle_low_supply();
 	if (wake_lock_active(&wakelock_cable)) {
 		CHR_INFO("%s: wake unlock\n", __func__);
@@ -1352,20 +1363,22 @@ static void query_PowerState_worker(struct work_struct *work)
 		}
 		CHR_INFO("==================\n");
 	}else {
-		ret = smb1357_read(smb1357_dev,CFG_INPUT_CURRENT_LIMIT_REG);
-		CHR_INFO("the CFG_INPUT_CURRENT_LIMIT_REG 0CH is 0x%02x\n", ret);
+		ret = smb1357_read(smb1357_dev, CFG_INPUT_CURRENT_LIMIT_REG);
+		CHR_INFO("the CFG_INPUT_CURRENT_LIMIT_REG 0Ch is 0x%02x\n", ret);
 		ret = smb1357_read(smb1357_dev, HVDCP_STATUS_REG);
 		CHR_INFO("the HVDCP_STATUS_REG 0Eh is 0x%02x\n", ret);
 		ret = smb1357_read(smb1357_dev, CFG_PRE_FAST_CHARGE_CURRENT_REG);
 		CHR_INFO("the CFG_PRE_FAST_CHARGE_CURRENT_REG 1Ch is 0x%02x\n", ret);
-		ret = smb1357_read(smb1357_dev,RESULT_AICL_REG);
-		CHR_INFO("the RESULT_AICL_REG 46H is 0x%02x\n", ret);
+		ret = smb1357_read(smb1357_dev, RESULT_AICL_REG);
+		CHR_INFO("the RESULT_AICL_REG 46h is 0x%02x\n", ret);
+		ret = smb1357_read(smb1357_dev, RESULT_STATUS_REG);
+		CHR_INFO("the RESULT_STATUS_REG 47h is 0x%02x\n", ret);
 		ret = smb1357_read(smb1357_dev, STAT_PWRSRC_REG);
 		CHR_INFO("the STAT_PWRSRC_REG 4Bh is 0x%02x\n", ret);
 		ret = smb1357_read(smb1357_dev, STAT_HVDCP_REG);
 		CHR_INFO("the STAT_HVDCP_REG 4Dh is 0x%02x\n", ret);
-		ret = smb1357_read(smb1357_dev,STAT_CHARGE_REG);
-		CHR_INFO("the charge STATUS 0x4A is 0x%02x\n", ret);
+		ret = smb1357_read(smb1357_dev, STAT_CHARGE_REG);
+		CHR_INFO("the STAT_CHARGE_REG 4Ah is 0x%02x\n", ret);
 	}
 
 	schedule_delayed_work(&smb1357_dev->power_state_wrkr, 30*HZ);
@@ -1418,7 +1431,8 @@ static void query_DCPmode_worker(struct work_struct *work)
 				if(ret&BIT(4)){
 					CHR_INFO("detect HVDCP!\n");
 					if(hvdcp_mode!=1) {
-						hvdcp_mode = 1;
+						if ((boot_mode==1)||(boot_mode==4))
+							hvdcp_mode = 1;
 						CHR_INFO("%s CHRG_DCP(HVDCP) !!!\n", __func__);
 					}
 				}else {
@@ -1482,7 +1496,7 @@ static int cable_status_notify2(struct notifier_block *self, unsigned long actio
 					//WA for USB detect wrong issue
 					CHR_INFO("detect SDP first so set gpio 51 then detect again \n");
 					gpio_direction_output(51, 1);
-					msleep(3000);
+					msleep(2000);
 					gpio_direction_output(51, 0);
 					usb_detect_flag = 1;
 				}

@@ -6215,7 +6215,9 @@ need_yuv_scaler_stage(const struct ia_css_pipe *pipe)
 
 	/* TODO: make generic function */
 	need_format_conversion =
-		((pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY) &&
+		((pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY ||
+		pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV422_16 ||
+		pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV422_8) &&
 		(pipe->output_info[0].format != IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8));
 
 	in_res = pipe->config.input_effective_res;

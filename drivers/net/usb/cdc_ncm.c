@@ -52,6 +52,7 @@
 #include <linux/usb/usbnet.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/cdc_ncm.h>
+#include <linux/wait.h>
 
 #define	DRIVER_VERSION				"14-Mar-2012"
 
@@ -62,6 +63,12 @@ static bool prefer_mbim;
 #endif
 module_param(prefer_mbim, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(prefer_mbim, "Prefer MBIM setting on dual NCM/MBIM functions");
+
+#define WAIT_NET_CARRIER_EVENT_WHEN_CLOSE
+
+#ifdef WAIT_NET_CARRIER_EVENT_WHEN_CLOSE
+extern wait_queue_head_t net_carrier_wq;
+#endif
 
 static void cdc_ncm_txpath_bh(unsigned long param);
 static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx);
@@ -1243,7 +1250,10 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		printk(KERN_INFO KBUILD_MODNAME ": %s: network connection:"
 			" %sconnected\n",
 			ctx->netdev->name, ctx->connected ? "" : "dis");
-
+#ifdef WAIT_NET_CARRIER_EVENT_WHEN_CLOSE
+		if (!ctx->connected)
+			wake_up_interruptible(&net_carrier_wq);
+#endif
 		usbnet_link_change(dev, ctx->connected, 0);
 		if (!ctx->connected)
 			ctx->tx_speed = ctx->rx_speed = 0;

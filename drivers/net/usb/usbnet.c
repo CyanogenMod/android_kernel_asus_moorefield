@@ -47,6 +47,10 @@
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
 #include <linux/debugfs.h>
+#include <linux/jiffies.h>
+#include <linux/wait.h>
+#include <linux/usb/cdc.h>
+#include <linux/usb/cdc_ncm.h>
 
 #define DRIVER_VERSION		"22-Aug-2005"
 
@@ -79,6 +83,11 @@
 
 /*-------------------------------------------------------------------------*/
 
+#define WAIT_NET_CARRIER_EVENT_WHEN_CLOSE
+
+#ifdef WAIT_NET_CARRIER_EVENT_WHEN_CLOSE
+wait_queue_head_t net_carrier_wq;
+#endif
 // randomly generated ethernet address
 static u8	node_id [ETH_ALEN];
 
@@ -848,6 +857,10 @@ int usbnet_stop (struct net_device *net)
 	struct usbnet		*dev = netdev_priv(net);
 	struct driver_info	*info = dev->driver_info;
 	int			retval;
+#ifdef WAIT_NET_CARRIER_EVENT_WHEN_CLOSE
+	struct cdc_ncm_ctx *ctx;
+	ctx = (struct cdc_ncm_ctx *)dev->data[0];
+#endif
 
 	clear_bit(EVENT_DEV_OPEN, &dev->flags);
 	netif_stop_queue (net);
@@ -872,6 +885,13 @@ int usbnet_stop (struct net_device *net)
 	if (!(info->flags & FLAG_AVOID_UNLINK_URBS))
 		usbnet_terminate_urbs(dev);
 
+#ifdef WAIT_NET_CARRIER_EVENT_WHEN_CLOSE
+	if (is_hsic_modem(dev->udev)) {
+		printk(KERN_INFO "wait net disconnect event done before usbnet_status_stop! --start\r\n");
+		wait_event_interruptible_timeout(net_carrier_wq, !ctx->connected, msecs_to_jiffies(10));
+		printk(KERN_INFO "wait net disconnect event done before usbnet_status_stop! --end\r\n");
+	 }
+#endif
 	usbnet_status_stop(dev);
 
 	usbnet_purge_paused_rxq(dev);
@@ -971,6 +991,9 @@ int usbnet_open (struct net_device *net)
 			usb_autopm_put_interface(dev->intf);
 		}
 	}
+#ifdef WAIT_NET_CARRIER_EVENT_WHEN_CLOSE
+	init_waitqueue_head(&net_carrier_wq);
+#endif
 	return retval;
 done:
 	usb_autopm_put_interface(dev->intf);

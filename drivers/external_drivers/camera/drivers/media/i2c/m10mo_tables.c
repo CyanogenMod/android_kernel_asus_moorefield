@@ -47,6 +47,11 @@ static const struct m10mo_resolution const m10mo_preview_modes_fw0[] = {
 
 static const struct m10mo_resolution const m10mo_capture_modes_fw0[] = {
 	{
+		.width = 4736,
+		.height = 3552,
+		.command = 0x2C,
+	},
+	{
 		.width = 4160,
 		.height = 3120,
 		.command = 0x2C,
