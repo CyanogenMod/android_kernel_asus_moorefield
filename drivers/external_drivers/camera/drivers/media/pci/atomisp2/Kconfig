@@ -6,7 +6,7 @@ config VIDEO_ATOMISP_CSS2400_V21
        tristate "Intel Atom Image Signal Processor Driver"
         depends on VIDEO_ATOMISP
 
-config VIDEO_ATOMISP_CSS2401
+config VIDEO_ATOMISP_CSS2401_V21
        tristate "Intel Atom Image Signal Processor Driver"
         depends on VIDEO_ATOMISP
 
