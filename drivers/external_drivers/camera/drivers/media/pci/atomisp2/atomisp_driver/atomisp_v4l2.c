@@ -65,24 +65,24 @@
 #endif
 
 /* set reserved memory pool size in page */
-unsigned int repool_pgnr;
+unsigned int repool_pgnr=39936;
 module_param(repool_pgnr, uint, 0644);
 MODULE_PARM_DESC(repool_pgnr,
 		"Set the reserved memory pool size in page (default:0)");
 
 /* set dynamic memory pool size in page */
-unsigned int dypool_pgnr = UINT_MAX;
+unsigned int dypool_pgnr = 39936;
 module_param(dypool_pgnr, uint, 0644);
 MODULE_PARM_DESC(dypool_pgnr,
 		"Set the dynamic memory pool size in page (default:0)");
 
-bool dypool_enable;
+bool dypool_enable=1;
 module_param(dypool_enable, bool, 0644);
 MODULE_PARM_DESC(dypool_enable,
 		"dynamic memory pool enable/disable (default:disable)");
 
 /* memory optimization: deferred firmware loading */
-bool defer_fw_load;
+bool defer_fw_load=1;
 module_param(defer_fw_load, bool, 0644);
 MODULE_PARM_DESC(defer_fw_load,
 		"Defer FW loading until device is opened (default:disable)");
@@ -1610,7 +1610,7 @@ static void __exit atomisp_exit(void)
 	pci_unregister_driver(&atomisp_pci_driver);
 }
 
-module_init(atomisp_init);
+late_initcall(atomisp_init);
 module_exit(atomisp_exit);
 
 MODULE_AUTHOR("Wen Wang <wen.w.wang@intel.com>");
