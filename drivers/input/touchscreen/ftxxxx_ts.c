@@ -1454,7 +1454,8 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_V);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_Z);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_C);
-		
+
+        __set_bit(KEY_POWER, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_RIGHT, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_LEFT, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_UP, input_dev->keybit);
