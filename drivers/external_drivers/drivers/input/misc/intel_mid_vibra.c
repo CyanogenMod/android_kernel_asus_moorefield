@@ -37,9 +37,20 @@
 #include <linux/input/intel_mid_vibra.h>
 #include <trace/events/power.h>
 #include <asm/intel_scu_pmic.h>
+#include <linux/hrtimer.h>
+#include <linux/wakelock.h>
+#include <../../../../../drivers/staging/android/timed_output.h>
 #include "mid_vibra.h"
 
 extern bool is_incall;
+
+static struct {
+	struct mutex lock;
+	struct work_struct work;
+	struct hrtimer timer;
+	struct wake_lock wklock;
+	struct vibra_info *info;
+} vibdata;
 
 union sst_pwmctrl_reg {
 	struct {
@@ -489,10 +500,79 @@ struct vibra_info *mid_vibra_setup(struct device *dev, struct mid_vibra_pdata *d
 	else
 		info->disable = vibra_disable;
 
+	vibdata.info = info;
+
 	return info;
 }
 
 #define VIBRAPWM_CTRL 0x36
+static void vibrator_on(void)
+{
+	wake_lock(&vibdata.wklock);
+	vibdata.info->enable(vibdata.info);
+}
+
+static void vibrator_off(void)
+{
+	wake_unlock(&vibdata.wklock);
+	vibdata.info->disable(vibdata.info);
+}
+
+static int vibrator_get_time(struct timed_output_dev *dev)
+{
+	if (hrtimer_active(&vibdata.timer)) {
+		ktime_t r = hrtimer_get_remaining(&vibdata.timer);
+		return ktime_to_ms(r);
+	}
+
+	return 0;
+}
+
+static void vibrator_enable(struct timed_output_dev *dev, int value)
+{
+	mutex_lock(&vibdata.lock);
+
+	hrtimer_cancel(&vibdata.timer);
+	cancel_work_sync(&vibdata.work);
+
+	if (value) {
+		vibrator_on();
+		hrtimer_start(&vibdata.timer, ns_to_ktime((u64) value * NSEC_PER_MSEC), HRTIMER_MODE_REL);
+	} else
+		vibrator_off();
+
+	mutex_unlock(&vibdata.lock);
+}
+
+static struct timed_output_dev to_dev = {
+	.name = "vibrator",
+	.get_time = vibrator_get_time,
+	.enable = vibrator_enable,
+};
+
+static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
+{
+	schedule_work(&vibdata.work);
+	return HRTIMER_NORESTART;
+}
+
+static void vibrator_work(struct work_struct *work)
+{
+	vibrator_off();
+}
+
+static void timed_output_subclass_init(void)
+{
+	hrtimer_init(&vibdata.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	vibdata.timer.function = vibrator_timer_func;
+	INIT_WORK(&vibdata.work, vibrator_work);
+	wake_lock_init(&vibdata.wklock, WAKE_LOCK_SUSPEND, "vibrator");
+	mutex_init(&vibdata.lock);
+
+	if (timed_output_dev_register(&to_dev) < 0) {
+		pr_err("%s: fail to create timed output dev\n", __func__);
+	}
+}
 
 static int intel_mid_vibra_probe(struct pci_dev *pci,
 			const struct pci_device_id *pci_id)
@@ -577,6 +657,9 @@ static int intel_mid_vibra_probe(struct pci_dev *pci,
 	pci_set_drvdata(pci, info);
 	pm_runtime_allow(&pci->dev);
 	pm_runtime_put_noidle(&pci->dev);
+
+	timed_output_subclass_init();
+
 	return ret;
 
 do_unmap_shim:
