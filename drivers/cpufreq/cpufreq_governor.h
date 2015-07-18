@@ -133,8 +133,8 @@ static void *get_cpu_dbs_info_s(int cpu)				\
 struct cpu_common_dbs_info {
 	struct cpufreq_policy *policy;
 	/*
-	 * percpu mutex that serializes governor limit change with gov_dbs_timer
-	 * invocation. We do not want gov_dbs_timer to run when user is changing
+	 * percpu mutex that serializes governor limit change with dbs_timer
+	 * invocation. We do not want dbs_timer to run when user is changing
 	 * the governor or limits.
 	 */
 	struct mutex timer_mutex;
@@ -208,7 +208,9 @@ struct common_dbs_data {
 
 	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
 	void *(*get_cpu_dbs_info_s)(int cpu);
-	void (*gov_dbs_timer)(struct work_struct *work);
+	unsigned int (*gov_dbs_timer)(struct cpu_dbs_info *cdbs,
+				      struct dbs_data *dbs_data,
+				      bool modify_all);
 	void (*gov_check_cpu)(int cpu, unsigned int load);
 	int (*init)(struct dbs_data *dbs_data, bool notify);
 	void (*exit)(struct dbs_data *dbs_data, bool notify);
@@ -269,8 +271,6 @@ u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
 extern struct mutex cpufreq_governor_lock;
 
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
-bool need_load_eval(struct cpu_common_dbs_info *shared,
-		    unsigned int sampling_rate);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		struct common_dbs_data *cdata, unsigned int event);
 void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
