@@ -66,6 +66,7 @@
 
 #ifdef FTS_GESTURE
 //zax 20140922
+#define KEY_GESTURE_DOUBLECLICK 256
 //#define  KEY_GESTURE_U	KEY_U
 //#define  KEY_GESTURE_UP	KEY_UP
 //#define  KEY_GESTURE_DOWN	KEY_DOWN
@@ -301,7 +302,7 @@ int ftxxxx_i2c_Write(struct i2c_client *client, char *writebuf, int writelen)
 #ifdef FTS_GESTURE//zax 20140922
 static void check_gesture(struct ftxxxx_ts_data *data,int gesture_id)
 {
-	//Tempprintk("[ftxxxx] gesture_id==0x%x\n",gesture_id);
+	printk("[ftxxxx] gesture_id==0x%x\n",gesture_id);
 
 	switch(gesture_id)
 	{
@@ -335,8 +336,9 @@ static void check_gesture(struct ftxxxx_ts_data *data,int gesture_id)
 			//input_report_key(data->input_dev, KEY_GESTURE_U, 0);
 			//input_sync(data->input_dev);
 			if (dclick_mode == 1) {
-				input_report_key(data->input_dev, KEY_POWER, 1);
-				input_report_key(data->input_dev, KEY_POWER, 0);
+				input_report_key(data->input_dev, KEY_GESTURE_DOUBLECLICK, 1);
+				input_sync(data->input_dev);
+				input_report_key(data->input_dev, KEY_GESTURE_DOUBLECLICK, 0);
 				input_sync(data->input_dev);
 			}
 			break;
@@ -422,7 +424,7 @@ static int fts_read_Gesturedata(struct ftxxxx_ts_data *data)
 	pointnum = 0;
 
 	ret = ftxxxx_i2c_Read(data->client, buf, 1, buf, FTS_GESTURE_POINTS_HEADER);
-	//Tempprintk("[ftxxxx] tpd read FTS_GESTURE_POINTS_HEADER.\n");
+	printk("[ftxxxx] tpd read FTS_GESTURE_POINTS_HEADER.\n");
 
 	if (ret < 0)
 	{
@@ -1461,7 +1463,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	auc_i2c_write_buf[1] = 0x00;
 	ftxxxx_i2c_Write(client, auc_i2c_write_buf, 2);	//let fw close gesture function 
 	*/
-	input_set_capability(input_dev, EV_KEY, KEY_POWER);
+	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_DOUBLECLICK);
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_U); 
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_UP); 
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_DOWN);
@@ -1477,6 +1479,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_Z);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_C);
 		
+	__set_bit(KEY_GESTURE_DOUBLECLICK, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_RIGHT, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_LEFT, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_UP, input_dev->keybit);
