@@ -61,7 +61,6 @@ struct cpufreq_interactive_cpuinfo {
 };
 
 static DEFINE_PER_CPU(struct cpufreq_interactive_cpuinfo, cpuinfo);
-static int boot_boost;
 
 /* realtime thread handles frequency scaling */
 static struct task_struct *speedchange_task;
@@ -77,12 +76,6 @@ static unsigned int default_target_loads[] = {DEFAULT_TARGET_LOAD};
 #define DEFAULT_ABOVE_HISPEED_DELAY DEFAULT_TIMER_RATE
 static unsigned int default_above_hispeed_delay[] = {
 	DEFAULT_ABOVE_HISPEED_DELAY };
-
-static int __init bootboost(char *str)
-{
-	boot_boost = 1;
-	return 1;
-}
 
 struct cpufreq_interactive_tunables {
 	int usage_count;
@@ -1555,8 +1548,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		tunables->iowait_load_threshold_val = DEFAULT_IOWAIT_LOAD_THRESHOLD;
 		tunables->io_busy = 0;
 #endif /* CONFIG_IRQ_TIME_ACCOUNTING */
-		if (boot_boost)
-			tunables->boost_val = 1;
 
 		spin_lock_init(&tunables->target_loads_lock);
 		spin_lock_init(&tunables->above_hispeed_delay_lock);
@@ -1724,7 +1715,6 @@ static int __init cpufreq_interactive_init(void)
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 fs_initcall(cpufreq_interactive_init);
-__setup("bootboost", bootboost);
 #else
 module_init(cpufreq_interactive_init);
 #endif
