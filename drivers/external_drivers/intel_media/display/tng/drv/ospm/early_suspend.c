@@ -31,6 +31,7 @@
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <asm/intel_scu_pmic.h>
 #include "psb_drv.h"
 #include "early_suspend.h"
 #include "android_hdmi.h"
@@ -38,6 +39,10 @@
 #include "dc_maxfifo.h"
 
 static struct drm_device *g_dev;
+
+#define PULL_DOWN_EN			BIT(9)
+#define PULL_UP_EN			BIT(8)
+#define BL_EN_REG 0xFF0C2530
 
 static void gfx_early_suspend(struct early_suspend *h)
 {
@@ -154,6 +159,12 @@ static int display_reboot_notifier_call(struct notifier_block *this, unsigned lo
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_encoder *encoder;
 	struct drm_encoder_helper_funcs *enc_funcs;
+	static void __iomem *bl_en_mmio;
+	u8 addr, value;
+	addr = 0xae;
+
+	if (!bl_en_mmio)
+		bl_en_mmio = ioremap_nocache(BL_EN_REG, 4);
 
 	switch (event) {
 	case SYS_RESTART:
@@ -181,6 +192,16 @@ static int display_reboot_notifier_call(struct notifier_block *this, unsigned lo
 				enc_funcs->save(encoder);
 		}
 		mutex_unlock(&dev->mode_config.mutex);
+
+		printk("[DISP] turn off the power 2v8!\n");
+		usleep_range(60000, 60600);
+		intel_scu_ipc_ioread8(addr, &value);
+		value &= ~0x1;
+		intel_scu_ipc_iowrite8(addr, value);
+
+		writel((readl(bl_en_mmio) | PULL_DOWN_EN) & (~PULL_UP_EN), bl_en_mmio);
+		printk("[DISP] PULL DOWN the BL_EN gpio pin! %x\n", readl(bl_en_mmio));
+
 		pr_info("%s-\n", __func__);
 		break;
 	}

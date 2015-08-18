@@ -213,8 +213,16 @@ static int m10mo_power_ctrl(struct v4l2_subdev *sd, int flag)
     }
 
 switch (Read_HW_ID()) {
+	case HW_ID_EVB:
+	case HW_ID_SR1:
 	case HW_ID_SR2:
-    	if (camera_3p3_en2 < 0) {
+	case HW_ID_ER:
+	case HW_ID_ER1_1:
+	case HW_ID_ER1_2:
+	case HW_ID_PR:
+	case HW_ID_pre_PR:
+	case HW_ID_MP:
+		if (camera_3p3_en2 < 0) {
 		gpio_free(58);/////// temp WA.
         	lnw_gpio_set_alt(58, LNW_GPIO);
         	ret = camera_sensor_gpio(58, "3X_I2C_LED", GPIOF_DIR_OUT, 0);
@@ -361,6 +369,10 @@ static void spi_hw_resources_setup(struct m10mo_atomisp_spi_platform_data *pdata
 	cs_chip_select = pdata->spi_cs_gpio;
 	lnw_gpio_set_alt(cs_chip_select, LNW_GPIO);
 	gpio_direction_output(cs_chip_select, 0);
+	lnw_gpio_set_alt(116, LNW_ALT_1);
+	lnw_gpio_set_alt(118, LNW_ALT_1);
+	lnw_gpio_set_alt(119, LNW_ALT_1);
+
 
 #ifdef CONFIG_INTEL_SCU_FLIS
 	/* Setup flis configuration if requested to do so */
@@ -388,8 +400,10 @@ static void spi_cs_control(u32 command)
 		return;
 
 	/* CS must be set high during transmission */
-	if (command == CS_ASSERT)
+	if (command == CS_ASSERT) {
 		gpio_set_value(cs_chip_select, 1);
+		udelay(10);
+	}
 	else
 		gpio_set_value(cs_chip_select, 0);
 };
@@ -478,14 +492,14 @@ static struct m10mo_platform_data m10mo_sensor_platform_data = {
 
 	/* platform data for spi flashing */
 	.spi_pdata.spi_enabled	= false, /* By default SPI is not available */
-	.spi_pdata.spi_bus_num	= 2, /* Board specific */
-	.spi_pdata.spi_cs_gpio	= 112, /* Board specific */
+	.spi_pdata.spi_bus_num	= 6, /* Board specific */
+	.spi_pdata.spi_cs_gpio	= 117, /* Board specific */
 	.spi_pdata.spi_speed_hz = 10000000, /* Board specific */
 	/* Set flis values to -1 if the data is correct in pin cfg xml */
-	.spi_pdata.spi_clock_flis	= ann_gp_ssp_2_clk, /* Board specific */
-	.spi_pdata.spi_dataout_flis	= ann_gp_ssp_2_txd, /* Board specific */
-	.spi_pdata.spi_datain_flis	= ann_gp_ssp_2_rxd, /* Board specific */
-	.spi_pdata.spi_cs_flis		= ann_gp_ssp_2_fs, /* Board specific */
+	.spi_pdata.spi_clock_flis	= ann_gp_ssp_6_clk, /* Board specific */
+	.spi_pdata.spi_dataout_flis	= ann_gp_ssp_6_txd, /* Board specific */
+	.spi_pdata.spi_datain_flis	= ann_gp_ssp_6_rxd, /* Board specific */
+	.spi_pdata.spi_cs_flis		= ann_gp_ssp_6_fs, /* Board specific */
 
 	.def_fw_type    = M10MO_FW_TYPE_0,
 	.ref_clock_rate = clock_rate, /* Board specific */

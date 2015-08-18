@@ -125,7 +125,7 @@ int m10mo_set_run_mode_fw_type1_5(struct v4l2_subdev *sd)
 const struct m10mo_fw_ops fw_type1_5_ops = {
 	.set_run_mode           = m10mo_set_run_mode_fw_type1_5,
 	.set_burst_mode         = m10mo_set_burst_mode,
-	.stream_off             = m10mo_streamoff,
+	.stream_off             = m10mo_normal_streamoff,
 	.single_capture_process = m10mo_single_capture_process,
 	.try_mbus_fmt           =  __m10mo_try_mbus_fmt,
 	.set_mbus_fmt           =  __m10mo_set_mbus_fmt,

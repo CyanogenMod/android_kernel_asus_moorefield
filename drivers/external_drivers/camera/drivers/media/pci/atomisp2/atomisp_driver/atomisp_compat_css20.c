@@ -1257,9 +1257,7 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 {
 	struct atomisp_device *isp = asd->isp;
 	int ret = 0, i = 0;
-#ifdef off_c51
-    int count;
-#endif
+
 	if (in_reset) {
 		if (__destroy_streams(asd, true))
 			dev_warn(isp->dev, "destroy stream failed.\n");
@@ -1370,18 +1368,20 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
             if(isp->inputs[asd->input_curr].type == SOC_CAMERA){
                 if(asd->run_mode->val == ATOMISP_RUN_MODE_STILL_CAPTURE){
                     dev_err(isp->dev, "eee  ATOMISP_RUN_MODE_STILL_CAPTURE \n");
-                    setOpenIntelISP(false);
+//                    setOpenIntelISP(false);
                     startCapture();
                 }else if(asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW){
                     dev_err(isp->dev, "eee ATOMISP_RUN_MODE_PREVIEW\n");
-                    setOpenIntelISP(true);
+//                    setOpenIntelISP(true);
                 }
+/*
                 for(count = 0; count < 1000 && !getOpenIntelISP(); count++){
                     if(!(count%10))
                        printk("@%s wait for m10mo irq %dms\n", __func__, count);
                     msleep(1);
                 }
-            }
+*/
+				}
 #endif
 			if (ia_css_stream_start(asd->stream_env[i]
 						.stream) != IA_CSS_SUCCESS) {

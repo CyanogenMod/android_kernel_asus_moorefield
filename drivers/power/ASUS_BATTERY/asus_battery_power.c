@@ -24,6 +24,7 @@
 #include <linux/usb/penwell_otg.h>
 #include <asm/intel_scu_pmic.h>
 #include <asm/intel_mid_gpadc.h>
+#include <linux/switch.h>
 
 #define DISABLE_CHARGING_AT_LOW_TEMP false
 #define VWARN1_CFG_REG	0x3C
@@ -38,8 +39,9 @@ module_param(battery_remaining_capacity , uint, 0644);
 
 extern int Read_HW_ID(void);
 extern int Read_PROJ_ID(void);
-int boot_mode;
+int boot_mode, invalid_charger=0;
 EXPORT_SYMBOL(boot_mode);
+EXPORT_SYMBOL(invalid_charger);
 
 //struct delayed_work battery_low_init_work;		//battery low init
 struct delayed_work battery_poll_data_work;		//polling data
@@ -66,9 +68,11 @@ enum temperature_type{  //unit: 0.1 degree Celsius
 static int temp_type=IN_200_400;
 static int hvdcp_vbat_flag=0, highchgvol_flag=0, aicl_set_flag=0;
 extern int hvdcp_mode, dcp_mode, early_suspend_flag, set_usbin_cur_flag;
+static struct switch_dev charger_dev;
+extern int smb1357_chr_suspend(void);
 #endif
 #ifdef THERMAL_CTRL
-static int qc_disable=1, temp_1400=60000, temp_700=65000, temp_0=70000;
+static int qc_disable=1, temp_1400=55000, temp_700=60000, temp_0=70000;
 long systherm2_temp;
 extern long read_systherm2_temp(void);
 enum systherm2_control_current_block{
@@ -859,7 +863,7 @@ static int asus_battery_update_status_no_mutex(int percentage)
 							if(hvdcp_vbat_flag) {
 								if(vbat<4100) {
 									smb1357_set_Ichg(2800);
-								hvdcp_vbat_flag = 0;
+									hvdcp_vbat_flag = 0;
 								}
 							}else {
 								smb1357_set_Ichg(2800);
@@ -900,7 +904,7 @@ handle400_450:
 							if(hvdcp_vbat_flag) {
 								if(vbat<4100) {
 									smb1357_set_Ichg(2500);
-								hvdcp_vbat_flag = 0;
+									hvdcp_vbat_flag = 0;
 								}
 							}else {
 								smb1357_set_Ichg(2500);
@@ -941,7 +945,7 @@ handle450_500:
 							if(hvdcp_vbat_flag) {
 								if(vbat<4100) {
 									smb1357_set_Ichg(2300);
-								hvdcp_vbat_flag = 0;
+									hvdcp_vbat_flag = 0;
 								}
 							}else {
 								smb1357_set_Ichg(2300);
@@ -1070,8 +1074,8 @@ handle500_600:
 #ifdef THERMAL_CTRL
 #ifdef CONFIG_SMB1357_CHARGER
 		/*for QC thermal shutdown issue, so add monitoring SYSTHERM2 function for ZE550ML/ZE551ML*/
-		systherm2_temp = read_systherm2_temp();
-		if(qc_disable&&hvdcp_mode&&(!early_suspend_flag)&&(Read_PROJ_ID()!=PROJ_ID_ZX550ML)) {
+		if(qc_disable&&hvdcp_mode&&(!early_suspend_flag)&&(Read_PROJ_ID()!=PROJ_ID_ZX550ML)&&(boot_mode==1)) {
+			systherm2_temp = read_systherm2_temp();
 			if(systherm2_temp<temp_1400) {
 				if(current_type>=LIMIT_1400 && systherm2_temp>(temp_1400-3000)) {
 					smb1357_set_voltage(false);
@@ -1098,8 +1102,8 @@ handle500_600:
 					smb1357_set_voltage(false);
 					smb1357_charging_toggle(false);
 					current_type = LIMIT_0;
-					status = POWER_SUPPLY_STATUS_DISCHARGING;
-					goto final;
+					//status = POWER_SUPPLY_STATUS_DISCHARGING;
+					//goto final;
 				}else {
 					smb1357_set_voltage(false);
 					smb1357_set_Ichg(700);
@@ -1110,8 +1114,8 @@ handle500_600:
 				smb1357_set_voltage(false);
 				smb1357_charging_toggle(false);
 				current_type = LIMIT_0;
-				status = POWER_SUPPLY_STATUS_DISCHARGING;
-				goto final;
+				//status = POWER_SUPPLY_STATUS_DISCHARGING;
+				//goto final;
 			}
 			BAT_DBG("use thermal policy and systherm2_temp=%ld, current_type=%d\n", systherm2_temp, current_type);
 		}
@@ -1121,9 +1125,6 @@ handle500_600:
                     switch (percentage) {
                        case 100:
                           status = POWER_SUPPLY_STATUS_FULL;
-#ifdef FULL_CHARGED_SOC
-			full_charged_flag = 1;
-#endif
                           break;
                        case 99:
 #if defined(CONFIG_A500CG_BATTERY_SMB347)
@@ -1136,9 +1137,6 @@ handle500_600:
                              //check if Full-charged is detected
                              BAT_DBG("Full-charged is detected when in 99%% !\n");
                              status = POWER_SUPPLY_STATUS_FULL;
-#ifdef FULL_CHARGED_SOC
-				full_charged_flag = 1;
-#endif
                           } else {
                              //smb347_charging_toggle(true);
                           }
@@ -1178,7 +1176,14 @@ final:
 	if(boot_mode == 4) {
 		BAT_DBG("in charger mode and status = %d, set LED\n", status);
 #ifdef CONFIG_LEDS_ASUS
+#ifdef CONFIG_SMB1357_CHARGER
+		if (invalid_charger) {
+			led_brightness_set(0, 0);
+			led_brightness_set(1, 0);
+		} else if (status == POWER_SUPPLY_STATUS_FULL) {
+#else
 		if (status == POWER_SUPPLY_STATUS_FULL) {
+#endif
 			led_brightness_set(0, 0);
 			led_brightness_set(1, 1);
 		}else if ((status == POWER_SUPPLY_STATUS_CHARGING)||(status == POWER_SUPPLY_STATUS_QUICK_CHARGING)||(status == POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING)) {
@@ -1261,23 +1266,19 @@ static void asus_battery_get_info_no_mutex(void)
 
 #ifdef FULL_CHARGED_SOC
 	BAT_DBG("WA for full-charged issue, full_charged_flag=%d, pre_soc=%d, percentage=%d, cable_status=%d\n", full_charged_flag, pre_soc, tmp_batt_info.percentage, tmp_batt_info.cable_status);
-	if (tmp_batt_info.cable_status == NO_CABLE)
+	if (tmp_batt_info.cable_status == NO_CABLE) {
 		full_charged_flag = 0;
+	}else if(tmp_batt_info.percentage == 100) {
+		if (pre_soc>=99) {
+			tmp_batt_info.status = POWER_SUPPLY_STATUS_FULL;
+			full_charged_flag = 1;
+		} else {
+			full_charged_flag = 0;
+		}
+	}
 	if ((full_charged_flag==1)&&(tmp_batt_info.cable_status ==USB_ADAPTER)&&(tmp_batt_info.percentage>=98)) {
 		tmp_batt_info.percentage = 100;
 		tmp_batt_info.status = POWER_SUPPLY_STATUS_FULL;
-	} else if (pre_soc!=0) {
-		if(pre_soc >= (tmp_batt_info.percentage+2)) {
-			if ((tmp_batt_info.status != POWER_SUPPLY_STATUS_NOT_CHARGING)&&(tmp_batt_info.status != POWER_SUPPLY_STATUS_DISCHARGING))
-				tmp_batt_info.percentage = tmp_batt_info.percentage + 1;
-		}else if((pre_soc+2) <= tmp_batt_info.percentage) {
-			tmp_batt_info.percentage = tmp_batt_info.percentage - 1;
-		}else if ((tmp_batt_info.status == POWER_SUPPLY_STATUS_NOT_CHARGING)||(tmp_batt_info.status == POWER_SUPPLY_STATUS_DISCHARGING)) {
-			if (tmp_batt_info.percentage>pre_soc) {
-				BAT_DBG("not charging but percentage=%d > pre_soc=%d so donnot increase\n", tmp_batt_info.percentage, pre_soc);
-				tmp_batt_info.percentage = pre_soc;
-			}
-		}
 	}
 	pre_soc = tmp_batt_info.percentage;
 #endif
@@ -1335,9 +1336,17 @@ static void asus_polling_data(struct work_struct *dat)
 void asus_update_all(void)
 {
         mutex_lock(&batt_info_mutex);
-
+#ifdef CONFIG_SMB1357_CHARGER
         asus_battery_get_info_no_mutex();
         // if the power source changes, all power supplies may change state 
+	if (smb1357_chr_suspend()&&(Read_PROJ_ID()!=PROJ_ID_ZX550ML)) {
+		BAT_DBG("invalid charger!!!\n");
+		invalid_charger = 1;
+	} else {
+		invalid_charger = 0;
+	}
+	switch_set_state(&charger_dev, invalid_charger);
+#endif
         BAT_DBG("update battery info to frameworks\n");
         power_supply_changed(&asus_power_supplies[CHARGER_BATTERY]);
         //power_supply_changed(&asus_power_supplies[CHARGER_AC]);
@@ -1842,7 +1851,15 @@ int asus_battery_init(
 		//set PMIC VPROG2 1V8 default on in ZX550ML
 		intel_scu_ipc_iowrite8(VPROG2_CFG_REG, 0x4B);
 	}
-
+#ifdef CONFIG_SMB1357_CHARGER
+	/* register switch device for invalid charger status */
+	charger_dev.name = "invalid_charger";
+	if (switch_dev_register(&charger_dev) < 0) {
+		BAT_DBG_E("%s: fail to register charger switch\n", __func__);
+	} else {
+		switch_set_state(&charger_dev, 0);
+	}
+#endif
         BAT_DBG("%s: success\n", __func__);
 
         return 0;
@@ -1873,6 +1890,9 @@ void asus_battery_exit(void)
                 if (boot_mode == 4)
                     wake_lock_destroy(&wakelock);
         }
+#ifdef CONFIG_SMB1357_CHARGER
+	switch_dev_unregister(&charger_dev);
+#endif
         BAT_DBG("Driver unload OK\n");
 }
 

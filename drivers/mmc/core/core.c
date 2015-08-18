@@ -30,6 +30,7 @@
 #include <linux/wakelock.h>
 #include <linux/intel_mid_pm.h>
 #include <linux/gpio.h>
+#include <linux/proc_fs.h>
 
 #include <trace/events/mmc.h>
 
@@ -83,6 +84,17 @@ module_param_named(removable, mmc_assume_removable, bool, 0644);
 MODULE_PARM_DESC(
 	removable,
 	"MMC/SD cards are removable and may be removed during suspend");
+
+//<ASUS_BSP+>
+static ssize_t sd_power_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos);
+static ssize_t sd_power_proc_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos);
+
+static const struct file_operations sd_power_proc_fops = {
+	.owner = THIS_MODULE,
+	.read = sd_power_proc_read,
+	.write = sd_power_proc_write,
+};
+//<ASUS_BSP->
 
 extern int intel_scu_ipc_ioread8(u16 addr, u8 *data);
 extern int intel_scu_ipc_iowrite8(u16 addr, u8 data);
@@ -1551,7 +1563,7 @@ static void mmc_power_up(struct mmc_host *host)
 		intel_scu_ipc_ioread8(0xAF, &value);
 		value |= 0x02;                          //VSWITCHEN Enable
 		intel_scu_ipc_iowrite8(0xAF, value);
-		//printk("%s: Set V_3P30_SW to Enable\n", mmc_hostname(host));
+		printk("%s: Set V_3P30_SW to Enable\n", mmc_hostname(host));
 	}
 	//<ASUS_BSP->
 
@@ -1623,7 +1635,7 @@ void mmc_power_off(struct mmc_host *host)
 //		intel_scu_ipc_ioread8(0xAF, &value);
 //		value &= 0xFD;                          //VSWITCHEN Disable
 //		intel_scu_ipc_iowrite8(0xAF, value);
-//		//printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
+//		printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
 //	}
 //	//<ASUS_BSP->
 
@@ -1809,7 +1821,10 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 	host->detect_change = 1;
-
+	if ((strcmp(mmc_hostname(host), "mmc1") == 0))
+		pr_info("%s: mmc_detect_change, SD card %s\n",
+			mmc_hostname(host), gpio_get_value(77) ? "removed" : "inserted");
+			// gpio-77 : SD_CD
 	wake_lock(&host->detect_wake_lock);
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
@@ -2596,7 +2611,7 @@ void mmc_rescan(struct work_struct *work)
 				intel_scu_ipc_ioread8(0xAF, &value);
 				value &= 0xFD;                          //VSWITCHEN Disable
 				intel_scu_ipc_iowrite8(0xAF, value);
-				//printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
+				printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
 			}
 		}
 		//<ASUS_BSP->
@@ -3056,9 +3071,46 @@ void mmc_set_embedded_sdio_data(struct mmc_host *host,
 EXPORT_SYMBOL(mmc_set_embedded_sdio_data);
 #endif
 
+//<ASUS_BSP+>
+static ssize_t sd_power_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+	return 0;
+}
+static ssize_t sd_power_proc_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{
+	char str[128];
+	int value;
+
+	if (count > PAGE_SIZE) //procfs write and read has PAGE_SIZE limit
+		count = 128;
+
+        if (copy_from_user(str, buf, count))
+	{
+		printk("copy_from_user failed!\n");
+		return -EFAULT;
+        }
+
+	if (count > 1)
+	{
+		str[count-1] = '\0';
+	}
+
+	if ((int)(str[0]) == (0+48)) {		//Disable
+		printk("mmc1: Disable SD card power vswitchen\n");
+
+		intel_scu_ipc_ioread8(0xAF, &value);
+		value &= 0xFD;                          //VSWITCHEN Disable
+		intel_scu_ipc_iowrite8(0xAF, value);
+	}
+
+	return count;
+}
+//<ASUS_BSP->
+
 static int __init mmc_init(void)
 {
 	int ret;
+	struct proc_dir_entry *sd_power_proc; //<ASUS_BSP+>
 
 	workqueue = alloc_ordered_workqueue("kmmcd", 0);
 	if (!workqueue)
@@ -3076,6 +3128,15 @@ static int __init mmc_init(void)
 	if (ret)
 		goto unregister_host_class;
 
+	//<ASUS_BSP+>
+	sd_power_proc = proc_create("asus_sd_power", 0664, NULL, &sd_power_proc_fops);
+
+	if (!sd_power_proc) {
+		pr_err("%s: Failed to create proc sdpower node\n", __func__);
+		goto unregister_host_class;
+	}
+	//<ASUS_BSP->
+
 	return 0;
 
 unregister_host_class:
@@ -3090,6 +3151,9 @@ destroy_workqueue:
 
 static void __exit mmc_exit(void)
 {
+	//<ASUS_BSP+>
+	proc_remove("asus_sd_power");
+	//<ASUS_BSP->
 	sdio_unregister_bus();
 	mmc_unregister_host_class();
 	mmc_unregister_bus();

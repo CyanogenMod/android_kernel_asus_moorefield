@@ -30,7 +30,7 @@
 #include <media/v4l2-device.h>
 #include <linux/sizes.h>
 #include "m10mo.h"
-
+#include <media/m10mo_atomisp.h>
 
 /*
  * Currently the FW image and dump paths are hardcoded here.
@@ -47,6 +47,8 @@
 
 #define M10MO_FW_DUMP_PATH      "/data/M10MO_dump.bin"
 #define M10MO_FW_NAME           "M10MO_fw.bin"
+#define M10MO_SHD_NAME           "ASUS_SHD.bin"
+#define M10MO_SHD_DUMP_PATH      "/data/ASUS_SHD.bin"
 
 #define SRAM_BUFFER_ADDRESS 0x01100000
 #define SDRAM_BUFFER_ADDRESS 0x20000000
@@ -66,6 +68,7 @@
 #define I2C_DUMP_SIZE	     0x20 /* keep as power of 2 values */
 #define FW_SIZE		     0x00200000
 #define FW_INFO_SIZE         0x00000080
+#define FW_SHD_SIZE          0x00021800
 #define FLASH_BLOCK_SIZE     0x10000
 #define FLASH_SECTOR_SIZE     0x1000
 #define SIO_BLOCK_SIZE	     8192
@@ -298,6 +301,102 @@ static int m10mo_memory_dump(struct m10mo_device *m10mo_dev, u16 len,
 	return err;
 }
 
+
+int m10mo_SHD_write_block(struct m10mo_device *dev, u32 target_addr,
+			    u8 *block, u32 block_size)
+{
+	struct v4l2_subdev *sd = &dev->sd;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	int ret;
+	u32 ram_buffer = target_addr;
+	int i;
+
+	for (i = 0; i < block_size / ONE_WRITE_SIZE && ram_buffer < 0x27DC5400; i++) {
+		ret = m10mo_memory_write(sd, M10MO_MEMORY_WRITE_8BIT,
+					 ONE_WRITE_SIZE,
+					 ram_buffer, block);
+		if (ret) {
+			/* Retry once */
+			dev_err(&client->dev,
+				"Write block data send retry\n");
+			ret = m10mo_memory_write(sd, M10MO_MEMORY_WRITE_8BIT,
+						 ONE_WRITE_SIZE,
+						 ram_buffer, block);
+			if (ret) {
+				dev_err(&client->dev,
+					"Write block data send failed\n");
+				return ret;
+			}
+		}
+		ram_buffer += ONE_WRITE_SIZE;
+		block += ONE_WRITE_SIZE;
+	}
+
+	return ret;
+}
+
+
+int m10mo_isp_fw_SHD_R(struct m10mo_device *m10mo_dev)
+{
+	struct v4l2_subdev *sd = &m10mo_dev->sd;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct file *fp;
+	mm_segment_t old_fs;
+	u8 *buf;
+	u32 addr, unit, count;
+	int i;
+	int err;
+
+	dev_dbg(&client->dev, "Begin FW dump to file %s\n", M10MO_SHD_DUMP_PATH);
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	fp = filp_open(M10MO_SHD_DUMP_PATH,
+		O_WRONLY|O_CREAT|O_TRUNC, S_IRUGO|S_IWUGO|S_IXUSR);
+	if (IS_ERR(fp)) {
+		dev_err(&client->dev,
+			"failed to open %s, err %ld\n",
+			M10MO_SHD_DUMP_PATH, PTR_ERR(fp));
+		err = -ENOENT;
+		goto out_file;
+	}
+
+	buf = kmalloc(DUMP_BLOCK_SIZE, GFP_KERNEL);
+	if (!buf) {
+		dev_err(&client->dev, "Failed to allocate memory\n");
+		err = -ENOMEM;
+		goto out_close;
+	}
+
+	addr = 0x27DA3C00;
+	unit = I2C_DUMP_SIZE;
+	count = 0x21800 / I2C_DUMP_SIZE;
+	for (i = 0; i < count; i++) {
+		err = m10mo_memory_dump(m10mo_dev,
+					unit,
+					addr + (i * unit),
+					buf);
+		if (err < 0) {
+			dev_err(&client->dev, "Memory dump failed %d\n", err);
+			goto out_mem_free;
+		}
+		vfs_write(fp, buf, unit, &fp->f_pos);
+	}
+	dev_dbg(&client->dev, "End of FW dump to file\n");
+
+out_mem_free:
+	kfree(buf);
+out_close:
+	if (!IS_ERR(fp))
+		filp_close(fp, current->files);
+out_file:
+	set_fs(old_fs);
+
+	return err;
+}
+
 int m10mo_dump_fw(struct m10mo_device *m10mo_dev)
 {
 	struct v4l2_subdev *sd = &m10mo_dev->sd;
@@ -369,6 +468,8 @@ out_file:
 
 	return err;
 }
+
+
 
 static void m10mo_gen_log_name(char *name, char *prefix)
 {
@@ -1141,7 +1242,7 @@ int m10mo_flash_write_block(struct m10mo_device *dev, u32 target_addr,
 	return ret;
 }
 
-static int m10mo_sio_write(struct m10mo_device *m10mo_dev, u8 *buf)
+static int m10mo_sio_write(struct m10mo_device *m10mo_dev, u8 *buf, u32 size, u32 target_addr)
 {
 	int ret;
 	struct v4l2_subdev *sd = &m10mo_dev->sd;
@@ -1159,10 +1260,15 @@ static int m10mo_sio_write(struct m10mo_device *m10mo_dev, u8 *buf)
 		dev_err(&client->dev, "sio address setting failed\n");
 		return ret;
 	}
-
+#ifdef NEW_FLASHFW_FLOW
 	/* Set programming size - multiples of 16 bytes */
 	ret = m10mo_writel(sd, CATEGORY_FLASHROM, REG_DATA_TRANS_SIZE,
-			   FW_SIZE / 16);
+			   size);
+#else
+	/* Set programming size - multiples of 16 bytes */
+	ret = m10mo_writel(sd, CATEGORY_FLASHROM, REG_DATA_TRANS_SIZE,
+			   FW_SIZE);
+#endif
 	if (ret) {
 		dev_err(&client->dev, "set program size failed\n");
 		return ret;
@@ -1190,28 +1296,36 @@ static int m10mo_sio_write(struct m10mo_device *m10mo_dev, u8 *buf)
 		dev_err(&client->dev, "start sio mode failed \n");
 		return ret;
 	}
-
+	msleep(3);
 	ret = m10mo_wait_operation_complete(sd, REG_RAM_START,
 					    STATE_TRANSITION_TIMEOUT);
 	if (ret)
 		return ret;
 
 	usleep_range(30000, 30000);  /* TDB: is that required */
-
+#ifdef NEW_FLASHFW_FLOW
+	ret = m10mo_dev->spi->write(m10mo_dev->spi->spi_device,
+				    buf, size, SIO_BLOCK_SIZE);
+#else
 	ret = m10mo_dev->spi->write(m10mo_dev->spi->spi_device,
 				    buf, FW_SIZE, SIO_BLOCK_SIZE);
+#endif
 	if (ret)
 		return ret;
 
 	msleep(5); /* TDB: is that required */
 
 	/* Flash address to 0*/
-	ret = m10mo_set_flash_address(sd, 0);
+	ret = m10mo_set_flash_address(sd, target_addr);
 	if (ret)
 		return ret;
-
+#ifdef NEW_FLASHFW_FLOW
+	/* Programming size */
+	ret = m10mo_writel(sd, CATEGORY_FLASHROM, REG_DATA_TRANS_SIZE, size);
+#else
 	/* Programming size */
 	ret = m10mo_writel(sd, CATEGORY_FLASHROM, REG_DATA_TRANS_SIZE, FW_SIZE);
+#endif
 	if (ret) {
 		dev_err(&client->dev, "set sio programming size failed \n");
 		return ret;
@@ -1246,7 +1360,7 @@ m10mo_load_firmware(struct m10mo_device *m10mo_dev, const char * name)
 		return NULL;
 	}
 
-	if (!(fw->size == FW_SIZE || fw->size == FW_INFO_SIZE)) {
+	if (!(fw->size == FW_SIZE || fw->size == FW_INFO_SIZE || fw->size == FW_SHD_SIZE)) {
 		dev_err(&client->dev,
 			"Illegal FW size detected  %s %x\n",name, (int)fw->size);
 		release_firmware(fw);
@@ -1266,6 +1380,38 @@ m10mo_load_firmware(struct m10mo_device *m10mo_dev, const char * name)
 
 	return fw;
 }
+
+int m10mo_isp_fw_SHD_W(struct m10mo_device *m10mo_dev)
+{
+	struct v4l2_subdev *sd = &m10mo_dev->sd;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = -ENODEV;
+	u32 i,j;
+
+	const struct firmware *fw_shd = NULL;
+
+	fw_shd = m10mo_load_firmware(m10mo_dev, M10MO_SHD_NAME);
+	if (!fw_shd)
+		return -ENOENT;
+	dev_info(&client->dev, "load %s ok!\n", M10MO_SHD_NAME);
+
+	for (i = 0x27DA3C00, j = 0 ; i < 0x27DC5400; i = i + FLASH_BLOCK_SIZE,j = j + FLASH_BLOCK_SIZE) {
+		ret = m10mo_SHD_write_block(m10mo_dev,
+			i, (u8 *)&fw_shd->data[j],
+			FLASH_BLOCK_SIZE);
+		if (ret) {
+			dev_err(&client->dev, "Flash write failed\n");
+			goto release_fw;
+		}
+	}
+
+	ret = 0;
+
+release_fw:
+	release_firmware(fw_shd);
+	return ret;
+}
+
 
 int m10mo_program_device(struct m10mo_device *m10mo_dev)
 {
@@ -1343,9 +1489,18 @@ int m10mo_program_device(struct m10mo_device *m10mo_dev)
 
 #endif
 	if (m10mo_dev->spi && m10mo_dev->spi->spi_enabled) {
-		ret = m10mo_sio_write(m10mo_dev, (u8 *)fw->data);
+		ret = m10mo_sio_write(m10mo_dev, (u8 *)fw->data, 0x19c400, 0);
 		if (ret) {
-			dev_err(&client->dev, "Flash write failed\n");
+			dev_err(&client->dev, "Flash write FW_DATA failed\n");
+			goto release_fw;
+		}
+		m10mo_dev->pdata->common.gpio_ctrl(sd, 0);
+		mdelay(1);
+		m10mo_dev->pdata->common.gpio_ctrl(sd, 1);
+		mdelay(1);
+		ret = m10mo_sio_write(m10mo_dev, (u8 *)&fw_info->data[0], 0x80, 0x1ff000);
+		if (ret) {
+			dev_err(&client->dev, "Flash write FW_INFO failed\n");
 			goto release_fw;
 		}
 	} else {

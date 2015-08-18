@@ -36,7 +36,7 @@ static inline int spi_xmit(struct spi_device *spi, const u8 *addr, const int len
 	struct spi_transfer xfer = {
 		.len = len,
 		.tx_buf = addr,
-		.bits_per_word = 32,
+		.bits_per_word = 8,
 	};
 
 	spi_message_init(&msg);
@@ -119,14 +119,14 @@ int m10mo_spi_write(struct spi_device *spi, const u8 *addr,
 	u8 paddingData[8];
 	u32 count = len / txSize;
 	u32 extra = len % txSize;
-	dev_dbg(&spi->dev, "Entered to spi write with count = %d extra = %d\n",
+	dev_err(&spi->dev, "Entered to spi write with count = %d extra = %d\n",
 	       count, extra);
 
 	for (i = 0 ; i < count ; i++) {
 		ret = spi_xmit(spi, &addr[j], txSize);
 		j += txSize;
 		if (ret < 0) {
-			dev_err(&spi->dev, "failed to write spi_xmit\n");
+			dev_err(&spi->dev, "failed to write spi_xmit, count = %d\n", i);
 			goto exit_err;
 		}
 	}

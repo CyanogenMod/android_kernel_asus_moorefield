@@ -181,6 +181,8 @@
 #include "device_libs/pci/platform_usb_otg.h"
 /* Flash IC devices*/
 #include "device_libs/platform_sky81296.h"
+/* Flash IC devices*/
+#include "device_libs/platform_flashnode.h"
 
 static void __init *no_platform_data(void *info)
 {
@@ -321,7 +323,7 @@ struct devs_id __initconst device_ids[] = {
 		&panel_handler},
 	{"PANEL_JDI_CMD", SFI_DEV_TYPE_MDM, 0, &no_platform_data,
 		&panel_handler},
-		
+
 	/* Touch */
 #ifdef CONFIG_TOUCHSCREEN_FTXXXX
 	{"ftxxxx_ts", SFI_DEV_TYPE_I2C, 0, &no_platform_data, NULL},
@@ -420,6 +422,8 @@ struct devs_id __initconst device_ids[] = {
 	{"m10mo", SFI_DEV_TYPE_I2C, 0, &m10mo_platform_data,
 					&intel_register_i2c_camera_device},
 	{"sky81296", SFI_DEV_TYPE_I2C, 1, &sky81296_platform_data_func,
+					&intel_register_i2c_camera_device},
+	{"flashnode", SFI_DEV_TYPE_I2C, 1, &flashnode_platform_data_func,
 					&intel_register_i2c_camera_device},
 	{"ov5670", SFI_DEV_TYPE_I2C, 0, &ov5670_platform_data,
 					&intel_register_i2c_camera_device},

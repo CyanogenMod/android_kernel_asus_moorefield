@@ -29,6 +29,7 @@
 #include "smb_external_include.h"
 #include "asus_battery.h"
 #include <linux/HWVersion.h>
+#include <linux/earlysuspend.h>
 
 #define PMIC_CHARGER		1
 #define GPIO_USB_SWITH  		"CHG_PHY_ON"
@@ -59,6 +60,7 @@
 #define WATCHDOG_REG					0x10
 #define HVDCP_STATUS_REG					0x0e
 #define IRQ_E_REG							0x54
+#define IRQ_F_REG							0x55
 
 /*smb1357 config values*/
 #define CFG_HOT_LIMIT 					0x1b
@@ -124,6 +126,9 @@ struct smb1357_charger {
 	struct delayed_work 	query_DCPmode_wrkr;
 	int	gpio_usb_swith;
 	int	gpio_chrg_signal;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend es;
+#endif
 };
 
 static char *smb1357_power_supplied_to[] = {
@@ -131,13 +136,13 @@ static char *smb1357_power_supplied_to[] = {
 };
 
 static struct smb1357_charger *smb1357_dev;
-static int not_ready_flag=1, dcp_count=0, g_cable_status=0, debug_flag=0, first_out_flag=0, usb_detect_flag=0, gpio57_flag=0;
+static int not_ready_flag=1, dcp_count=0, g_cable_status=0, debug_flag=0, first_out_flag=0, usb_detect_flag=0, gpio57_flag=0, otg_flag=0;
 static struct delayed_work inok_work; //WA for HTC 5W adaptor
-int hvdcp_mode=0, dcp_mode=0, set_usbin_cur_flag=0, uv_flag=0;
+static struct delayed_work set_cur_work; //WA to decrease inpuit current when panel on for thermal
+int hvdcp_mode=0, dcp_mode=0, set_usbin_cur_flag=0;
 EXPORT_SYMBOL(hvdcp_mode);
 EXPORT_SYMBOL(dcp_mode);
 EXPORT_SYMBOL(set_usbin_cur_flag);
-EXPORT_SYMBOL(uv_flag);
 
 extern int Read_HW_ID(void);
 extern int Read_PROJ_ID(void);
@@ -145,6 +150,8 @@ extern struct battery_info_reply batt_info;
 extern unsigned int query_cable_status(void);
 extern int boot_mode;
 struct wake_lock wakelock_cable, wakelock_cable_t;
+int early_suspend_flag=0;
+EXPORT_SYMBOL(early_suspend_flag);
 
 static int smb1357_read(struct smb1357_charger *smb, u8 reg)
 {
@@ -242,11 +249,12 @@ out:
 }
 
 /*This function is used to set DCP/HVDCP input current limit ,
-    if plug DCP with aicl step, you should call set_QC_inputI_limit(0)
-    if plug HVDCP with aicl step, you should call set_QC_inputI_limit(1)
+    if plug DCP with aicl step to 1100mA, you should call set_QC_inputI_limit(0)
+    if plug HVDCP with aicl step to 1910mA, you should call set_QC_inputI_limit(1)
     if plug DCP without aicl step to 1200mA, you should call set_QC_inputI_limit(2)
     if plug DCP without aicl step to 1000mA, you should call set_QC_inputI_limit(3)
     if plug DCP with aicl step to 1000mA, you should call set_QC_inputI_limit(4)
+    if plug DCP without aicl step to 900mA, you should call set_QC_inputI_limit(5)
 */
 int set_QC_inputI_limit(int type)
 {
@@ -257,13 +265,13 @@ int set_QC_inputI_limit(int type)
 		CHR_INFO("usb in current is setting, so ignore this event\n");
 		return 0;
 	}else {
-		if(type==1)
-			set_usbin_cur_flag = 1;
+		set_usbin_cur_flag = 1;
 	}
+
 	CHR_INFO("need to wait 1s before setting input current\n");
 	msleep(1000);
 	if(type==1){
-		CHR_INFO("DCP/HVDCP plug in with aicl step to 1910mA! \n");
+		CHR_INFO("HVDCP plug in with aicl step to 1910mA! \n");
 		ret = smb1357_read(smb1357_dev, RESULT_AICL_REG);
 		if (ret < 0)
 			goto out;
@@ -352,8 +360,8 @@ int set_QC_inputI_limit(int type)
 			asus_update_all();
 	}
 	else if(type==0){
-		// I USB IN should bigger than 1200mA in DCP
-		CHR_INFO("DCP plug in ! \n");
+		// I USB IN should bigger than 1100mA in DCP
+		CHR_INFO("DCP plug in with aicl step to 1100mA! \n");
 		ret = smb1357_read(smb1357_dev, RESULT_AICL_REG);
 		if (ret < 0)
 			goto out;
@@ -390,14 +398,14 @@ int set_QC_inputI_limit(int type)
 				goto out;
 			CHR_INFO("RESULT_AICL_REG 0x46=0x%02x\n", ret);
 			if((ret&0x1f) >= (INPUT_CURRENT_LIMIT_900MA)) {
-				/* Config INPUT_CURRENT_LIMIT_REG register 1200mA*/
-				CHR_INFO("Config INPUT_CURRENT_LIMIT_REG register 1200mA\n");
+				/* Config INPUT_CURRENT_LIMIT_REG register 1100mA*/
+				CHR_INFO("Config INPUT_CURRENT_LIMIT_REG register 1100mA\n");
 				disable_AICL();
 				ret = smb1357_read(smb1357_dev, CFG_INPUT_CURRENT_LIMIT_REG);
 				if (ret < 0)
 					goto out;
-				ret &= ~(BIT(1)|BIT(4));
-				ret |= (BIT(0)|BIT(2)|BIT(3));
+				ret &= ~(BIT(0)|BIT(1)|BIT(4));
+				ret |= (BIT(2)|BIT(3));
 				ret = smb1357_write(smb1357_dev, CFG_INPUT_CURRENT_LIMIT_REG, ret);
 				enable_AICL();
 			}
@@ -405,6 +413,7 @@ int set_QC_inputI_limit(int type)
 	}else if(type==3) {
 		// I USB IN should bigger than 1000mA
 		CHR_INFO("DCP plug in without aicl step to 1000mA,! \n");
+		disable_AICL();
 		ret = smb1357_read(smb1357_dev, RESULT_AICL_REG);
 		if (ret < 0)
 			goto out;
@@ -417,6 +426,7 @@ int set_QC_inputI_limit(int type)
 		ret &= ~(BIT(2)|BIT(4));
 		ret |= (BIT(0)|BIT(1)|BIT(3));
 		ret = smb1357_write(smb1357_dev, CFG_INPUT_CURRENT_LIMIT_REG, ret);
+		enable_AICL();
 	}else if(type==4) {
 		// I USB IN should bigger than 1000mA in other charging port
 		CHR_INFO("other charging port plug in with aicl step to 1000mA! \n");
@@ -451,9 +461,10 @@ int set_QC_inputI_limit(int type)
 			ret = smb1357_write(smb1357_dev, CFG_INPUT_CURRENT_LIMIT_REG, ret);
 			enable_AICL();
 		}
-	}else {
+	}else if(type==2) {
 		// I USB IN should bigger than 1200mA
 		CHR_INFO("DCP plug in without aicl step to 1200mA,! \n");
+		disable_AICL();
 		ret = smb1357_read(smb1357_dev, RESULT_AICL_REG);
 		if (ret < 0)
 			goto out;
@@ -466,6 +477,24 @@ int set_QC_inputI_limit(int type)
 		ret &= ~(BIT(1)|BIT(4));
 		ret |= (BIT(0)|BIT(2)|BIT(3));
 		ret = smb1357_write(smb1357_dev, CFG_INPUT_CURRENT_LIMIT_REG, ret);
+		enable_AICL();
+	} else if(type==5) {
+		// I USB IN should bigger than 900mA
+		CHR_INFO("HVDCP plug in without aicl step to 900mA,! \n");
+		disable_AICL();
+		ret = smb1357_read(smb1357_dev, RESULT_AICL_REG);
+		if (ret < 0)
+			goto out;
+		CHR_INFO("RESULT_AICL_REG 0x46=0x%02x\n", ret);
+		/* Config INPUT_CURRENT_LIMIT_REG register 900mA*/
+		CHR_INFO("Config INPUT_CURRENT_LIMIT_REG register 900mA without aicl\n");
+		ret = smb1357_read(smb1357_dev, CFG_INPUT_CURRENT_LIMIT_REG);
+		if (ret < 0)
+			goto out;
+		ret &= ~(BIT(1)|BIT(2)|BIT(4));
+		ret |= (BIT(0)|BIT(3));
+		ret = smb1357_write(smb1357_dev, CFG_INPUT_CURRENT_LIMIT_REG, ret);
+		enable_AICL();
 	}
 	set_usbin_cur_flag = 0;
 	return 0;
@@ -484,7 +513,7 @@ static int otg(int toggle)
 	uint8_t ctrldata, otg_mde_data;
 
 	CHR_INFO("%s +++ set otg: %s \n", __func__, toggle ? "on" : "off");
-	
+
 	mutex_lock(&smb1357_dev->lock);
 	
 	ret = smb1357_set_writable(smb1357_dev, true);
@@ -559,7 +588,6 @@ static int otg(int toggle)
 		ret = smb1357_write(smb1357_dev, CFG_OTG_I_LIMIT_REG,ival);
 		if (ret < 0)
 			goto out;
-			enable_AICL();
 	}
 out:
 	   mutex_unlock(&smb1357_dev->lock);
@@ -604,10 +632,12 @@ int setSMB1357Charger(int usb_state)
 	case ENABLE_5V:
 		CHR_INFO("usb_state: ENABLE_5V\n");
 		ret = otg(1);
+		otg_flag = 1;
 		break;
 	case DISABLE_5V:
 		CHR_INFO("usb_state: DISABLE_5V\n");
 		ret = otg(0);
+		otg_flag = 0;
 		break;
 	default:
 		CHR_INFO("ERROR: wrong usb state value = %d\n", usb_state);
@@ -870,7 +900,10 @@ int smb1357_AC_in_current(void)
 	} else {
 		if(hvdcp_mode) {
 			CHR_INFO("%s set HVDCP_IN current\n", __func__);
-			set_QC_inputI_limit(1);
+			 if (early_suspend_flag)
+				set_QC_inputI_limit(1);
+			else
+				set_QC_inputI_limit(5);
 		}
 		else if ((dcp_mode==2)||(Read_PROJ_ID()==PROJ_ID_ZE551ML_CKD)) {
 			CHR_INFO("%s set other DCP_IN current\n", __func__);
@@ -1084,10 +1117,53 @@ out:
 	return ret; 
 }
 
+int smb1357_uv_result(void)
+{
+	int ret = 0;
+
+	ret = smb1357_read(smb1357_dev, IRQ_E_REG);
+	CHR_INFO("IRQ_E_REG 0x54=0x%02x\n", ret);
+	if  ((ret >= 0)&&(ret&0x1)) {
+		CHR_INFO("under voltage happen!\n");
+		return 1;
+	}else {
+		return 0;
+	}
+}
+EXPORT_SYMBOL(smb1357_uv_result);
+
+int smb1357_power_ok(void)
+{
+	int ret = 0;
+
+	ret = smb1357_read(smb1357_dev, IRQ_F_REG);
+	CHR_INFO("IRQ_F_REG 0x55=0x%02x\n", ret);
+	if  ((ret >= 0)&&!(ret&0x01)) {
+		CHR_INFO("power ok happen!\n");
+		return 1;
+	}else {
+		return 0;
+	}
+}
+EXPORT_SYMBOL(smb1357_power_ok);
+
+int smb1357_chr_suspend(void)
+{
+	int ret = 0;
+
+	ret = smb1357_read(smb1357_dev, RESULT_STATUS_REG);
+	CHR_INFO("RESULT_STATUS_REG 0x47=0x%02x\n", ret);
+	if  ((ret >= 0)&&(ret&0x8)) {
+		CHR_INFO("charger suspend happen!\n");
+		return 1;
+	}else {
+		return 0;
+	}
+}
+EXPORT_SYMBOL(smb1357_chr_suspend);
+
 static void smb1357_inok_debounce_queue(struct work_struct *work)
 {
-	int ret=0;
-
 	CHR_INFO("%s +++\n", __func__);
 	cancel_delayed_work(&smb1357_dev->query_DCPmode_wrkr);
 	flush_delayed_work(&smb1357_dev->query_DCPmode_wrkr);
@@ -1095,11 +1171,6 @@ static void smb1357_inok_debounce_queue(struct work_struct *work)
 	hvdcp_mode=0;
 	first_out_flag=0;
 	usb_detect_flag = 0;
-	uv_flag = 0;
-	ret = smb1357_read(smb1357_dev, IRQ_E_REG);
-	if  ((ret >= 0)&&(ret&0x1))
-		uv_flag = 1;
-	CHR_INFO("IRQ_E_REG 0x54=0x%02x\n", ret);
 	pmic_handle_low_supply();
 	if (wake_lock_active(&wakelock_cable)) {
 		CHR_INFO("%s: wake unlock\n", __func__);
@@ -1379,6 +1450,8 @@ static void query_PowerState_worker(struct work_struct *work)
 		CHR_INFO("the STAT_HVDCP_REG 4Dh is 0x%02x\n", ret);
 		ret = smb1357_read(smb1357_dev, STAT_CHARGE_REG);
 		CHR_INFO("the STAT_CHARGE_REG 4Ah is 0x%02x\n", ret);
+		ret = smb1357_read(smb1357_dev, IRQ_E_REG);
+		CHR_INFO("the IRQ_E_REG 54h is 0x%02x\n", ret);
 	}
 
 	schedule_delayed_work(&smb1357_dev->power_state_wrkr, 30*HZ);
@@ -1611,6 +1684,40 @@ int init_smb1357_debug(void)
 }
 #endif
 
+static void smb1357_set_incur_queue(struct work_struct *work)
+{
+	smb1357_AC_in_current();
+}
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void smb1357_early_suspend(struct early_suspend *h)
+{
+	CHR_INFO("%s ++\n", __func__);
+	early_suspend_flag = 1;
+	if (hvdcp_mode) {
+		cancel_delayed_work(&set_cur_work);
+		schedule_delayed_work(&set_cur_work, 0.5*HZ);
+	}
+}
+
+static void smb1357_late_resume(struct early_suspend *h)
+{
+	CHR_INFO("%s ++\n", __func__);
+	early_suspend_flag = 0;
+	if (hvdcp_mode) {
+		cancel_delayed_work(&set_cur_work);
+		schedule_delayed_work(&set_cur_work, 0.5*HZ);
+	}
+}
+static void smb1357_config_earlysuspend(struct smb1357_charger *smb)
+{
+	smb->es.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 2;
+	smb->es.suspend = smb1357_early_suspend;
+	smb->es.resume = smb1357_late_resume;
+	register_early_suspend(&smb->es);
+}
+#endif
+
 static int smb1357_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -1710,6 +1817,7 @@ static int smb1357_probe(struct i2c_client *client,
 	}else
 		CHR_INFO("set Charger QC control\n");
 	INIT_DELAYED_WORK(&inok_work, smb1357_inok_debounce_queue);
+	INIT_DELAYED_WORK(&set_cur_work, smb1357_set_incur_queue);
 	INIT_DELAYED_WORK(&smb->query_DCPmode_wrkr, query_DCPmode_worker);
 	INIT_DELAYED_WORK(&smb->power_state_wrkr, query_PowerState_worker);
 	schedule_delayed_work(&smb->power_state_wrkr, 30*HZ);
@@ -1732,6 +1840,9 @@ static int smb1357_probe(struct i2c_client *client,
 			setSMB1357Charger(USB_IN);
 		}
 	}
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	smb1357_config_earlysuspend(smb);
+#endif
 #if CONFIG_PROC_FS
 	ret = init_smb1357_debug();
 	if (ret) {

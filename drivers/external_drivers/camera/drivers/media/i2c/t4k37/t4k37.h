@@ -14,7 +14,6 @@ static struct tsb_reg const t4k37_PREVIEW_3280x1852_30fps[] = {
 	{TSB_8BIT, 0x0341, 0x48},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x11},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0xE8},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x01},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -25,19 +24,24 @@ static struct tsb_reg const t4k37_PREVIEW_3280x1852_30fps[] = {
 	{TSB_8BIT, 0x034F, 0x3C},	// Y_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x0401, 0x00},	// -/-/-/-/-/-/SCALING_MODE[1:0];
 	{TSB_8BIT, 0x0404, 0x10},	// SCALE_M[7:0];
-	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
-	{TSB_8BIT, 0x0409, 0x10},	// DCROP_XOFS[7:0];
+	{TSB_8BIT, 0x0408, 0x01},	// DCROP_XOFS[15:8];
+	{TSB_8BIT, 0x0409, 0xD0},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x02},	// DCROP_YOFS[15:8];
 	{TSB_8BIT, 0x040B, 0x7A},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x0C},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0xD0},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x07},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x3C},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x60},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x10},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x80},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x59},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x00},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x00},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -52,7 +56,6 @@ static struct tsb_reg const t4k37_PREVIEW_3280x2464_30fps[] = {
 	{TSB_8BIT, 0x0341, 0x48},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x11},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0xE8},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -63,19 +66,24 @@ static struct tsb_reg const t4k37_PREVIEW_3280x2464_30fps[] = {
 	{TSB_8BIT, 0x034F, 0xA0},	// Y_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x0401, 0x00},	// -/-/-/-/-/-/SCALING_MODE[1:0];
 	{TSB_8BIT, 0x0404, 0x10},	// SCALE_M[7:0];
-	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
-	{TSB_8BIT, 0x0409, 0x10},	// DCROP_XOFS[7:0];
+	{TSB_8BIT, 0x0408, 0x01},	// DCROP_XOFS[15:8];
+	{TSB_8BIT, 0x0409, 0xD0},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x01},	// DCROP_YOFS[15:8];
 	{TSB_8BIT, 0x040B, 0x48},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x0C},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0xD0},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x09},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0xA0},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x60},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x10},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x80},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x59},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x00},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x00},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -128,7 +136,6 @@ static struct tsb_reg const t4k37_PREVIEW_4112x3088_30fps[] = {
 	{TSB_8BIT, 0x0341, 0x48},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x11},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0xE8},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -147,11 +154,16 @@ static struct tsb_reg const t4k37_PREVIEW_4112x3088_30fps[] = {
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x0C},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x60},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x10},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x80},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x59},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x00},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x00},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -166,7 +178,6 @@ static struct tsb_reg const t4k37_STILL_4112x3088_28fps[] = {
 	{TSB_8BIT, 0x0341, 0x28},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x11},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0xE8},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -185,11 +196,16 @@ static struct tsb_reg const t4k37_STILL_4112x3088_28fps[] = {
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x0C},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x60},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x10},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x80},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x59},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x00},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x00},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -204,7 +220,6 @@ static struct tsb_reg const t4k37_STILL_4112x3088_10fps[] = {
 	{TSB_8BIT, 0x0341, 0x6C},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x11},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0xE8},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -223,11 +238,16 @@ static struct tsb_reg const t4k37_STILL_4112x3088_10fps[] = {
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x0C},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x30},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x08},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x40},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x2C},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x00},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x00},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -242,11 +262,10 @@ static struct tsb_reg const t4k37_PREVIEW_4112x2320_30fps[] = {
 	{TSB_8BIT, 0x0341, 0x48},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x11},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0xE8},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x90},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0x9F},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x10},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x10},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x09},	// Y_OUTPUT_SIZE[15:8];
@@ -255,17 +274,22 @@ static struct tsb_reg const t4k37_PREVIEW_4112x2320_30fps[] = {
 	{TSB_8BIT, 0x0404, 0x10},	// SCALE_M[7:0];
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x30},	// DCROP_XOFS[7:0];
-	{TSB_8BIT, 0x040A, 0x01},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0x90},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x10},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x09},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x60},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x10},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x80},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x59},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x00},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x00},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -318,11 +342,10 @@ static struct tsb_reg const t4k37_STILL_4112x2320_28fps[] = {
 	{TSB_8BIT, 0x0341, 0x28},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x11},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0xE8},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x90},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0x9F},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x10},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x10},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x09},	// Y_OUTPUT_SIZE[15:8];
@@ -331,17 +354,22 @@ static struct tsb_reg const t4k37_STILL_4112x2320_28fps[] = {
 	{TSB_8BIT, 0x0404, 0x10},	// SCALE_M[7:0];
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x30},	// DCROP_XOFS[7:0];
-	{TSB_8BIT, 0x040A, 0x01},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0x90},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x10},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x09},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x60},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x10},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x80},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x59},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x00},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x00},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -356,11 +384,10 @@ static struct tsb_reg const t4k37_STILL_4112x2320_10fps[] = {
 	{TSB_8BIT, 0x0341, 0x6C},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x11},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0xE8},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x90},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0x9F},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x10},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x10},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x09},	// Y_OUTPUT_SIZE[15:8];
@@ -369,17 +396,22 @@ static struct tsb_reg const t4k37_STILL_4112x2320_10fps[] = {
 	{TSB_8BIT, 0x0404, 0x10},	// SCALE_M[7:0];
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x30},	// DCROP_XOFS[7:0];
-	{TSB_8BIT, 0x040A, 0x01},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0x90},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x10},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x09},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x30},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x08},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x40},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x2C},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x00},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x00},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -389,12 +421,11 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1552_30fps[] = {	// 3.25M 30fps
 	{TSB_8BIT, 0x0301, 0x02},	// -/-/-/-/VT_PIX_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0303, 0x08},	// -/-/-/-/VT_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0305, 0x03},	// -/-/-/-/-/PRE_PLL_CLK_DIV[2:0];
-	{TSB_8BIT, 0x030B, 0x04},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
+	{TSB_8BIT, 0x030B, 0x03},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0340, 0x06},	// FR_LENGTH_LINES[15:8];
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -413,11 +444,16 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1552_30fps[] = {	// 3.25M 30fps
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x06},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
-	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0801, 0x20},	// THS_PREPARE[7:3]/-/-/-;
+	{TSB_8BIT, 0x0820, 0x05},	// MSB_LBRATE[31:24];
+	{TSB_8BIT, 0x0821, 0x73},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -427,12 +463,11 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1552_25fps_binning_average[] = {	
 	{TSB_8BIT, 0x0301, 0x02},	// -/-/-/-/VT_PIX_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0303, 0x08},	// -/-/-/-/VT_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0305, 0x03},	// PLL_MULTIPLIER[7:0];
-	{TSB_8BIT, 0x030B, 0x04},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
+	{TSB_8BIT, 0x030B, 0x03},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0340, 0x07},	// FR_LENGTH_LINES[15:8];
 	{TSB_8BIT, 0x0341, 0x70},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -451,12 +486,17 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1552_25fps_binning_average[] = {	
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x06},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
-	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0801, 0x20},	// THS_PREPARE[7:3]/-/-/-;
+	{TSB_8BIT, 0x0820, 0x05},	// MSB_LBRATE[31:24];
+	{TSB_8BIT, 0x0821, 0x73},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
     {TSB_8BIT, 0x0902, 0x00},   // -/-/-/-/-/-/BINNING_WEIGHTING[1:0]; (average)
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 static struct tsb_reg const t4k37_PREVIEW_2064x1552_25fps_binning_sum[] = {	// 3.25M 25fps
@@ -465,12 +505,11 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1552_25fps_binning_sum[] = {	// 3
 	{TSB_8BIT, 0x0301, 0x02},	// -/-/-/-/VT_PIX_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0303, 0x08},	// -/-/-/-/VT_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0305, 0x03},	// PLL_MULTIPLIER[7:0];
-	{TSB_8BIT, 0x030B, 0x04},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
+	{TSB_8BIT, 0x030B, 0x03},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0340, 0x07},	// FR_LENGTH_LINES[15:8];
 	{TSB_8BIT, 0x0341, 0x70},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -489,12 +528,17 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1552_25fps_binning_sum[] = {	// 3
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x06},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
-	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0801, 0x20},	// THS_PREPARE[7:3]/-/-/-;
+	{TSB_8BIT, 0x0820, 0x05},	// MSB_LBRATE[31:24];
+	{TSB_8BIT, 0x0821, 0x73},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
     {TSB_8BIT, 0x0902, 0x01},   // -/-/-/-/-/-/BINNING_WEIGHTING[1:0]; (binning-sum)
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 static struct tsb_reg const t4k37_PREVIEW_2064x1168_30fps[] = {	// 3.25M 30fps
@@ -503,16 +547,15 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1168_30fps[] = {	// 3.25M 30fps
 	{TSB_8BIT, 0x0301, 0x02},	// -/-/-/-/VT_PIX_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0303, 0x08},	// -/-/-/-/VT_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0305, 0x03},	// -/-/-/-/-/PRE_PLL_CLK_DIV[2:0];
-	{TSB_8BIT, 0x030B, 0x04},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
+	{TSB_8BIT, 0x030B, 0x03},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0340, 0x06},	// FR_LENGTH_LINES[15:8];
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x88},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0xA7},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x08},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x10},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x04},	// Y_OUTPUT_SIZE[15:8];
@@ -522,16 +565,21 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1168_30fps[] = {	// 3.25M 30fps
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x14},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0xC4},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x08},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x04},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x90},	// DCROP_HIGT[7:0];
-	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0801, 0x20},	// THS_PREPARE[7:3]/-/-/-;
+	{TSB_8BIT, 0x0820, 0x05},	// MSB_LBRATE[31:24];
+	{TSB_8BIT, 0x0821, 0x73},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -547,17 +595,15 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1168_30fps_binning_sum[] = {	// 3
 	{TSB_8BIT, 0x030F, 0x87},	// PLL_MULT_ST[7:0];
 #endif
 	{TSB_8BIT, 0x0305, 0x03},	// PLL_MULTIPLIER[7:0];
-	{TSB_8BIT, 0x030B, 0x04},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
-
+	{TSB_8BIT, 0x030B, 0x03},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0340, 0x06},	// FR_LENGTH_LINES[15:8];
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x88},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0xA7},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x08},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x10},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x04},	// Y_OUTPUT_SIZE[15:8];
@@ -567,17 +613,22 @@ static struct tsb_reg const t4k37_PREVIEW_2064x1168_30fps_binning_sum[] = {	// 3
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x14},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0xC4},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x08},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x10},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x04},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x90},	// DCROP_HIGT[7:0];
-	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0801, 0x20},	// THS_PREPARE[7:3]/-/-/-;
+	{TSB_8BIT, 0x0820, 0x05},	// MSB_LBRATE[31:24];
+	{TSB_8BIT, 0x0821, 0x73},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
     {TSB_8BIT, 0x0902, 0x01},   // -/-/-/-/-/-/BINNING_WEIGHTING[1:0]; (binning-sum)
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -593,11 +644,10 @@ static struct tsb_reg const t4k37_FHD_1936x1096_60fps[] = {	// 1080p 60fps
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x88},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0xA3},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x07},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x90},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x04},	// Y_OUTPUT_SIZE[15:8];
@@ -607,16 +657,21 @@ static struct tsb_reg const t4k37_FHD_1936x1096_60fps[] = {	// 1080p 60fps
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x16},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0xC4},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x08},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x0A},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x04},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x8E},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x30},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x08},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x40},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x2C},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -631,11 +686,10 @@ static struct tsb_reg const t4k37_FHD_1936x1096_50fps[] = {	// 1080p 50fps
 	{TSB_8BIT, 0x0341, 0x6C},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x88},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0xA3},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x07},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x90},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x04},	// Y_OUTPUT_SIZE[15:8];
@@ -645,16 +699,21 @@ static struct tsb_reg const t4k37_FHD_1936x1096_50fps[] = {	// 1080p 50fps
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x16},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0xC4},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x08},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x0A},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x04},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x8E},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x30},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x08},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x40},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x2C},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -669,11 +728,10 @@ static struct tsb_reg const t4k37_FHD_1936x1096_30fps[] = {	// 1080p 30fps
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x88},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0xA3},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x07},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x90},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x04},	// Y_OUTPUT_SIZE[15:8];
@@ -683,16 +741,21 @@ static struct tsb_reg const t4k37_FHD_1936x1096_30fps[] = {	// 1080p 30fps
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x16},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0xC4},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x08},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x0A},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x04},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x8E},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x18},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x16},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -707,11 +770,10 @@ static struct tsb_reg const t4k37_HD_1296x736_30fps[] = {	// 720p 30fps
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
-	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0346, 0x01},	// Y_ADDR_START[15:8];
+	{TSB_8BIT, 0x0347, 0x98},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0A},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0x93},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x05},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x10},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x02},	// Y_OUTPUT_SIZE[15:8];
@@ -721,16 +783,21 @@ static struct tsb_reg const t4k37_HD_1296x736_30fps[] = {	// 720p 30fps
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x26},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0xCC},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x07},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0xEA},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x04},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x7E},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x18},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x16},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -745,11 +812,10 @@ static struct tsb_reg const t4k37_DVD_736x496_30fps[] = {	// DVD 30fps
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
-	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x0347, 0xC0},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x034A, 0x0B},	// Y_ADDR_END[15:8];
+	{TSB_8BIT, 0x034B, 0x67},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x02},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0xE0},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x01},	// Y_OUTPUT_SIZE[15:8];
@@ -759,16 +825,21 @@ static struct tsb_reg const t4k37_DVD_736x496_30fps[] = {	// DVD 30fps
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x28},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0x30},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x07},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0xE8},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x02},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0xAA},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x18},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x16},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x02},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x02},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -778,16 +849,15 @@ static struct tsb_reg const t4k37_VGA_656x496_30fps[] = {	// VGA 30fps
 	{TSB_8BIT, 0x0301, 0x02},	// -/-/-/-/VT_PIX_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0303, 0x08},	// -/-/-/-/VT_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0305, 0x03},	// -/-/-/-/-/PRE_PLL_CLK_DIV[2:0];
-	{TSB_8BIT, 0x030B, 0x04},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
+	{TSB_8BIT, 0x030B, 0x08},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0340, 0x06},	// FR_LENGTH_LINES[15:8];
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
-	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
+	{TSB_8BIT, 0x0347, 0x08},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
-	{TSB_8BIT, 0x034B, 0x2F},	// Y_ADDR_END[7:0];
+	{TSB_8BIT, 0x034B, 0x27},	// Y_ADDR_END[7:0];
 	{TSB_8BIT, 0x034C, 0x02},	// X_OUTPUT_SIZE[15:8];
 	{TSB_8BIT, 0x034D, 0x90},	// X_OUTPUT_SIZE[7:0];
 	{TSB_8BIT, 0x034E, 0x01},	// Y_OUTPUT_SIZE[15:8];
@@ -797,16 +867,21 @@ static struct tsb_reg const t4k37_VGA_656x496_30fps[] = {	// VGA 30fps
 	{TSB_8BIT, 0x0408, 0x00},	// DCROP_XOFS[15:8];
 	{TSB_8BIT, 0x0409, 0x1A},	// DCROP_XOFS[7:0];
 	{TSB_8BIT, 0x040A, 0x00},	// DCROP_YOFS[15:8];
-	{TSB_8BIT, 0x040B, 0x02},	// DCROP_YOFS[7:0];
+	{TSB_8BIT, 0x040B, 0x00},	// DCROP_YOFS[7:0];
 	{TSB_8BIT, 0x040C, 0x08},	// DCROP_WIDTH[15:8];
 	{TSB_8BIT, 0x040D, 0x04},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x03},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x08},	// DCROP_HIGT[7:0];
-	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0801, 0x10},	// THS_PREPARE[7:3]/-/-/-;
+	{TSB_8BIT, 0x0820, 0x02},	// MSB_LBRATE[31:24];
+	{TSB_8BIT, 0x0821, 0x0B},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x02},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x02},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -821,7 +896,6 @@ static struct tsb_reg const t4k37_CIF_368x304_30fps[] = {	// CIF 30fps
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -840,11 +914,16 @@ static struct tsb_reg const t4k37_CIF_368x304_30fps[] = {	// CIF 30fps
 	{TSB_8BIT, 0x040D, 0x70},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x06},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x18},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x18},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x16},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -859,7 +938,6 @@ static struct tsb_reg const t4k37_QVGA_336x256_30fps[] = {	// QVGA 30fps
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -878,11 +956,16 @@ static struct tsb_reg const t4k37_QVGA_336x256_30fps[] = {	// QVGA 30fps
 	{TSB_8BIT, 0x040D, 0xFE},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x06},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x10},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x18},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x16},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -897,7 +980,6 @@ static struct tsb_reg const t4k37_QCIF_192x160_30fps[] = {	// QCIF 30fps
 	{TSB_8BIT, 0x0341, 0x30},	// FR_LENGTH_LINES[7:0];
 	{TSB_8BIT, 0x0342, 0x0D},	// LINE_LENGTH_PCK[15:8];
 	{TSB_8BIT, 0x0343, 0x58},	// LINE_LENGTH_PCK[7:0];
-	{TSB_8BIT, 0x0344, 0x00},	// -/-/-/-/H_CROP[3:0];
 	{TSB_8BIT, 0x0346, 0x00},	// Y_ADDR_START[15:8];
 	{TSB_8BIT, 0x0347, 0x00},	// Y_ADDR_START[7:0];
 	{TSB_8BIT, 0x034A, 0x0C},	// Y_ADDR_END[15:8];
@@ -916,11 +998,16 @@ static struct tsb_reg const t4k37_QCIF_192x160_30fps[] = {	// QCIF 30fps
 	{TSB_8BIT, 0x040D, 0x60},	// DCROP_WIDTH[7:0];
 	{TSB_8BIT, 0x040E, 0x06},	// DCROP_HIGT[15:8];
 	{TSB_8BIT, 0x040F, 0x18},	// DCROP_HIGT[7:0];
+	{TSB_8BIT, 0x0801, 0x18},	// THS_PREPARE[7:3]/-/-/-;
 	{TSB_8BIT, 0x0820, 0x04},	// MSB_LBRATE[31:24];
-	{TSB_8BIT, 0x0821, 0x20},	// MSB_LBRATE[23:16];
+	{TSB_8BIT, 0x0821, 0x16},	// MSB_LBRATE[23:16];
 	{TSB_8BIT, 0x0900, 0x01},	// -/-/-/-/-/-/H_BIN[1:0];
 	{TSB_8BIT, 0x0901, 0x01},	// -/-/-/-/-/-/V_BIN_MODE[1:0];
 	{TSB_8BIT, 0x32F7, 0x01},	// -/-/-/-/-/-/-/PP_DCROP_SW;
+	{TSB_8BIT, 0x3294, 0x10},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3295, 0x20},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x3169, 0x77},	// -/-/-/-/-/-/-/-;
+	{TSB_8BIT, 0x316A, 0x77},	// -/-/-/-/-/-/-/-;
 	{TSB_TOK_TERM, 0, 0}
 };
 
@@ -962,7 +1049,7 @@ static struct tsb_reg const t4k37_init_settings[] = {
 	{TSB_8BIT, 0x0303, 0x08},	// -/-/-/-/VT_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x0305, 0x03},	// -/-/-/-/-/PRE_PLL_CLK_DIV[2:0];
 	{TSB_8BIT, 0x0306, 0x00},	// -/-/-/-/-/-/-/PLL_MULTIPLIER[8];
-	{TSB_8BIT, 0x0307, 0xDC},	// PLL_MULTIPLIER[7:0];
+	{TSB_8BIT, 0x0307, 0xDA},	// PLL_MULTIPLIER[7:0];
 	{TSB_8BIT, 0x030B, 0x04},	// -/-/-/-/OP_SYS_CLK_DIV[3:0];
 	{TSB_8BIT, 0x030D, 0x03},	// -/-/-/-/-/PRE_PLL_ST_CLK_DIV[2:0];
 	{TSB_8BIT, 0x030E, 0x00},	// -/-/-/-/-/-/-/PLL_MULT_ST[8];
@@ -1250,10 +1337,11 @@ static struct tsb_reg const t4k37_init_settings[] = {
 	{TSB_8BIT, 0x338C, 0x05},	// Reserved ;
 	{TSB_8BIT, 0x3424, 0x00},	// -/-/-/-/B_TRIG_Z5_X/B_TX_TRIGOPT/B_CLKULPS/B_ESCREQ;
 	{TSB_8BIT, 0x3425, 0x78},	// B_ESCDATA[7:0];
-	{TSB_8BIT, 0x3427, 0xC0},	// B_MIPI_CLKVBLK/B_MIPI_CLK_MODE/-/-/B_HS_SR_CNT[1:0]/B_LP_SR_CNT[
+	{TSB_8BIT, 0x3427, 0x00},	// B_MIPI_CLKVBLK/B_MIPI_CLK_MODE/-/-/B_HS_SR_CNT[1:0]/B_LP_SR_CNT[
 	{TSB_8BIT, 0x3430, 0xA7},	// B_NUMWAKE[7:0];
 	{TSB_8BIT, 0x3431, 0x60},	// B_NUMINIT[7:0];
 	{TSB_8BIT, 0x3432, 0x11},	// -/-/-/B_CLK0_M/-/-/-/B_LNKBTWK_ON;
+	{TSB_8BIT, 0x3439, 0x01},	// THS_PREPARE_LINKOFF;
 	GROUPED_PARAMETER_HOLD_DISABLE,
 	{TSB_TOK_TERM, 0, 0}
 };

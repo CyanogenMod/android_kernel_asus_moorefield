@@ -543,14 +543,21 @@ static int mrfld_jack_gpio_pr_detect_bp_play(void)
 
 	msleep(20);
 
-	if (mrfld_play_enable && mrfld_hs_enable && (mrfld_hs_status == SND_JACK_HEADSET)) {
-		status = SND_JACK_BTN_0;
-		printk("%s: Button Press\n", __func__);
+	if (mrfld_hs_enable == 1 && (mrfld_hs_status == SND_JACK_HEADSET)) {
+		if (mrfld_play_enable) {
+			status = SND_JACK_BTN_0;
+			printk("%s: Button Press\n", __func__);
+		}
+		else {
+			status = 0;
+			printk("%s: Button Release\n", __func__);
+		}
 	}
 	else {
 		status = 0;
-		printk("%s: Button Release\n", __func__);
+		printk("%s: Button unknown\n", __func__);
 	}
+
 	return status;
 }
 

@@ -28,7 +28,7 @@ static const struct m10mo_resolution const m10mo_preview_modes_fw0[] = {
 		.height = 720,
 		.command = 0x21,
 	},
-	{
+    {
 		.width = 1280,
 		.height = 960,
 		.command = 0x24,
@@ -55,31 +55,47 @@ static const struct m10mo_resolution const m10mo_capture_modes_fw0[] = {
 		.width = 4160,
 		.height = 3120,
 		.command = 0x2C,
+		.burst_capture_monitor_size_command = 0x27,
 	},
 	{
 		.width = 2560,
 		.height = 1440,
 		.command = 0x1C,
+		.burst_capture_monitor_size_command = 0x4F,
 	},
     {
         .width = 2560,
         .height = 1920,
         .command = 0x1F,
+		.burst_capture_monitor_size_command = 0x49,
     },
 	{
 		.width = 3264,
 		.height = 1836,
 		.command = 0x21,
+		.burst_capture_monitor_size_command = 0x43,
 	},
 	{
 		.width = 3264,
 		.height = 2448,
 		.command = 0x25,
+		.burst_capture_monitor_size_command = 0x29,
 	},
 	{
 		.width = 4160,
 		.height = 2340,
 		.command = 0x2B,
+		.burst_capture_monitor_size_command = 0x5A,
+	},
+	{
+		.width = 2080,
+		.height = 1560,
+		.command = BINNING_CAP_CMD,
+	},
+	{
+		.width = 2080,
+		.height = 1170,
+		.command = BINNING_CAP_CMD,
 	},
 /*
 	{
@@ -112,17 +128,35 @@ static const struct m10mo_resolution const m10mo_capture_modes_fw0[] = {
 
 static const struct m10mo_resolution const m10mo_video_modes_fw0[] = {
 	{
+		.width = 320,
+		.height = 240,
+		.command = 0x09,
+	},
+	{
 		.width = 640,
 		.height = 480,
 		.command = 0x17,
 	},
-#if 0
+	{
+		.width = 1280,
+		.height = 720,
+		.command = 0x21,
+	},
 	{
 		.width = 1920,
 		.height = 1080,
-		.command = 0x40,
+		.command = 0x28,
 	},
-#endif
+	{
+		.width = 352,
+		.height = 288,
+		.command = 0x58,
+	},
+	{
+		.width = 176,
+		.height = 144,
+		.command = 0x59,
+	},
 };
 
 const struct m10mo_resolution *resolutions[] = {

@@ -51,9 +51,9 @@
 #define M10MO_FLICKER_50HZ 		0x01
 #define M10MO_FLICKER_60HZ 		0x02
 #define M10MO_FLICKER_OFF 		0x03
-#define M10MO_METERING_CENTER		0x00
+#define M10MO_METERING_AVERAGE	0x00
 #define M10MO_METERING_SPOT		0x01
-#define M10MO_METERING_AVERAGE		0x02
+#define M10MO_METERING_CENTER	0x02
 
 /* TODO These values for focal length, f-number are taken from
  * imx135 13MP. This can be changed when we get the proper values
@@ -147,6 +147,8 @@ struct m10mo_resolution {
 	u32 width;
 	u32 height;
 	u32 command;
+	//=== Only used in burst capture. ===//
+	u32 burst_capture_monitor_size_command;
 	bool vdis;
 };
 
@@ -226,6 +228,8 @@ struct m10mo_device {
 	unsigned int fw_type;
 	int fw_addr_id;
 	u8 shot_mode;
+	volatile u8 disable_irq_flag;
+	volatile u8 wait_irq_flag;
 };
 
 enum hdr_options{
@@ -258,6 +262,10 @@ int __m10mo_update_stream_info(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt
 int __m10mo_try_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt, bool update_fmt);
 int __m10mo_set_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt);
 int m10mo_test_pattern_start(struct v4l2_subdev *sd);
+int m10mo_isp_fw_SHD_R(struct m10mo_device *m10mo_dev);
+int m10mo_isp_fw_SHD_W(struct m10mo_device *m10mo_dev);
+
+
 
 int get_resolution_index(const struct m10mo_resolution *res,
 			 int entries, u32 w, u32 h);
@@ -289,7 +297,7 @@ int m10mo_set_still_capture(struct v4l2_subdev *sd);
 int m10mo_set_panorama_monitor(struct v4l2_subdev *sd);
 int m10mo_set_zsl_monitor(struct v4l2_subdev *sd);
 int m10mo_set_burst_mode(struct v4l2_subdev *sd, unsigned int val);
-int m10mo_streamoff(struct v4l2_subdev *sd);
+int m10mo_normal_streamoff(struct v4l2_subdev *sd);
 int m10mo_test_pattern(struct v4l2_subdev *sd, u8 val);
 
 extern const struct m10mo_fw_ops fw_type1_5_ops;
@@ -315,6 +323,7 @@ extern const struct m10mo_fw_ops fw_type2_ops;
 /* ASUS DIT defined parameters */
 #define ASUS_SATURATION             0x00
 #define ASUS_CONTRAST               0x01
+#define ASUS_FACTORY_MODE           0x02
 #define ASUS_ISO                    0x10
 #define ASUS_EV                     0x11
 #define ASUS_SHUTTER_SPEED          0x12
@@ -735,6 +744,7 @@ enum ASUS_FOCUS_MODE_ {
 #define REG_AE_ISOMODE_ISO800	0x05
 #define REG_AE_ISOMODE_ISO1600	0x06
 #define REG_AE_ISOMODE_ISO3200	0x07
+#define REG_AE_ISOMODE_NOT_FOUND 0x08
 
 
 /* Category 6_White Balance */
@@ -839,6 +849,7 @@ enum ASUS_FOCUS_MODE_ {
 #define LLS_CAP                  0x04
 #define RAW_CAP                  0x0B
 #define STOP_RAW_CAP             0x02
+#define AFT_CAP_SELECT           0x20
 
 /* Category D LED Flash Control */
 #define FLASH_MODE              0xB6
@@ -901,7 +912,7 @@ enum ASUS_FOCUS_MODE_ {
 #define OIS_CALI_RESULT_7_0	0xE1
 
 /* Category D LED TEST */
-#define LED_TSET  		0xF0
+#define LED_TEST  		0xF0
 #define FLASH1_TEST_BRIGHTNESS  0xF1
 #define FLASH2_TEST_BRIGHTNESS  0xF2
 #define TORCH1_TEST_BRIGHTNESS  0xF5
@@ -1026,7 +1037,8 @@ enum M10MO_COMMANDS {
 	M10MO_MONITOR_MODE_HIGH_SPEED,
     M10MO_START_OPTICAL_ZOOM,
     M10MO_START_AF,
-    M10MO_START_DIGITAL_ZOOM
+    M10MO_START_DIGITAL_ZOOM,
+	M10MO_WRITE_SHD_TABLE
 };
 enum M10MO_MODE {
     M10MO_MONITOR_MODE_ZSL,
@@ -1035,9 +1047,9 @@ enum M10MO_MODE {
 /* Camera Application Modes */
 enum APPLICATION_CAPTURE_MODES {
 	M10MO_CAPTURE_MODE_ZSL_NORMAL = 0,
-	APP_HDR_CAP_MODE_ZSL = 0x1,
-	APP_LLS_CAP_MODE_ZSL = 0x2,
-	M10MO_CAPTURE_MODE_ZSL_BURST = 0x4,
+	APP_HDR_CAP_MODE_ZSL = 0x2,
+	APP_LLS_CAP_MODE_ZSL = 0x4,
+	M10MO_CAPTURE_MODE_ZSL_BURST = 0x8,
 	M10MO_CAPTURE_MODE_ZSL_RAW = 0xB
 };
 #define IS_M10MO_MONITOR_MODE(command)     (command < M10MO_NO_CMD_REQUEST)
@@ -1059,6 +1071,9 @@ enum APPLICATION_CAPTURE_MODES {
 #define M10MO_NOT_CAPTURE_0                       (0)
 #define M10MO_CAP_BEFORE_1ST_STREAMOFF_1          (1)
 #define M10MO_CAP_BETWEEN_1ST_AND_2ND_STREAMOFF_2 (2)
+
+//================= WA for m10mo binning capture =================//
+#define BINNING_CAP_CMD 0x0
 
 extern const struct m10mo_resolution *resolutions[];
 extern const ssize_t resolutions_sizes[];
@@ -1091,6 +1106,18 @@ struct M10MO_AF_Parameters {
 
 	u8 af_touch_posx;
 	u8 af_touch_posy;
+};
+
+static const unsigned short iso_table[][2] = {
+	{ 0,  REG_AE_ISOMODE_AUTO},
+	{ 50,  REG_AE_ISOMODE_ISO50},
+	{ 100,  REG_AE_ISOMODE_ISO100},
+	{ 200,  REG_AE_ISOMODE_ISO200},
+	{ 400,  REG_AE_ISOMODE_ISO400},
+	{ 800,  REG_AE_ISOMODE_ISO800},
+	{ 1600, REG_AE_ISOMODE_ISO1600},
+	{ 3200, REG_AE_ISOMODE_ISO3200},
+	{ EINVAL, REG_AE_ISOMODE_NOT_FOUND},
 };
 extern const struct M10MO_AF_Parameters m10m0_af_parameters[];
 

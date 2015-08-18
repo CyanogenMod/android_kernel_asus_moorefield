@@ -84,6 +84,7 @@
 
 #define GAUGE_ERR(...)        printk("[MM8033_ERR] " __VA_ARGS__);
 #define GAUGE_INFO(...)       printk("[MM8033] " __VA_ARGS__);
+#define SOC_SMOOTH_ALGO
 
 struct mm8033_batparams {
 	u8 params[512];
@@ -110,7 +111,6 @@ struct mm8033_chip {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend es;
 #endif
-
 };
 
 /* global variables */
@@ -123,8 +123,9 @@ static char *batt_id;
 static int bat_year, bat_week_1, bat_week_2, invalid_bat=0;
 static u16 parameter_version, battery_ctrlcode;
 struct delayed_work 	batt_state_wq;
-int early_suspend_flag=0;
-EXPORT_SYMBOL(early_suspend_flag);
+#ifdef SOC_SMOOTH_ALGO
+static int mm8033_pre_soc=0;
+#endif
 
 static int mm8033_write_reg(struct i2c_client *client, u8 reg, u16 value)
 {
@@ -922,22 +923,6 @@ static int mm8033_get_property(struct power_supply *psy,
 #endif
 
 /* +++for tbl usage+++*/
-int mm8033_read_percentage(void)
-{
-	int soc = mm8033_read_reg(g_mm8033_chip->client, REG_SOC);
-
-	if (soc < 0) {
-		GAUGE_ERR("error in reading battery soc = 0x%04x\n", soc);
-		return 50;
-	}else {
-		//GAUGE_INFO("percentage = %d\n", soc / 256);
-		/*>.5% + 1%*/
-		if (((soc+128) / 256)>100)
-			return 100;
-		else
-			return (soc+128) / 256;
-	}
-}
 int mm8033_read_current(void)
 {
 	int curr = mm8033_read_reg(g_mm8033_chip->client, REG_CURRENT);
@@ -964,6 +949,54 @@ int mm8033_read_volt(void)
 	}else {
 		//GAUGE_INFO("volt = %d\n", volt);
 		return volt;
+	}
+}
+int mm8033_read_percentage(void)
+{
+	int soc = mm8033_read_reg(g_mm8033_chip->client, REG_SOC);
+#ifdef SOC_SMOOTH_ALGO
+	int soc_final = 0, ret = 0;
+#endif
+	if (soc < 0) {
+		GAUGE_ERR("error in reading battery soc = 0x%04x\n", soc);
+		return 50;
+	}else {
+		//GAUGE_INFO("percentage = %d\n", soc / 256);
+		/*>.5% + 1%*/
+		if (((soc+128) / 256)>100) {
+			return 100;
+		} else {
+#ifdef SOC_SMOOTH_ALGO
+			soc_final = (soc+128) / 256;
+			GAUGE_INFO("%s start smooth algo, soc last=%d, soc now=%d\n",__func__, mm8033_pre_soc, soc_final);
+			if (mm8033_pre_soc!=0) {
+				if ((mm8033_pre_soc+3) <= soc_final) {
+					/* reset ocv if gauge soc=100, now soc<100, 0<cur<150 */
+					if ((soc_final==100)&&((mm8033_read_current()-0x10000)>0)&&((mm8033_read_current()-0x10000)<150)) {
+						ret = mm8033_write_reg(g_mm8033_chip->client, REG_FG_CONDITION, 0x0020);
+						if (ret < 0) {
+							GAUGE_ERR("reset OCV failed with ret=%d\n", ret);
+						} else {
+							GAUGE_INFO("reset OCV success\n");
+						}
+					}
+					soc_final = mm8033_pre_soc + 3;
+				} else if((soc_final>2)&&(mm8033_read_volt()>3200)&&(mm8033_read_volt()<3300)) {
+					/* reset ocv if gauge soc>2, 3.2V<bat<3.3V*/
+					ret = mm8033_write_reg(g_mm8033_chip->client, REG_FG_CONDITION, 0x0020);
+					if (ret < 0) {
+						GAUGE_ERR("reset OCV failed with ret=%d\n", ret);
+					} else {
+						GAUGE_INFO("reset OCV success\n");
+					}
+				}
+			}
+			mm8033_pre_soc = soc_final;
+			return soc_final;
+#else
+			return (soc+128) / 256;
+#endif
+		}
 	}
 }
 int mm8033_read_temp(void)
@@ -1059,7 +1092,6 @@ static ssize_t batt_switch_name(struct switch_dev *sdev, char *buf)
 static void mm8033_early_suspend(struct early_suspend *h)
 {
 	GAUGE_INFO("%s ++\n", __func__);
-	early_suspend_flag = 1;
 	cancel_delayed_work(&batt_state_wq);
 	flush_delayed_work(&batt_state_wq);
 }
@@ -1067,7 +1099,6 @@ static void mm8033_early_suspend(struct early_suspend *h)
 static void mm8033_late_resume(struct early_suspend *h)
 {
 	GAUGE_INFO("%s ++\n", __func__);
-	early_suspend_flag = 0;
 	schedule_delayed_work(&batt_state_wq, 5*HZ);
 }
 static void mm8033_config_earlysuspend(struct mm8033_chip *chip)

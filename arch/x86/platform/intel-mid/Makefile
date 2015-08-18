@@ -30,8 +30,8 @@ obj-$(CONFIG_REMOVEME_INTEL_ATOM_MRFLD_POWER) += intel_soc_mrfld.o
 obj-$(CONFIG_INTEL_SOC_PMC) += intel_soc_pci_acpi_quirk.o
 
 # Debug features driver
-obj-$(CONFIG_INTEL_DEBUG_FEATURE) += intel_soc_debug.o
 
+obj-$(CONFIG_INTEL_DEBUG_FEATURE) += intel_soc_debug.o
 ifeq ($(UART_DEBUG), yes)
-  KBUILD_CFLAGS += -DUART_DEBUG
+   KBUILD_CFLAGS += -DUART_DEBUG
 endif

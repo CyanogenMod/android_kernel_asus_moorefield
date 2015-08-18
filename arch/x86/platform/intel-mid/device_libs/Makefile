@@ -47,6 +47,7 @@ obj-$(subst m,y,$(CONFIG_INTEL_SCU_FLIS)) += platform_scu_flis.o
 # I2C Devices
 # Flash Driver IC
 obj-$(subst m,y,$(CONFIG_VIDEO_SKY81296))                 += platform_sky81296.o
+obj-$(subst m,y,$(CONFIG_VIDEO_FLASHNODE)) += platform_flashnode.o
 obj-$(subst m,y,$(CONFIG_I2C_DESIGNWARE_CORE_FORK)) += platform_dw_i2c.o
 obj-$(subst m,y,$(CONFIG_SENSORS_EMC1403)) += platform_emc1403.o
 obj-$(subst m,y,$(CONFIG_SENSORS_LIS3LV02D)) += platform_lis331.o

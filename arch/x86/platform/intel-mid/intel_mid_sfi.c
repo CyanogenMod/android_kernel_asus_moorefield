@@ -518,6 +518,14 @@ static void __init sfi_handle_spi_dev(struct sfi_device_table_entry *pentry,
 		spi_register_board_info(&spi_info, 1);
 }
 
+static struct sfi_device_table_entry flashnode_entry = {
+	.type = SFI_DEV_TYPE_I2C,
+	.host_num = 6,
+	.addr = 0x37,
+	.irq = 0xFF,
+	.max_freq = 400000,
+	.name = "flashnode",
+};
 
 static void __init sfi_handle_i2c_dev(struct sfi_device_table_entry *pentry,
 					struct devs_id *dev)
@@ -630,6 +638,12 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 	sb = (struct sfi_table_simple *)table;
 	num = SFI_GET_NUM_ENTRIES(sb, struct sfi_device_table_entry);
 	pentry = (struct sfi_device_table_entry *)sb->pentry;
+
+//Hacked sfi parse table.
+	dev = get_device_id(SFI_DEV_TYPE_I2C, "flashnode");
+	if( dev && dev->device_handler){
+		dev->device_handler(&flashnode_entry , dev);
+	}
 
 	for (i = 0; i < num; i++, pentry++) {
 		int irq = pentry->irq;
@@ -966,7 +980,7 @@ int Read_Boot_Mode(void){
     if(boot_mode==0){
         printk("[SFI][ANDROIDBOOTCHECK]READ_BOOT_MODE called, but boot_mode is not set, return 0");
         return 0;
-    }    
+    }
     printk("[SFI][ANDROIDBOOTCHECK]READ_BOOT_MODE called, mode=%d", boot_mode);
     return boot_mode;
 }

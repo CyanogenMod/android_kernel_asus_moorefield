@@ -62,12 +62,13 @@
 #include <linux/notifier.h>
 #include <linux/power/battery_id.h>
 #include <linux/usb/penwell_otg.h>
+#include <linux/HWVersion.h>
 #include "pmic_ccsm.h"
 #if defined(CONFIG_A500CG_BATTERY_SMB347) || defined(CONFIG_SMB1357_CHARGER)
 #include "../../../power/ASUS_BATTERY/smb_external_include.h"
-#include <linux/HWVersion.h>
 #define SRCWAKECFG_ADDR       0x23
 extern int dcp_mode;
+extern int invalid_charger;
 #endif
 
 /* Macros */
@@ -96,13 +97,14 @@ extern int dcp_mode;
 #define OHM_MULTIPLIER		10
 #define QC_SDP_QUEUE	1
 
+extern int Read_PROJ_ID(void);
 #ifdef QC_SDP_QUEUE
 static struct delayed_work 	sdp_work;
 static struct power_supply_cable_props g_cap = {0};
 #endif
 #if defined(CONFIG_A500CG_BATTERY_SMB347) || defined(CONFIG_SMB1357_CHARGER)
-extern int Read_PROJ_ID(void);
-extern int uv_flag;
+extern int smb1357_uv_result(void);
+extern int smb1357_power_ok(void);
 enum power_supply_charger_cable_type usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_NONE;
 static BLOCKING_NOTIFIER_HEAD(cable_status_notifier_list);
 /**
@@ -1185,10 +1187,11 @@ exit:
 
 int pmic_get_battery_pack_temp(int *temp)
 {
-	if (chc.invalid_batt)
+	if ((chc.invalid_batt)&&(Read_PROJ_ID()!=PROJ_ID_ZX550ML))
 		return -ENODEV;
 	return pmic_read_adc_val(GPADC_BATTEMP0, temp, &chc);
 }
+EXPORT_SYMBOL(pmic_get_battery_pack_temp);
 
 static bool is_hvdcp_charging_enabled(int mask)
 {
@@ -1489,7 +1492,30 @@ int pmic_handle_low_supply(void)
 	int vendor_id = chc.pmic_id & PMIC_VENDOR_ID_MASK;
 
 	dev_info(chc.dev, "Low-supply event received from external-charger\n");
+#if defined(CONFIG_SMB1357_CHARGER)
+	if (invalid_charger&&smb1357_uv_result()&&smb1357_power_ok()) {
+		dev_info(chc.dev, "charger uv and power ok after charger suspend so report cable out\n");
+		int mask = 0;
+
+		dev_info(chc.dev, "USB VBUS Removed. Notifying OTG driver\n");
+		mutex_lock(&chc.evt_queue_lock);
+		chc.vbus_connect_status = false;
+		mutex_unlock(&chc.evt_queue_lock);
+
+		if (chc.is_internal_usb_phy && !chc.otg_mode_enabled)
+			handle_internal_usbphy_notifications(mask);
+		else {
+			atomic_notifier_call_chain(&chc.otg->notifier,
+					USB_EVENT_VBUS, &mask);
+			mutex_lock(&chc.evt_queue_lock);
+			chc.otg_mode_enabled = false;
+			mutex_unlock(&chc.evt_queue_lock);
+		}
+		return 0;
+	} else if (vendor_id == BASINCOVE_VENDORID || !chc.vbus_connect_status) {
+#else
 	if (vendor_id == BASINCOVE_VENDORID || !chc.vbus_connect_status) {
+#endif
 		dev_err(chc.dev, "Ignore Low-supply event received\n");
 		return 0;
 	}
@@ -1517,7 +1543,7 @@ int pmic_handle_low_supply(void)
 		}
 	}
 #if defined(CONFIG_SMB1357_CHARGER)
-	if (!(val & SCHRGRIRQ1_SVBUSDET_MASK)||uv_flag) {
+	if (!(val & SCHRGRIRQ1_SVBUSDET_MASK)||smb1357_uv_result()) {
 #else
 	if (!(val & SCHRGRIRQ1_SVBUSDET_MASK)) {
 #endif

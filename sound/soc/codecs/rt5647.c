@@ -1991,7 +1991,7 @@ static void rt5647_pmd_depop(struct snd_soc_codec *codec)
 {
 	/* headphone mute sequence */
 	#if 1 //bard for hp depop
-	snd_soc_write(codec, RT5647_DEPOP_M3, 0x0606);
+	snd_soc_write(codec, RT5647_DEPOP_M3, 0x0636);
 	#else
 	snd_soc_update_bits(codec, RT5647_DEPOP_M3,
 		RT5647_CP_FQ1_MASK | RT5647_CP_FQ2_MASK | RT5647_CP_FQ3_MASK,
@@ -2013,7 +2013,7 @@ static void rt5647_pmd_depop(struct snd_soc_codec *codec)
 
 	snd_soc_update_bits(codec, RT5647_HP_VOL,
 		RT5647_L_MUTE | RT5647_R_MUTE, RT5647_L_MUTE | RT5647_R_MUTE);
-	msleep(100);
+	msleep(150);
 
 	hp_amp_power(codec, 0);
 }

@@ -42,23 +42,24 @@
 
 //below are from .ini file
 //--------------------.ini file---------------------------------
-#define INI_RCOMP 		(127)
+#define INI_RCOMP 		(138)
 #define INI_RCOMP_FACTOR	1
-const static int TempCoHot = -0.7*INI_RCOMP_FACTOR;
-const static int TempCoCold = -5.175*INI_RCOMP_FACTOR;
+const static int TempCoHot = -2150*INI_RCOMP_FACTOR;
+const static int TempCoCold = -2650*INI_RCOMP_FACTOR;
 
-#define INI_SOCCHECKA		(228)
-#define INI_SOCCHECKB		(230)
-#define INI_OCVTEST 		(57408) 
-#define INI_BITS		(19)
+#define INI_SOCCHECKA		(116)
+#define INI_SOCCHECKB		(118)
+#define INI_OCVTEST 		(58784)
+#define INI_BITS		(18)
 //--------------------.ini file end-------------------------------
 
 #define VERIFY_AND_FIX 1
 #define LOAD_MODEL !(VERIFY_AND_FIX)
-#define GAUGE_ERR(...)        printk(KERN_ERR "[MAX17058_ERR] " __VA_ARGS__);
+#define GAUGE_ERR(...)        printk(KERN_ERR "[MAX17058_ERR] " __VA_ARGS__)
 #define GAUGE_INFO(...)      printk(KERN_INFO "[MAX17058] " __VA_ARGS__)
 
 extern int Read_PROJ_ID(void);
+extern int pmic_get_battery_pack_temp(int *temp);
 
 static int max17058_check_por(struct i2c_client *client);
 static void prepare_to_load_model(struct i2c_client *client);
@@ -70,8 +71,9 @@ static int max17058_read_reg(struct i2c_client *client, u8 reg);
 static u8 original_OCV_1=0, original_OCV_2=0;
 static u8 por_flag = 0;
 static struct dev_func max17058_tbl;
-struct switch_dev max17058_batt_dev;
+static struct switch_dev max17058_batt_dev;
 static struct max17058_chip *g_max17058_chip;
+static int g_temp=25;
 
 struct max17058_chip {
 	struct i2c_client		*client;
@@ -91,28 +93,17 @@ struct max17058_chip {
 	int status;
 };
 
-#if 1
-	uint8_t model_data[] = {
-		0xAA, 0x00, 0xB6, 0x40, 0xB7, 0xA0, 0xB9, 0xC0,
-		0xBB, 0xE0, 0xBC, 0xD0, 0xBD, 0x40, 0xBD, 0xA0,
-		0xC0, 0x30, 0xC0, 0xF0, 0xC4, 0x80, 0xC6, 0x00,
-		0xC8, 0x80, 0xCB, 0x00, 0xCF, 0xE0, 0xD6, 0x40,
-		0x01, 0xC0, 0x17, 0x60, 0x1D, 0xA0, 0x17, 0x80,
-		0x54, 0x80, 0x5F, 0x80, 0x7E, 0xA0, 0x14, 0xA0,
-		0x4A, 0x60, 0x0E, 0x00, 0x22, 0x40, 0x10, 0x00,
-		0x10, 0x00, 0x14, 0x00, 0x0C, 0x00, 0x0C, 0x00
-};
-#else
-	u8 model_data[64] = {0xAA,0x00,0xB6,0xC0,0xB7,0xE0,0xB9,0x30,
-			     0xBA,0xF0,0xBB,0x90,0xBC,0xA0,0xBD,0x40,
-			     0xBE,0x20,0xBF,0x40,0xC0,0xD0,0xC3,0xF0,
-			     0xC6,0xE0,0xCC,0x90,0xD1,0xA0,0xD7,0x30,
-			     0x01,0xC0,0x0E,0xC0,0x2C,0x00,0x1C,0x00,
-			     0x00,0xC0,0x46,0x00,0x51,0xE0,0x31,0xE0,
-			     0x22,0x80,0x2B,0xE0,0x13,0xC0,0x15,0xA0,
-			     0x10,0x20,0x10,0x20,0x0E,0x00,0x0E,0x00};//you need to get model data from maxim integrated
-#endif
 
+uint8_t model_data[] = {
+	0xA2, 0xF0, 0xB6, 0x70, 0xB8, 0x20, 0xBA, 0x40,
+	0xBB, 0x90, 0xBC, 0xB0, 0xBD, 0xE0, 0xBF, 0x20,
+	0xC0, 0x70, 0xC1, 0x80, 0xC4, 0x80, 0xC7, 0xD0,
+	0xCE, 0x00, 0xD2, 0x50, 0xD5, 0x20, 0xDB, 0xA0,
+	0x00, 0x20, 0x0E, 0x80, 0x11, 0x10, 0x11, 0xB0,
+	0x17, 0x00, 0x19, 0xD0, 0x12, 0xE0, 0x11, 0xF0,
+	0x0C, 0xF0, 0x09, 0xF0, 0x07, 0xF0, 0x07, 0x80,
+	0x06, 0x80, 0x07, 0x10, 0x07, 0x00, 0x07, 0x00
+};
 
 static int max17058_write_reg(struct i2c_client *client, u8 reg, u16 value)
 {
@@ -143,6 +134,7 @@ static int max17058_check_por(struct i2c_client *client)
 	u16 val;
 
 	val = max17058_read_reg(client, max17058_STATUS_REG);
+	//GAUGE_INFO("%s: max17058_STATUS_REG 0x1A = 0x%04x\n", __func__, val);
 	val = swab16(val)&0x0100;
 
   	return val;
@@ -250,7 +242,7 @@ static void prepare_to_load_model(struct i2c_client *client) {
 
     //Step4: Write RCOMP to its Maximum Value
     // only for max17058/1/3/4
-    // max17058_write_reg(client,0x0C, 0xFF00);
+    // max17058_write_reg(client, max17058_RCOMP_REG, 0xFF00);
     //do nothing for MAX17058
 }
 
@@ -350,7 +342,7 @@ static void cleanup_model_load(struct i2c_client *client) {
 	}
 
 	//step 10 Restore CONFIG and OCV: write(reg[0x0C], INI_RCOMP, Your_Desired_Alert_Configuration)
-	ret = max17058_write_reg(client,max17058_RCOMP_REG, 0x941C);//RCOMP0=94 , battery empty Alert threshold = 4% -> 0x1C
+	ret = max17058_write_reg(client,max17058_RCOMP_REG, 0x8A1C);//RCOMP0=8A , battery empty Alert threshold = 4% -> 0x1C
 	if (ret < 0){
 		GAUGE_ERR("failed to Restore Config in step 10\n");
 		return;
@@ -436,7 +428,7 @@ static int max17058_get_temp(struct i2c_client *client)
 	
 	return val.intval;
 #else
-	return 25;
+	return g_temp;
 #endif
 }
 
@@ -450,10 +442,10 @@ static void update_rcomp(struct i2c_client *client)
 	temp = max17058_get_temp(client);
 	if(temp > 20) 
 	{
-		NewRCOMP = INI_RCOMP + ((temp - 20) * TempCoHot)/INI_RCOMP_FACTOR;
+		NewRCOMP = INI_RCOMP + ((temp - 20) * TempCoHot)/INI_RCOMP_FACTOR/1000;
 	}else if(temp <20) 
 	{
-		NewRCOMP = INI_RCOMP +  ((temp - 20) * TempCoCold)/INI_RCOMP_FACTOR;
+		NewRCOMP = INI_RCOMP +  ((temp - 20) * TempCoCold)/INI_RCOMP_FACTOR/1000;
 	}else 
 	{
 		NewRCOMP = INI_RCOMP;
@@ -467,7 +459,7 @@ static void update_rcomp(struct i2c_client *client)
 		NewRCOMP = 0;
 	}	
 	cfg=(NewRCOMP<<8)|0x1c;//soc alert:4%   
-	max17058_write_reg(client, 0x0c, cfg);
+	max17058_write_reg(client, max17058_RCOMP_REG, cfg);
 	msleep(150);
 }
 #ifdef MAX17058_REG_POWERSUPPLY
@@ -575,38 +567,6 @@ static void max17058_get_status(struct i2c_client *client)
 	    	chip->status = POWER_SUPPLY_STATUS_FULL;
 }
 #endif
-static void max17058_work(struct work_struct *work)
-{
-	struct max17058_chip *chip;
-
-	chip = container_of(work, struct max17058_chip, work.work);
-
-	max17058_get_vcell(chip->client);
-	max17058_get_soc(chip->client);
-	update_rcomp(chip->client);//update rcomp periodically
-#ifdef MAX17058_REG_POWERSUPPLY
-	if(0)
-	{
-		max17058_get_online(chip->client);
-		max17058_get_status(chip->client);
-	}
-#endif
-	handle_model(chip->client, LOAD_MODEL);
-	GAUGE_INFO("%s v=%d, soc=%d\n", __func__, chip->vcell, chip->soc);
-
-	schedule_delayed_work(&chip->work, max17058_DELAY);
-}
-
-//static void max17058_handle_work(struct work_struct *work)
-//{
-//	struct max17058_chip *chip;
-//
-//	chip = container_of(work, struct max17058_chip, work.work);
-
-//	handle_model(chip->client, LOAD_MODEL);
-
-//	schedule_delayed_work(&chip->hand_work, max17058_DELAY);
-//}
 
 int max17058_read_percentage(void)
 {
@@ -631,17 +591,60 @@ int max17058_read_volt(void)
 	//GAUGE_INFO("%s start\n", __func__);
 	max17058_get_vcell(g_max17058_chip->client);
 	volt = g_max17058_chip->vcell;
-	GAUGE_INFO("%s, volt = %d\n", __func__, volt);
+	//GAUGE_INFO("%s, volt = %d\n", __func__, volt);
 	return volt;
 }
 int max17058_read_temp(void)
 {
-	return 250;
+	int ret, temp;
+
+	ret = pmic_get_battery_pack_temp(&temp);
+	//GAUGE_INFO("%s, ret = %d, temp = %d\n", __func__, ret, temp);
+	if(ret<0) {
+		return 250;
+	} else {
+		g_temp = temp;
+		return temp*10;
+	}
 }
+
+static void max17058_work(struct work_struct *work)
+{
+	struct max17058_chip *chip;
+
+	chip = container_of(work, struct max17058_chip, work.work);
+
+	max17058_get_vcell(chip->client);
+	max17058_get_soc(chip->client);
+	max17058_read_temp();//update temp
+	update_rcomp(chip->client);//update rcomp periodically
+#ifdef MAX17058_REG_POWERSUPPLY
+	if(0)
+	{
+		max17058_get_online(chip->client);
+		max17058_get_status(chip->client);
+	}
+#endif
+	handle_model(chip->client, LOAD_MODEL);
+	GAUGE_INFO("%s: v=%d, soc=%d, rcomp=%d, temp=%d\n", __func__, chip->vcell, chip->soc, max17058_read_reg(chip->client, max17058_RCOMP_REG), g_temp);
+
+	schedule_delayed_work(&chip->work, max17058_DELAY);
+}
+
+//static void max17058_handle_work(struct work_struct *work)
+//{
+//	struct max17058_chip *chip;
+//
+//	chip = container_of(work, struct max17058_chip, work.work);
+
+//	handle_model(chip->client, LOAD_MODEL);
+
+//	schedule_delayed_work(&chip->hand_work, max17058_DELAY);
+//}
 
 static ssize_t batt_switch_name(struct switch_dev *sdev, char *buf)
 {
-	return sprintf(buf, "%s\n", "max17058");
+	return sprintf(buf, "%s\n", "Z2CP3 00010001");
 }
 
 #ifdef MAX17058_REG_POWERSUPPLY
@@ -706,7 +709,7 @@ static int max17058_probe(struct i2c_client *client,
 		GAUGE_ERR("asus_battery_init fail\n");
 
 	max17058_get_version(client);
-	max17058_write_reg(client, 0x0c, 0x941C);
+	max17058_write_reg(client, max17058_RCOMP_REG, 0x8A1C);
 	handle_model(client, LOAD_MODEL);
 
   	g_max17058_chip = chip;

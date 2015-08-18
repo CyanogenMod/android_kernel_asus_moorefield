@@ -74,6 +74,7 @@ const struct intel_v4l2_subdev_id v4l2_ids[] = {
 	{"m10mo", SOC_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
 	{"ov5670", RAW_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
 	{"sky81296", LED_FLASH, -1},
+	{"flashnode", LED_FLASH, -1},
 	{"t4k37",  RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
 #endif
 	{},

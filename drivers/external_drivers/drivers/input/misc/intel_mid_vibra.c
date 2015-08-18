@@ -22,7 +22,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
@@ -158,20 +157,31 @@ static int vibra_soc_pwm_configure(struct vibra_info *info, bool enable)
 }
 
 #define VIBRAGPO_REG 0x33
+#define VIBRAPWM_REG 0x32
 
 static int vibra_pmic_pwm_configure(struct vibra_info *info, bool enable)
 {
 	int ret = 0;
 	pr_debug("%s: %s\n", __func__, enable ? "on" : "off");
 	pr_debug("%s: is_incall is %s\n", __func__, is_incall? "true" : "false"); /* do not enable vibrator when audio android mode is incall(2) */
-	if (enable && !is_incall) {	/*enable PWM block */
-		ret = intel_scu_ipc_iowrite8(VIBRAGPO_REG, 0x16);
-		pr_debug("%s: enable PWM block\n", __func__);
-		if (ret)
-			printk("[VIB] write vibra_drv3102_enable duty value faild\n");
-	} else {	/*disable PWM block */
+	if (enable) {
+		if (is_incall) {
+			ret = intel_scu_ipc_iowrite8(VIBRAPWM_REG, 0x41);
+			pr_debug("%s: enable PWM block when incall\n", __func__);
+			if (ret)
+				printk("[VIB] write vibra_drv3102_enable duty value faild\n");
+		} else {
+			ret = intel_scu_ipc_iowrite8(VIBRAGPO_REG, 0x16);
+			pr_debug("%s: enable GPO block\n", __func__);
+			if (ret)
+				printk("[VIB] write vibra_drv3102_enable duty value faild\n");
+		}
+	} else {
+		pr_debug("%s: disable GPO/PWM block\n", __func__);
 		ret = intel_scu_ipc_iowrite8(VIBRAGPO_REG,0x04);
-		pr_debug("%s: disable PWM block\n", __func__);
+		if (ret)
+			printk("[VIB] write vibra_disable duty value faild\n");
+		ret = intel_scu_ipc_iowrite8(VIBRAPWM_REG,0x40);
 		if (ret)
 			printk("[VIB] write vibra_disable duty value faild\n");
 	}
@@ -474,6 +484,8 @@ struct vibra_info *mid_vibra_setup(struct device *dev, struct mid_vibra_pdata *d
 	return info;
 }
 
+#define VIBRAPWM_CTRL 0x36
+
 static void vibrator_on(void)
 {
 	wake_lock(&vibdata.wklock);
@@ -610,6 +622,9 @@ static int intel_mid_vibra_probe(struct pci_dev *pci,
 	if (info->ext_drv)
 		vibra_drv2605_calibrate(info);
 
+	ret = intel_scu_ipc_iowrite8(VIBRAPWM_CTRL, 0x78);
+	if (ret)
+		pr_err("write vibra_drv3102_enable duty value faild\n");
 
 	pci_set_drvdata(pci, info);
 	pm_runtime_allow(&pci->dev);

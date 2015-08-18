@@ -466,7 +466,7 @@ static void gpio_keys_gpio_timer(unsigned long _data)
 
 	BUG_ON(!bdata);
 	BUG_ON(!bdata->button);
-	
+
 	button = bdata->button;
 	state = (gpio_keys_getval(button->gpio) ? 1 : 0) ^ button->active_low;
 
@@ -476,8 +476,9 @@ static void gpio_keys_gpio_timer(unsigned long _data)
 		button->wakeup == 1 &&
         (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN) ){
 			wake_lock_timeout(&gpio_wake_lock, msecs_to_jiffies(2000));
+			printk("Instant Camera Keyevent (%d) pushed.\n",button->code);
     }
-	
+
 	schedule_work(&bdata->work);
 }
 
@@ -610,7 +611,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 
 		if (button->code == KEY_VOLUMEDOWN || button->code == KEY_VOLUMEUP) {
 			bdata->timer_debounce =
-						button->debounce_interval;	
+						button->debounce_interval;
 		}
 
 		irq = gpio_to_irq(button->gpio);

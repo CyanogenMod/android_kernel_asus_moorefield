@@ -258,3 +258,13 @@ config VIDEO_SKY81296
 
          To compile this driver as a module, choose M here: the
          module will be called sky81296
+
+config VIDEO_FLASHNODE
+         tristate "FLASHNODE flash light driver"
+         depends on VIDEO_V4L2
+         ---help---
+         This is a Video4Linux2 int device driver for the FLASHNODE
+         flash light driver.
+
+         To compile this driver as a module, choose M here: the
+         module will be called flashnode
