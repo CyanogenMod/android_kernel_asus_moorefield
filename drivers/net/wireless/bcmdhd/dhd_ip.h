@@ -36,8 +36,8 @@ extern pkt_frag_t pkt_frag_info(osl_t *osh, void *p);
 #define	TCPACKSZMAX	(TCPACKSZMIN + 100)
 
 /* Max number of TCP streams that have own src/dst IP addrs and TCP ports */
-#define TCPACK_INFO_MAXNUM 4
-#define TCPDATA_INFO_MAXNUM 4
+#define TCPACK_INFO_MAXNUM 32
+#define TCPDATA_INFO_MAXNUM 32
 #define TCPDATA_PSH_INFO_MAXNUM (8 * TCPDATA_INFO_MAXNUM)
 
 #define TCPDATA_INFO_TIMEOUT 5000	/* Remove tcpdata_info if inactive for this time (in ms) */
