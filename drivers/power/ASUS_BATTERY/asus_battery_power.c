@@ -430,6 +430,7 @@ static enum power_supply_property asus_battery_props[] = {
         POWER_SUPPLY_PROP_CURRENT_AVG,
         POWER_SUPPLY_PROP_CHARGE_FULL,
         POWER_SUPPLY_PROP_CHARGE_NOW,
+        POWER_SUPPLY_PROP_CHARGE_TYPE,
 #if 0
         POWER_SUPPLY_PROP_BATTERY_ID,
         POWER_SUPPLY_PROP_FIRMWARE_VERSION,
@@ -1470,7 +1471,15 @@ static int asus_battery_get_property(struct power_supply *psy,
 
         switch (psp) {
         case POWER_SUPPLY_PROP_STATUS:
-                val->intval = tmp_batt_info.status;
+		switch(tmp_batt_info.status) {
+		case POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING:
+		case POWER_SUPPLY_STATUS_QUICK_CHARGING:
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+			break;
+		default:
+			val->intval = tmp_batt_info.status;
+			break;
+		}
 		//BAT_DBG("%s: battery satus=%d, cable status=%d\n",__func__, val->intval, batt_info.cable_status);
 		if((batt_info.cable_status==NO_CABLE)&&(tmp_batt_info.status!=POWER_SUPPLY_STATUS_NOT_CHARGING)){
 			BAT_DBG("no cable but status is not \"not charging\", update it\n");
@@ -1538,6 +1547,9 @@ static int asus_battery_get_property(struct power_supply *psy,
         case POWER_SUPPLY_PROP_CHARGE_NOW:
                 val->intval = tmp_batt_info.batt_rm;
                 break;
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
+		val->intval = tmp_batt_info.status == POWER_SUPPLY_STATUS_QUICK_CHARGING ? POWER_SUPPLY_CHARGE_TYPE_FAST : POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+		break;
         default:
                 return -EINVAL;
         }
