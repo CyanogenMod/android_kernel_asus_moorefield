@@ -154,7 +154,7 @@
 
 /* LED */
 #ifdef CONFIG_LEDS_ASUS
-	#include <device_libs/platform_leds_asus.h>
+	#include "device_libs/platform_leds_asus.h"
 #endif
 
 /*
