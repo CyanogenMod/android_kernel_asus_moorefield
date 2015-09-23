@@ -38,7 +38,7 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
 #include <linux/genhd.h>
-#include <jhash_uuid.h>
+#include "jhash_uuid.h"
 #include <linux/io.h>
 #include <asm/intel_scu_ipc.h>
 #include <linux/version.h>
