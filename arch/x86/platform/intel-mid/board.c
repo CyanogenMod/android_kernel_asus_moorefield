@@ -147,7 +147,7 @@
 	#include "device_libs/platform_smb1357.h"
 #endif
 #ifdef CONFIG_LEDS_ASUS
-	#include <device_libs/platform_leds_asus.h>
+	#include "device_libs/platform_leds_asus.h"
 #endif
 
 /*
