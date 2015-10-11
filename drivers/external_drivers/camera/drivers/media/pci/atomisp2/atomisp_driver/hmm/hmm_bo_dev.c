@@ -31,7 +31,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 #include <linux/ion.h>
 #endif
 
@@ -69,7 +69,7 @@ int hmm_bo_device_init(struct hmm_bo_device *bdev,
 	INIT_LIST_HEAD(&bdev->active_bo_list);
 
 	spin_lock_init(&bdev->list_lock);
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 	/*
 	 * TODO:
 	 * The ion_dev should be defined by ION driver. But ION driver does
@@ -121,7 +121,7 @@ void hmm_bo_device_exit(struct hmm_bo_device *bdev)
 
 	isp_mmu_exit(&bdev->mmu);
 	hmm_vm_clean(&bdev->vaddr_space);
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 	if (bdev->iclient != NULL)
 		ion_client_destroy(bdev->iclient);
 #endif
