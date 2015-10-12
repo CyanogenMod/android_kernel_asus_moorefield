@@ -2751,7 +2751,7 @@ static noinline int audit_inode_permission(struct inode *inode,
 	ad.u.inode = inode;
 
 	rc = slow_avc_audit(current_sid(), isec->sid, isec->sclass, perms,
-				audited, denied, result, &ad, flags);
+			    audited, denied, &ad, flags);
 	if (rc)
 		return rc;
 	return 0;
