@@ -740,24 +740,17 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 	avc_dump_query(ab, ad->selinux_audit_data->ssid,
 			   ad->selinux_audit_data->tsid,
 			   ad->selinux_audit_data->tclass);
-	audit_log_format(ab, " result=%d", ad->selinux_audit_data->result);
+	if (ad->selinux_audit_data->denied) {
+		audit_log_format(ab, " permissive=%u",
+				 ad->selinux_audit_data->result ? 0 : 1);
+	}
 }
 
 /* This is the slow part of avc audit with big stack footprint */
 noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
-		u32 requested, u32 audited, u32 denied,
+		u32 requested, u32 audited, u32 denied, int result,
 		struct common_audit_data *a,
 		unsigned flags)
-{
-	return internal_slow_avc_audit(ssid, tsid, tclass, requested, audited, denied,
-				a, flags, 0);
-}
-
-/* This is the internal slow part of avc audit with big stack footprint */
-noinline int internal_slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
-		u32 requested, u32 audited, u32 denied,
-		struct common_audit_data *a,
-		unsigned flags, int result)
 {
 	struct common_audit_data stack_data;
 	struct selinux_audit_data sad;
