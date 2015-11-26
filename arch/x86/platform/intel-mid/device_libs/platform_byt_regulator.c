@@ -58,7 +58,7 @@ static struct intel_pmic_info v2p85s_info = {
 	.pmic_reg   = V2P85SCNT_ADDR,
 	.init_data  = &v2p85s_data,
 	.table_len  = ARRAY_SIZE(V2P85S_VSEL_TABLE),
-	.table      = V2P85S_VSEL_TABLE,
+	.table      = (const u16 *) V2P85S_VSEL_TABLE,
 };
 static struct platform_device v2p85s_device = {
 	.name = "intel_regulator",
@@ -89,7 +89,7 @@ static struct intel_pmic_info v2p85sx_info = {
 	.pmic_reg   = V2P85SXCNT_ADDR,
 	.init_data  = &v2p85sx_data,
 	.table_len  = ARRAY_SIZE(V2P85SX_VSEL_TABLE),
-	.table      = V2P85SX_VSEL_TABLE,
+	.table      = (const u16 *) V2P85SX_VSEL_TABLE,
 };
 static struct platform_device v2p85sx_device = {
 	.name = "intel_regulator",
@@ -128,7 +128,7 @@ static struct intel_pmic_info v3p3sx_info = {
 	.pmic_reg   = V3P3SXCNT_ADDR,
 	.init_data  = &v3p3sx_data,
 	.table_len  = ARRAY_SIZE(V3P3SX_VSEL_TABLE),
-	.table      = V3P3SX_VSEL_TABLE,
+	.table      = (const u16 *) V3P3SX_VSEL_TABLE,
 	.en_pin	=  &v3p3sx_gpio_data,
 };
 
@@ -160,7 +160,7 @@ static struct intel_pmic_info v1p8s_info = {
 	.pmic_reg   = V1P8SCNT_ADDR,
 	.init_data  = &v1p8s_data,
 	.table_len  = ARRAY_SIZE(V1P8S_VSEL_TABLE),
-	.table      = V1P8S_VSEL_TABLE,
+	.table      = (const u16 *) V1P8S_VSEL_TABLE,
 };
 static struct platform_device v1p8s_device = {
 	.name = "intel_regulator",
@@ -191,7 +191,7 @@ static struct intel_pmic_info v1p8sx_info = {
 	.pmic_reg   = V1P8SXCNT_ADDR,
 	.init_data  = &v1p8sx_data,
 	.table_len  = ARRAY_SIZE(V1P8SX_VSEL_TABLE),
-	.table      = V1P8SX_VSEL_TABLE,
+	.table      = (const u16 *) V1P8SX_VSEL_TABLE,
 };
 
 static struct platform_device v1p8sx_device = {
@@ -222,7 +222,7 @@ static struct intel_pmic_info vsys_s_info = {
 	.pmic_reg   = VSYS_SCNT_ADDR,
 	.init_data  = &vsys_s_data,
 	.table_len  = ARRAY_SIZE(VSYS_S_VSEL_TABLE),
-	.table      = VSYS_S_VSEL_TABLE,
+	.table      = (const u16 *) VSYS_S_VSEL_TABLE,
 };
 static struct platform_device vsys_s_device = {
 	.name = "intel_regulator",
@@ -254,7 +254,7 @@ static struct intel_pmic_info v1p0a_info = {
 	.pmic_reg   = V1P0ACNT_ADDR,
 	.init_data  = &v1p0a_data,
 	.table_len  = ARRAY_SIZE(V1P0A_VSEL_TABLE),
-	.table      = V1P0A_VSEL_TABLE,
+	.table      = (const u16 *) V1P0A_VSEL_TABLE,
 };
 static struct platform_device v1p0a_device = {
 	.name = "intel_regulator",
@@ -286,7 +286,7 @@ static struct intel_pmic_info v1p8a_info = {
 	.pmic_reg   = V1P8ACNT_ADDR,
 	.init_data  = &v1p8a_data,
 	.table_len  = ARRAY_SIZE(V1P8A_VSEL_TABLE),
-	.table      = V1P8A_VSEL_TABLE,
+	.table      = (const u16 *) V1P8A_VSEL_TABLE,
 };
 static struct platform_device v1p8a_device = {
 	.name = "intel_regulator",

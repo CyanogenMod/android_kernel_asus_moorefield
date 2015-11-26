@@ -1350,6 +1350,9 @@ int mce_notify_irq(void)
 
 	if (test_and_clear_bit(0, &mce_need_notify)) {
 		/* wake processes polling /dev/mcelog */
+		int previous_entry;
+		unsigned int entry;
+
 		wake_up_interruptible(&mce_chrdev_wait);
 
 		if (mce_helper[0])
@@ -1358,10 +1361,9 @@ int mce_notify_irq(void)
 		if (!__ratelimit(&ratelimit))
 			return 1;
 
-		int previous_entry = mcelog_kct_last_entry;
+		previous_entry = mcelog_kct_last_entry;
 		mcelog_kct_last_entry = 0;
-		unsigned int entry =
-		    rcu_dereference_check_mce(mcelog.next);
+		entry = rcu_dereference_check_mce(mcelog.next);
 
 		/* check for overflow condition. */
 		if (entry >= MCE_LOG_LEN) {
@@ -1380,16 +1382,16 @@ int mce_notify_irq(void)
 		}
 
 		while (previous_entry < entry) {
-
-			if (!mcelog.entry[++previous_entry].finished)
-				continue;
-
 			const int DATA_MAX_LEN = 128;
 			char data0[DATA_MAX_LEN];
 			char data1[DATA_MAX_LEN];
 			char data2[DATA_MAX_LEN];
 			char data3[DATA_MAX_LEN];
 			char data4[DATA_MAX_LEN];
+
+
+			if (!mcelog.entry[++previous_entry].finished)
+				continue;
 
 			snprintf(data0, DATA_MAX_LEN,
 				 "status: 0x%llx, misc: 0x%llx, addr: 0x%llx, mcgstatus: 0x%llx",
@@ -1426,7 +1428,7 @@ int mce_notify_irq(void)
 				 mcelog.entry[previous_entry].mcgcap);
 
 			kct_log(CT_EV_INFO, "MCE", "Interrupt",
-				0, data0, data1, data2, data3, data4);
+				0, &data0[0], &data1[0], &data2[0], &data3[0], &data4[0]);
 		}
 
 		mcelog_kct_last_entry = (!mcelog_kct_last_entry) ?

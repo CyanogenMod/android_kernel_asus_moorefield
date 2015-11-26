@@ -724,7 +724,7 @@ print_image_info(struct i2c_client *client, struct image_header *header,
 			header->product_id);
 	dev_info(&client->dev, "Img product info:       %#04x %#04x\n",
 			header->product_info[0], header->product_info[1]);
-	dev_info(&client->dev, "Got firmware, size: %d.\n", fw_entry->size);
+	dev_info(&client->dev, "Got firmware, size: %d.\n", (int) fw_entry->size);
 }
 
 int rmi4_fw_update(struct rmi4_data *pdata,
@@ -836,7 +836,7 @@ int rmi4_fw_update(struct rmi4_data *pdata,
 		&intr_status,
 		1);
 	if (retval < 0) {
-		dev_err(&client->dev, "Unable to read & clear interrupts\n",
+		dev_err(&client->dev, "Unable to read & clear interrupts irq=%d\n",
 			pdata->irq);
 	}
 

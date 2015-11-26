@@ -289,7 +289,7 @@ static inline void android_hdmi_suspend_display(
 static inline int android_hdmi_get_eld(struct drm_device *dev, void *eld)
 { return 0; }
 
-static uint32_t android_hdmi_get_dpll_clock(struct drm_device *dev)
+static inline uint32_t android_hdmi_get_dpll_clock(struct drm_device *dev)
 { return 0; }
 
 static inline bool android_enable_hdmi_hdcp(struct drm_device *dev)

@@ -275,6 +275,7 @@ static int mrfl_flis_slew_change(void __iomem *flis_addr, int slew)
 	return 0;
 }
 
+#if 0
 static int mrfl_flis_check(void __iomem *addr,
 unsigned int host_clk, unsigned int clk)
 {
@@ -289,6 +290,7 @@ unsigned int host_clk, unsigned int clk)
 
 	return ret;
 }
+#endif
 
 static int mrfl_flis_dump(void __iomem *addr)
 {

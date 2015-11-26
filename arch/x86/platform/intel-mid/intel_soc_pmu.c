@@ -2140,7 +2140,7 @@ static struct pci_driver driver = {
 	.shutdown = mid_pmu_shutdown
 };
 
-static vdd1cnt_reg_automode_switch(int automode)
+static void vdd1cnt_reg_automode_switch(int automode)
 {
        u8 value = 0;
        int ret = 0, vdd1_mode;

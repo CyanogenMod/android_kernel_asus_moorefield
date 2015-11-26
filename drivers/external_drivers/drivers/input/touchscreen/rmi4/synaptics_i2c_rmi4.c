@@ -2025,9 +2025,7 @@ void rmi4_suspend(struct rmi4_data *pdata)
 
 void rmi4_resume(struct rmi4_data *pdata)
 {
-	int retval;
 	struct i2c_client *client = pdata->i2c_client;
-	int try = 0;
 	u8 intr_status[4];
 
 	dev_info(&client->dev, "Enter %s", __func__);
@@ -2035,7 +2033,8 @@ void rmi4_resume(struct rmi4_data *pdata)
 	if (pdata->regulator) {
 		/*need wait to stable if regulator first output*/
 		int needwait = !regulator_is_enabled(pdata->regulator);
-		regulator_enable(pdata->regulator);
+		int retval = regulator_enable(pdata->regulator);
+		BUG_ON(retval);
 		if (needwait)
 			msleep(50);
 	}
