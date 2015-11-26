@@ -143,9 +143,6 @@ KBUILD_CFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) 
 
 LDFLAGS := -m elf_$(UTS_MACHINE)
 
-# flag all warnings as errors
-KBUILD_CFLAGS += -Werror
-
 # Speed up the build
 KBUILD_CFLAGS += -pipe
 # Workaround for a gcc prelease that unfortunately was shipped in a suse release
