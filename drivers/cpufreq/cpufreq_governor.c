@@ -329,6 +329,7 @@ static int alloc_common_dbs_info(struct cpufreq_policy *policy,
 	for_each_cpu(j, policy->related_cpus)
 		cdata->get_cpu_cdbs(j)->shared = shared;
 
+	mutex_init(&shared->timer_mutex);
 	return 0;
 }
 
@@ -338,6 +339,8 @@ static void free_common_dbs_info(struct cpufreq_policy *policy,
 	struct cpu_dbs_info *cdbs = cdata->get_cpu_cdbs(policy->cpu);
 	struct cpu_common_dbs_info *shared = cdbs->shared;
 	int j;
+
+	mutex_destroy(&shared->timer_mutex);
 
 	for_each_cpu(j, policy->cpus)
 		cdata->get_cpu_cdbs(j)->shared = NULL;
@@ -478,7 +481,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 
 	shared->policy = policy;
 	shared->time_stamp = ktime_get();
-	mutex_init(&shared->timer_mutex);
 
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_dbs_info *j_cdbs = cdata->get_cpu_cdbs(j);
@@ -538,8 +540,6 @@ static int cpufreq_governor_stop(struct cpufreq_policy *policy,
 	mutex_unlock(&shared->timer_mutex);
 
 	gov_cancel_work(dbs_data, policy);
-
-	mutex_destroy(&shared->timer_mutex);
 	return 0;
 }
 
