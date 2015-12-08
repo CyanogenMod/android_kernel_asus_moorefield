@@ -17,6 +17,7 @@
 #ifndef _CPUFREQ_GOVERNOR_H
 #define _CPUFREQ_GOVERNOR_H
 
+#include <linux/atomic.h>
 #include <linux/cpufreq.h>
 #include <linux/kobject.h>
 #include <linux/mutex.h>
@@ -138,14 +139,8 @@ struct cpu_common_dbs_info {
 	 */
 	struct mutex timer_mutex;
 
-	/*
-	 * Per policy lock that serializes access to queuing work from timer
-	 * handlers.
-	 */
-	spinlock_t timer_lock;
-
 	ktime_t time_stamp;
-	unsigned int skip_work;
+	atomic_t skip_work;
 	struct work_struct work;
 };
 
