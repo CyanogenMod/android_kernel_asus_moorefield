@@ -1137,7 +1137,7 @@ static ssize_t store_boost(struct cpufreq_interactive_tunables *tunables,
 	if (tunables->boost_val == 2) {
 		tunables->boostpulse_endtime = ktime_to_us(ktime_get()) + 5000000;
                 trace_cpufreq_interactive_boost("pulse");
-                cpufreq_interactive_boost();
+                cpufreq_interactive_boost(tunables);
                 tunables->boost_val = 0;
 	} else if (tunables->boost_val) {
 		trace_cpufreq_interactive_boost("on");
@@ -1163,12 +1163,13 @@ void set_cpufreq_boost(unsigned long val)
         if (tunables->boost_val == 2) {
                 tunables->boostpulse_endtime = ktime_to_us(ktime_get()) + 5000000;
                 trace_cpufreq_interactive_boost("pulse");
-                cpufreq_interactive_boost();
+                cpufreq_interactive_boost(tunables);
                 tunables->boost_val = 0;
         } else if (tunables->boost_val) {
                 trace_cpufreq_interactive_boost("on");
-                cpufreq_interactive_boost();
+                cpufreq_interactive_boost(tunables);
         } else {
+                tunables->boostpulse_endtime = ktime_to_us(ktime_get());
                 trace_cpufreq_interactive_unboost("off");
         }
 
