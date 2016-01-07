@@ -158,6 +158,8 @@ struct wake_lock wakelock_cable, wakelock_cable_t;
 int early_suspend_flag=0;
 EXPORT_SYMBOL(early_suspend_flag);
 
+static int requested_current_max;
+
 static int smb1357_read(struct smb1357_charger *smb, u8 reg)
 {
 	int ret, i;
@@ -921,6 +923,7 @@ int smb1357_set_fast_charge(void)
 
 out:
 	mutex_unlock(&smb1357_dev->lock);
+
 	return ret;
 }
 
@@ -1109,6 +1112,8 @@ int smb1357_set_Ichg(int i)
 	CHR_INFO("%s +++\n", __func__);
 
 	mutex_lock(&smb1357_dev->lock);
+
+        requested_current_max = i;
 
 	ret = smb1357_set_writable(smb1357_dev, true);
 	if (ret < 0)
@@ -1514,6 +1519,23 @@ fail:
 	return ret;
 }
 
+static int get_current_max(void) {
+	int hardware_max = smb1357_get_aicl_result();
+
+	if (hardware_max > 0)
+		hardware_max = ((hardware_max - 1) * 100);
+
+	/* In hvdcp_mode, we don't know how to interpret the AICL result so
+	 * we have no choice but to trust the requested_current_max.
+	 * The interpretation of the AICL result is based on the comments and
+	 * code in asus_battery_power.c.
+	 */
+	if (hvdcp_mode || requested_current_max < hardware_max)
+		return requested_current_max*1000;
+	else
+		return hardware_max*1000;
+}
+
 static int smb1357_mains_get_property(struct power_supply *psy,
 				     enum power_supply_property prop,
 				     union power_supply_propval *val)
@@ -1524,12 +1546,19 @@ static int smb1357_mains_get_property(struct power_supply *psy,
 		else
 			val->intval = 0;
 		return 0;
+	} else if (prop == POWER_SUPPLY_PROP_CURRENT_MAX) {
+		if(g_cable_status==AC_IN)
+			val->intval = get_current_max();
+		else
+			val->intval = 0;
+		return 0;
 	}
 	return -EINVAL;
 }
 
 static enum power_supply_property smb1357_mains_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 static int smb1357_usb_get_property(struct power_supply *psy,
@@ -1539,6 +1568,12 @@ static int smb1357_usb_get_property(struct power_supply *psy,
 	if (prop == POWER_SUPPLY_PROP_ONLINE) {
 		if ((g_cable_status==USB_IN)||(dcp_mode==3))
 			val->intval = 1;
+		else
+			val->intval = 0;
+		return 0;
+	} else if (prop == POWER_SUPPLY_PROP_CURRENT_MAX) {
+		if(g_cable_status==USB_IN)
+			val->intval = 500*1000;
 		else
 			val->intval = 0;
 		return 0;
@@ -1604,6 +1639,7 @@ int smb1357_get_charging_status(void)
 
 static enum power_supply_property smb1357_usb_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 
