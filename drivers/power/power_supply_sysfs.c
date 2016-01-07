@@ -48,7 +48,9 @@ static ssize_t power_supply_show_property(struct device *dev,
 		"USB_DCP", "USB_CDP", "USB_ACA"
 	};
 	static char *status_text[] = {
-		"Unknown", "Charging", "Discharging", "Not charging", "Full", "Quick charging", "Not Quick charging"
+		"Unknown", "Charging", "Discharging", "Not charging", "Full",
+		// Kill Asus' quick charging indicator and make it loook like normal charging
+		"Charging", "Charging" // was: "Quick charging", "Not Quick charging"
 	};
 	static char *charge_type[] = {
 		"Unknown", "N/A", "Trickle", "Fast"
