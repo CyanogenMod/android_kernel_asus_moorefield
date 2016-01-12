@@ -46,8 +46,8 @@
 #define USB_CDC_NCM_NDP16_LENGTH_MIN		0x10
 
 /* Maximum NTB length */
-#define	CDC_NCM_NTB_MAX_SIZE_TX			32768	/* bytes */
-#define	CDC_NCM_NTB_MAX_SIZE_RX			32768	/* bytes */
+#define	CDC_NCM_NTB_MAX_SIZE_TX			(16384-CDC_NCM_MIN_DATAGRAM_SIZE)	/* bytes */
+#define	CDC_NCM_NTB_MAX_SIZE_RX			(32768-CDC_NCM_MIN_DATAGRAM_SIZE)	/* bytes */
 
 /* Minimum value for MaxDatagramSize, ch. 6.2.9 */
 #define	CDC_NCM_MIN_DATAGRAM_SIZE		1514	/* bytes */

@@ -28,6 +28,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <linux/HWVersion.h>
 #include <asm/platform_mrfld_audio.h>
 
 #define RTK_IOCTL
@@ -61,6 +62,9 @@ static struct timer_list jd_check_timer;
 struct work_struct jd_check_work;
 struct snd_soc_jack *rt5647_jack;
 extern int headset_state;
+extern int mrfld_hs_enable;
+extern int Read_HW_ID(void);
+extern int Read_PROJ_ID(void);
 static struct snd_soc_codec *codec_global;
 struct workqueue_struct *spk_unmute_wq;
 struct delayed_work spk_unmute_work;
@@ -667,8 +671,8 @@ int rt5647_headset_detect(struct snd_soc_codec *codec, int jack_insert)
 
 	if (jack_insert) {
 		snd_soc_update_bits(codec, RT5647_PWR_ANLG1,
-				RT5647_PWR_MB | RT5647_PWR_VREF2 | RT5647_PWR_FV2,
-				RT5647_PWR_MB | RT5647_PWR_VREF2);
+				RT5647_PWR_MB | RT5647_PWR_VREF2 | RT5647_PWR_FV2 | RT5647_PWR_BG,
+				RT5647_PWR_MB | RT5647_PWR_VREF2 | RT5647_PWR_BG);
 		msleep(10);
 		snd_soc_update_bits(codec, RT5647_PWR_ANLG1,
 				RT5647_PWR_FV2,
@@ -716,6 +720,8 @@ int rt5647_headset_detect(struct snd_soc_codec *codec, int jack_insert)
 			break;
 		}
 	} else {
+		snd_soc_update_bits(codec, RT5647_CJ_CTRL2,
+			RT5647_CBJ_MN_JD, 0);
 		snd_soc_update_bits(codec, RT5647_CJ_CTRL1,
 			RT5647_CBJ_BST1_EN , 0);
 		snd_soc_update_bits(codec, RT5647_INT_IRQ_ST, 0x8, 0x0);
@@ -2453,7 +2459,7 @@ static const struct snd_soc_dapm_widget rt5647_dapm_widgets[] = {
 	/* Input Side */
 	/* micbias */
 	SND_SOC_DAPM_SUPPLY("micbias1", SND_SOC_NOPM,
-		RT5647_PWR_MB1_BIT, 0, NULL, 0),
+		0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("micbias2", RT5647_PWR_ANLG2,
 		RT5647_PWR_MB2_BIT, 0, NULL, 0),
 	/* Input Lines */
@@ -3766,7 +3772,7 @@ static int rt5647_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, RT5647_PWR_DIG2, 0x0000);
 		snd_soc_write(codec, RT5647_PWR_VOL, 0x0000);
 		snd_soc_write(codec, RT5647_PWR_MIXER, 0x0002);
-		snd_soc_write(codec, RT5647_PWR_ANLG1, 0x0000);
+		snd_soc_write(codec, RT5647_PWR_ANLG1, 0x2818);
 #ifdef JD1_FUNC
 		snd_soc_write(codec, RT5647_PWR_ANLG2, 0x0804);
 #else
@@ -3785,11 +3791,19 @@ static int rt5647_set_bias_level(struct snd_soc_codec *codec,
 static void jd_check_handler(struct work_struct *work)
 {
 	struct snd_soc_codec *codec = rt5647_codec;
-	unsigned int val;
+	unsigned int val = 0;
+	int pr_check = 0;
 
-	val = snd_soc_read(codec, RT5647_A_JD_CTRL1) & 0x0020;
+	//val = snd_soc_read(codec, RT5647_A_JD_CTRL1) & 0x0020;
 	//pr_debug("jd_check_handler : val = 0x%x\n", val);
-	if (val == 0x20) {
+
+	if (Read_HW_ID() == HW_ID_PR || Read_HW_ID() == HW_ID_pre_PR || Read_HW_ID() == HW_ID_MP || Read_PROJ_ID() == PROJ_ID_ZX550ML) {
+		pr_check = 1;
+	} else {
+		val = snd_soc_read(codec, RT5647_A_JD_CTRL1) & 0x0020;
+	}
+
+	if ((val == 0x20 && pr_check == 0) || (mrfld_hs_enable == 0 && pr_check == 1)) {
 		pr_err("jack plug out\n");
 		headset_state = 0;
 		rt5647_button_detect(codec);

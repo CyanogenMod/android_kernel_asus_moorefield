@@ -4165,8 +4165,12 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 			kfree(buf);
 
 			retval = hub_port_reset(hub, port1, udev, delay, false);
-			if (retval < 0)		/* error or disconnect */
-				goto fail;
+			if (retval < 0){		/* error or disconnect */
+			        /* disable ep0 */
+                                usb_disable_endpoint(udev, 0 + USB_DIR_IN, true);
+                                usb_disable_endpoint(udev, 0 + USB_DIR_OUT, true);
+                                goto fail;
+                        }
 			if (oldspeed != udev->speed) {
 				dev_dbg(&udev->dev,
 					"device reset changed speed!\n");

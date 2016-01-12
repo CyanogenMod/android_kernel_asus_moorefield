@@ -45,6 +45,9 @@
 extern void serial_hsu_set_lpm(bool);
 extern void xmm2230_disable_spi(bool);
 
+extern void mdm_apcdmp_IMC726X_execute(void);
+extern void mdm_apcdmp_IMC2230_execute(void);
+
 /**
  *  mdm_ctrl_handle_hangup - This function handle the modem reset/coredump
  *  @work: a reference to work queue element
@@ -179,15 +182,13 @@ static int mdm_ctrl_ap_req_coredump(struct mdm_info *mdm)
 
         if (mdm->pdata->mdm_ver == MODEM_2230)        {
                 pr_info(DRVNAME ": AP REQUEST COREDUMP 1 ");
+                mdm_apcdmp_IMC2230_execute();
         }
         else{
                 pr_info(DRVNAME ": AP REQUEST COREDUMP 0 ");
+                mdm_apcdmp_IMC726X_execute();
         }
 
-       if(mdm_ops->ap_cdump(mdm)) {
-                pr_err(DRVNAME ": Error MDM AP COREDUMP");
-                ret = -1;
-       }
         return 0;
 
 

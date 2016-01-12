@@ -507,19 +507,7 @@ static int rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 	}
 
 	skb = __netdev_alloc_skb_ip_align(dev->net, size, flags);
-        if (!skb) { //recursively to reduce the required size to the half of assgiend one to avoid allocation fail
-                size = size / 2;
-                skb = __netdev_alloc_skb_ip_align(dev->net, size, flags);
-                if (!skb) {
-                        size = size / 2;
-                        skb = __netdev_alloc_skb_ip_align(dev->net, size, flags);
-                        if (!skb) {
-                                size = size / 2;
-                                skb = __netdev_alloc_skb_ip_align(dev->net, size, flags);
-                        }
-                }
-        }
-        if (!skb) {
+	if (!skb) {
 		netif_dbg(dev, rx_err, dev->net, "no rx skb\n");
 		usbnet_defer_kevent (dev, EVENT_RX_MEMORY);
 		usb_free_urb (urb);

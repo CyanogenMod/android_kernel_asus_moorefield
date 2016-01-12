@@ -933,25 +933,25 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 		if (Read_PROJ_ID() == PROJ_ID_ZE550ML)
 		{
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":140:1330:180:100"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":360:1330:170:100"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":580:1330:180:100"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":140:1341:180:100"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":360:1341:170:100"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":580:1341:180:100"  
 				"\n");
 		}
 		else if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 		{
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2045:260:250"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2061:260:250"  
 				"\n");
 		}
 		else if (Read_PROJ_ID() == PROJ_ID_ZX550ML)
 		{
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2045:260:250"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2061:260:250"  
 				"\n");
 		}
 	}
@@ -976,9 +976,9 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 		else if (Read_PROJ_ID() == PROJ_ID_ZX550ML)
 		{
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2045:260:250"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2061:260:250"  
 				"\n");
 		}
 	}

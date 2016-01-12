@@ -154,7 +154,7 @@ static inline tag_t make_atag_from_value(uint32_t value)
  * The default set is 0.
  * Userspace can activate another set for a given uid being tracked.
  */
-#define IFS_MAX_COUNTER_SETS 2
+#define IFS_MAX_COUNTER_SETS 3
 
 enum ifs_tx_rx {
 	IFS_TX,
@@ -166,6 +166,7 @@ enum ifs_tx_rx {
 enum ifs_proto {
 	IFS_TCP,
 	IFS_UDP,
+        IFS_DNS,
 	IFS_PROTO_OTHER,
 	IFS_MAX_PROTOS
 };

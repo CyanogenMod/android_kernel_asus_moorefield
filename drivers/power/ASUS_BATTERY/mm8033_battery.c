@@ -116,6 +116,7 @@ struct mm8033_chip {
 /* global variables */
 extern int Read_HW_ID(void);
 extern int Read_PROJ_ID(void);
+extern int dcp_mode;
 static struct switch_dev mm8033_batt_dev;
 static struct dev_func mm8033_tbl;
 static struct mm8033_chip *g_mm8033_chip;
@@ -351,7 +352,8 @@ static int mm8033_setFgParameter(struct mm8033_chip *chip)
 	u8 buf[8];
 	u8 buf_89[8] = {0x5F, 0xF3, 0xFF, 0xFF, 0xFF, 0x18, 0xFF, 0xFF};
 	u8 buf_8a[8] = {0xFF, 0xFF, 0xDA, 0x1D, 0x0B, 0x00, 0xFF, 0xFF};
-#if 0
+#if 1
+	GAUGE_INFO("%s +++\n", __func__);
 	for (i = 0; i < 0x40; i++) {
 		if ((i != 0x9) && (i != 0xa)) {
 			for (j = 0; j < 8; j++) {
@@ -429,6 +431,7 @@ static int mm8033_setFgParameter(struct mm8033_chip *chip)
 		ret = mm8033_fgstat(chip, &val);
 		if (ret) return ret;
 	} while (val & 0x0001);
+	GAUGE_INFO("%s ---\n", __func__);
 #else
 	GAUGE_INFO("%s: do not set parameter\n", __func__);
 #endif
@@ -491,6 +494,7 @@ GETPARAMETER:
 	goto EXIT;
 
 SETPARAMETER:
+#if 0
 	GAUGE_INFO("SETPARAMETER\n");
 	for (i = 0; i < TRY; i++) {
 		ret = mm8033_setFgParameter(chip);
@@ -513,7 +517,9 @@ SETPARAMETER:
 		break;
 	}
 	if (i >= TRY) return -1;
-
+#else
+	GAUGE_INFO(" Donot SETPARAMETER here\n");
+#endif
 EXIT:
 	GAUGE_INFO("%s ---\n", __func__);
 	return 0;
@@ -872,6 +878,20 @@ static int mm8033_checkdevice(struct mm8033_chip *chip)
 	parameter_version = ((buf[7] & 0xff) << 8) | (buf[6] & 0xff);
 	battery_ctrlcode = ((buf[5] & 0xff) << 8) | (buf[4] & 0xff);
 
+	/* reload battery parameter if para version is 0xffff when AC in and batt voltage >= 3.9V */
+	ret = mm8033_voltage(chip, &val);
+	if (ret) return ret;
+	GAUGE_INFO("para=0x%04x, dcp_mode=%d, val=%d\n", parameter_version, dcp_mode, val);
+	if ((parameter_version==0xffff)&&(val>=3900)) {
+		GAUGE_INFO("set parameter due to 0xffff\n");
+		ret = mm8033_setFgParameter(chip);
+		if (ret) {
+			GAUGE_ERR("set parameter fail!\n");
+		}
+		ret = mm8033_readx_reg(chip->client, 0xBE, buf, (u16)8);
+		if (ret) return ret;
+		parameter_version = ((buf[7] & 0xff) << 8) | (buf[6] & 0xff);
+	}
 	if((Read_HW_ID()!=HW_ID_SR1)&&(Read_HW_ID()!=HW_ID_SR2)) {
 		ret = mm8033_checkRamData(chip);
 		if (ret) return ret;
@@ -977,6 +997,7 @@ int mm8033_read_percentage(void)
 						if (ret < 0) {
 							GAUGE_ERR("reset OCV failed with ret=%d\n", ret);
 						} else {
+							msleep(100);
 							GAUGE_INFO("reset OCV success\n");
 						}
 					}
@@ -987,6 +1008,7 @@ int mm8033_read_percentage(void)
 					if (ret < 0) {
 						GAUGE_ERR("reset OCV failed with ret=%d\n", ret);
 					} else {
+						msleep(100);
 						GAUGE_INFO("reset OCV success\n");
 					}
 				}
@@ -1067,16 +1089,14 @@ static void batt_state_func(struct work_struct *work)
 	}else {
 		GAUGE_INFO("info: %s %04x%04x %d%d%d version: %s\n", batt_id, parameter_version, battery_ctrlcode, bat_year, bat_week_1, bat_week_2, DRIVER_VERSION);
 	}
-	//check ram data after state work 10 times
+	/* check ram data after state work 10 times */
 	if (g_mm8033_chip->skipcheck > SKIP) {
 		g_mm8033_chip->skipcheck = 0;
 		mm8033_checkRamData(g_mm8033_chip);
 	} else {
 		g_mm8033_chip->skipcheck++;
 	}
-
 	schedule_delayed_work(&batt_state_wq, 60*HZ);
-
 }
 
 static ssize_t batt_switch_name(struct switch_dev *sdev, char *buf)
@@ -1124,9 +1144,6 @@ static int mm8033_probe(struct i2c_client *client, const struct i2c_device_id *i
 	int ret;
 	u32 test_major_flag=0;
 	struct asus_bat_config bat_cfg;
-#ifndef STOP_IF_FAIL
-	int i;
-#endif
 
 	GAUGE_INFO("%s ++\n", __func__);
 
@@ -1177,15 +1194,10 @@ static int mm8033_probe(struct i2c_client *client, const struct i2c_device_id *i
 			GAUGE_ERR("asus_battery_init fail\n");
 	}
 #else
-	for(i=0;i<1;i++) {
-		if (ret) {
-			GAUGE_ERR("error in checkdevice with ret: %d in loop %d\n", ret, i);
-			msleep(50);
-			ret = mm8033_checkdevice(chip);
-		}else {
-			GAUGE_INFO("checkdevice success in loop %d\n", i);
-			break;
-		}
+	if (ret) {
+		GAUGE_ERR("error in checkdevice with ret: %d\n", ret);
+	}else {
+		GAUGE_INFO("checkdevice success\n");
 	}
 	GAUGE_INFO("init asus battery\n");
 	ret = asus_battery_init(bat_cfg.polling_time, bat_cfg.critical_polling_time, test_major_flag);

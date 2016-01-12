@@ -370,7 +370,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	 */
 	mutex_lock(&uevent_buffer_mutex);
 	if (uevent_buffer && !not_buffer_uevent(kobj, action)) {
-		printk(KERN_INFO "buffer uevent--\n");
+		pr_debug(KERN_INFO "buffer uevent--\n");
 		struct uevent_buffered *ub;
 		ub = kmalloc(sizeof(*ub), GFP_KERNEL);
 		if (!ub) {
@@ -515,10 +515,10 @@ int uevent_buffer_pm_notify(struct notifier_block *nb,
 {
 	mutex_lock(&uevent_buffer_mutex);
 	if (action == PM_SUSPEND_PREPARE) {
-		printk(KERN_INFO "start buffer uevent--\n");
+		pr_debug(KERN_INFO "start buffer uevent--\n");
 		uevent_buffer = true;
 	} else if (action == PM_POST_SUSPEND) {
-		printk(KERN_INFO "start re-send bufferred uevents--\n");
+		pr_debug(KERN_INFO "start re-send bufferred uevents--\n");
 		struct uevent_buffered *ub, *tmp;
 		list_for_each_entry_safe(ub, tmp, &uevent_buffer_list,
 					 buffer_list) {
