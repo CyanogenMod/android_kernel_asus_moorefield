@@ -58,6 +58,11 @@ static const unsigned int tacc_mant[] = {
 		__res & __mask;						\
 	})
 
+int sd_power_off = 0;
+EXPORT_SYMBOL(sd_power_off);
+extern void mmc_power_off(struct mmc_host *host);
+extern void mmc_power_up(struct mmc_host *host);
+
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
@@ -936,8 +941,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	WARN_ON(!host->claimed);
 
 	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
-	if (err)
+	if (err) {
+		pr_err("%s: mmc_sd_get_cid failed. err = %d\n", mmc_hostname(host), err);
 		return err;
+	}
 
 	if (oldcard) {
 		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0)
@@ -961,8 +968,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	if (!mmc_host_is_spi(host)) {
 		err = mmc_send_relative_addr(host, &card->rca);
-		if (err)
+		if (err) {
+			pr_err("%s: mmc_send_relative_addr failed. err = %d\n", mmc_hostname(host), err);
 			return err;
+		}
 	}
 
 	if (!oldcard) {
@@ -978,13 +987,17 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	if (!mmc_host_is_spi(host)) {
 		err = mmc_select_card(card);
-		if (err)
+		if (err) {
+			pr_err("%s: mmc_select_card failed. err = %d\n", mmc_hostname(host), err);
 			return err;
+		}
 	}
 
 	err = mmc_sd_setup_card(host, card, oldcard != NULL);
-	if (err)
+	if (err) {
+		pr_err("%s: mmc_select_card failed. err = %d\n", mmc_hostname(host), err);
 		goto free_card;
+	}
 
 	if (!(rocr & SD_ROCR_S18A) && mmc_sd_card_uhs(card)) {
 		/*
@@ -1009,8 +1022,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	/* Initialization sequence for UHS-I cards */
 	if (rocr & SD_ROCR_S18A) {
 		err = mmc_sd_init_uhs_card(card);
-		if (err)
+		if (err) {
+			pr_err("%s: mmc_sd_init_uhs_card failed. err = %d\n", mmc_hostname(host), err);
 			goto free_card;
+		}
 
 		/* Card is an ultra-high-speed card */
 		mmc_card_set_uhs(card);
@@ -1021,9 +1036,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_sd_switch_hs(card);
 		if (err > 0)
 			mmc_sd_go_highspeed(card);
-		else if (err)
+		else if (err) {
+			pr_err("%s: mmc_sd_switch_hs failed. err = %d\n", mmc_hostname(host), err);
 			goto free_card;
-
+		}
 		/*
 		 * Set bus speed.
 		 */
@@ -1035,8 +1051,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		if ((host->caps & MMC_CAP_4_BIT_DATA) &&
 			(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
 			err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
-			if (err)
+			if (err) {
+				pr_err("%s: mmc_app_set_bus_width failed. err = %d\n", mmc_hostname(host), err);
 				goto free_card;
+			}
 
 			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
 		}
@@ -1148,15 +1166,15 @@ static int mmc_sd_suspend(struct mmc_host *host)
 static int mmc_sd_resume(struct mmc_host *host)
 {
 	int err;
-#ifdef CONFIG_MMC_PARANOID_SD_INIT
+//#ifdef CONFIG_MMC_PARANOID_SD_INIT
 	int retries;
-#endif
+//#endif
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-#ifdef CONFIG_MMC_PARANOID_SD_INIT
+//#ifdef CONFIG_MMC_PARANOID_SD_INIT
 	retries = 5;
 	while (retries) {
 		err = mmc_sd_init_card(host, host->ocr, host->card);
@@ -1164,15 +1182,21 @@ static int mmc_sd_resume(struct mmc_host *host)
 		if (err) {
 			printk(KERN_ERR "%s: Re-init card rc = %d (retries = %d)\n",
 			       mmc_hostname(host), err, retries);
+
+			pr_err("%s: resume fialed. Powering off/up sd card again.\n", mmc_hostname(host));
+			sd_power_off = 1;
+			mmc_power_off(host);
+			mmc_power_up(host);
+
 			mdelay(5);
 			retries--;
 			continue;
 		}
 		break;
 	}
-#else
-	err = mmc_sd_init_card(host, host->ocr, host->card);
-#endif
+//#else
+//	err = mmc_sd_init_card(host, host->ocr, host->card);
+//#endif
 	mmc_release_host(host);
 
 	return err;

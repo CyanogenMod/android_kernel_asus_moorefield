@@ -98,6 +98,7 @@ static const struct file_operations sd_power_proc_fops = {
 
 extern int intel_scu_ipc_ioread8(u16 addr, u8 *data);
 extern int intel_scu_ipc_iowrite8(u16 addr, u8 data);
+extern int sd_power_off;
 
 /*
  * Internal function. Schedule delayed work in the MMC work queue.
@@ -1557,7 +1558,7 @@ void mmc_set_driver_type(struct mmc_host *host, unsigned int drv_type)
  * If a host does all the power sequencing itself, ignore the
  * initial MMC_POWER_UP stage.
  */
-static void mmc_power_up(struct mmc_host *host)
+void mmc_power_up(struct mmc_host *host)
 {
 	int bit;
 	int value;      //<ASUS_BSP+>
@@ -1629,22 +1630,24 @@ static void mmc_power_up(struct mmc_host *host)
 
 	mmc_host_clk_release(host);
 }
+EXPORT_SYMBOL(mmc_power_up);
 
 void mmc_power_off(struct mmc_host *host)
 {
-//	int value;      //<ASUS_BSP+>
+	int value;      //<ASUS_BSP+>
 
 	if (host->ios.power_mode == MMC_POWER_OFF)
 		return;
 
-//	//<ASUS_BSP+>
-//	if ((strcmp(mmc_hostname(host), "mmc1") == 0) && (gpio_get_value(77) != 0)) {   //SDIO_CD# is high
-//		intel_scu_ipc_ioread8(0xAF, &value);
-//		value &= 0xFD;                          //VSWITCHEN Disable
-//		intel_scu_ipc_iowrite8(0xAF, value);
-//		printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
-//	}
-//	//<ASUS_BSP->
+	//<ASUS_BSP+>
+	if ((strcmp(mmc_hostname(host), "mmc1") == 0) && (sd_power_off == 1)) {   //SDIO_CD# is high
+		intel_scu_ipc_ioread8(0xAF, &value);
+		value &= 0xFD;                          //VSWITCHEN Disable
+		intel_scu_ipc_iowrite8(0xAF, value);
+		printk("%s: Set V_3P30_SW to Disable\n", mmc_hostname(host));
+		sd_power_off = 0;
+	}
+	//<ASUS_BSP->
 
 
 	mmc_host_clk_hold(host);
@@ -1681,6 +1684,7 @@ void mmc_power_off(struct mmc_host *host)
 
 	mmc_host_clk_release(host);
 }
+EXPORT_SYMBOL(mmc_power_off);
 
 void mmc_power_cycle(struct mmc_host *host)
 {
