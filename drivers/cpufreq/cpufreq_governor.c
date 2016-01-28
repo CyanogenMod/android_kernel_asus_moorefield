@@ -391,10 +391,6 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy,
 					latency * LATENCY_MULTIPLIER));
 
 	if (!have_governor_per_policy()) {
-		if (WARN_ON(cpufreq_get_global_kobject())) {
-			ret = -EINVAL;
-			goto cdata_exit;
-		}
 		cdata->gdbs_data = dbs_data;
 	}
 
@@ -410,9 +406,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy,
 put_kobj:
 	if (!have_governor_per_policy()) {
 		cdata->gdbs_data = NULL;
-		cpufreq_put_global_kobject();
 	}
-cdata_exit:
 	cdata->exit(dbs_data, !policy->governor->initialized);
 free_common_dbs_info:
 	free_common_dbs_info(policy, cdata);
@@ -438,7 +432,6 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy,
 
 		if (!have_governor_per_policy()) {
 			cdata->gdbs_data = NULL;
-			cpufreq_put_global_kobject();
 		}
 
 		cdata->exit(dbs_data, policy->governor->initialized == 1);
