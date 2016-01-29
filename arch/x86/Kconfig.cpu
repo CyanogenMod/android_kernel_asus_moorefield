@@ -137,9 +137,8 @@ config MPENTIUM4
 		-Paxville
 		-Dempsey
 
-
 config MK6
-	bool "K6/K6-II/K6-III"
+	bool "AMD K6/K6-II/K6-III"
 	depends on X86_32
 	---help---
 	  Select this for an AMD K6-family processor.  Enables use of
@@ -147,7 +146,7 @@ config MK6
 	  flags to GCC.
 
 config MK7
-	bool "Athlon/Duron/K7"
+	bool "AMD Athlon/Duron/K7"
 	depends on X86_32
 	---help---
 	  Select this for an AMD Athlon K7-family processor.  Enables use of
@@ -155,11 +154,54 @@ config MK7
 	  flags to GCC.
 
 config MK8
-	bool "Opteron/Athlon64/Hammer/K8"
+	bool "AMD Opteron/Athlon64/Hammer/K8"
 	---help---
 	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.
 	  Enables use of some extended instructions, and passes appropriate
 	  optimization flags to GCC.
+
+config MK10
+	bool "AMD 61xx/7x50/PhenomX3/X4/II/K10"
+	---help---
+	  Select this for an AMD 61xx Eight-Core Magny-Cours, Athlon X2 7x50,
+		Phenom X3/X4/II, Athlon II X2/X3/X4, or Turion II-family processor.
+	  Enables use of some extended instructions, and passes appropriate
+	  optimization flags to GCC.
+
+config MBARCELONA
+	bool "AMD Barcelona"
+	---help---
+	  Select this for AMD Barcelona and newer processors.
+
+	  Enables -march=barcelona
+
+config MBOBCAT
+	bool "AMD Bobcat"
+	---help---
+	  Select this for AMD Bobcat processors.
+
+	  Enables -march=btver1
+
+config MBULLDOZER
+	bool "AMD Bulldozer"
+	---help---
+	  Select this for AMD Bulldozer processors.
+
+	  Enables -march=bdver1
+
+config MPILEDRIVER
+	bool "AMD Piledriver"
+	---help---
+	  Select this for AMD Piledriver processors.
+
+	  Enables -march=bdver2
+
+config MJAGUAR
+	bool "AMD Jaguar"
+	---help---
+	  Select this for AMD Jaguar processors.
+
+	  Enables -march=btver2
 
 config MCRUSOE
 	bool "Crusoe"
@@ -251,15 +293,6 @@ config MPSC
 	  using the cpu family field
 	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one.
 
-config MCORE2
-	bool "Core 2/newer Xeon"
-	---help---
-
-	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and
-	  53xx) CPUs. You can distinguish newer from older Xeons by the CPU
-	  family in /proc/cpuinfo. Newer ones have 6 and older ones 15
-	  (not a typo)
-
 config MATOM
 	bool "Intel Atom"
 	---help---
@@ -268,6 +301,65 @@ config MATOM
 	  in-order pipelining architecture and thus can benefit from
 	  accordingly optimized code. Use a recent GCC with specific Atom
 	  support in order to fully benefit from selecting this option.
+
+config MCORE2
+	bool "Intel Core 2"
+	---help---
+
+	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and
+	  53xx) CPUs. You can distinguish newer from older Xeons by the CPU
+	  family in /proc/cpuinfo. Newer ones have 6 and older ones 15
+	  (not a typo)
+
+	  Enables -march=core2
+
+config MNEHALEM
+	bool "Intel Nehalem"
+	---help---
+
+	  Select this for 1st Gen Core processors in the Nehalem family.
+
+	  Enables -march=nehalem
+
+config MWESTMERE
+	bool "Intel Westmere"
+	---help---
+
+	  Select this for the Intel Westmere formerly Nehalem-C family.
+
+	  Enables -march=westmere
+
+config MSANDYBRIDGE
+	bool "Intel Sandy Bridge"
+	---help---
+
+	  Select this for 2nd Gen Core processors in the Sandy Bridge family.
+
+	  Enables -march=sandybridge
+
+config MIVYBRIDGE
+	bool "Intel Ivy Bridge"
+	---help---
+
+	  Select this for 3rd Gen Core processors in the Ivy Bridge family.
+
+	  Enables -march=ivybridge
+
+config MHASWELL
+	bool "Intel Haswell"
+	---help---
+
+	  Select this for 4th Gen Core processors in the Haswell family.
+
+	  Enables -march=haswell
+
+config MBROADWELL
+	bool "Intel Broadwell"
+	---help---
+
+	  Select this for 5th Gen Core processors in the Broadwell family.
+
+	  Enables -march=broadwell
 
 config MSLM
 	bool "Intel Silvermont (Atom)"
@@ -284,6 +376,19 @@ config GENERIC_CPU
 	---help---
 	  Generic x86-64 CPU.
 	  Run equally well on all x86-64 CPUs.
+
+config MNATIVE
+ bool "Native optimizations autodetected by GCC"
+ ---help---
+
+   GCC 4.2 and above support -march=native, which automatically detects
+   the optimum settings to use based on your processor. -march=native 
+   also detects and applies additional settings beyond -march specific
+   to your CPU, (eg. -msse4). Unless you have a specific reason not to
+   (e.g. distcc cross-compiling), you should probably be using
+   -march=native rather than anything listed below.
+
+   Enables -march=native
 
 endchoice
 

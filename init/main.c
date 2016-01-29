@@ -642,6 +642,10 @@ asmlinkage void __init start_kernel(void)
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		efi_enter_virtual_mode();
 #endif
+#ifdef CONFIG_X86_ESPFIX64
+	/* Should be run before the first non-init thread is created */
+	init_espfix_bsp();
+#endif
 	thread_info_cache_init();
 	cred_init();
 	fork_init(totalram_pages);
@@ -736,7 +740,6 @@ int __init_or_module do_one_initcall(initcall_t fn)
 
 	return ret;
 }
-
 
 extern initcall_t __initcall_start[];
 extern initcall_t __initcall0_start[];
@@ -857,6 +860,8 @@ static int __ref kernel_init(void *unused)
 	numa_default_policy();
 
 	flush_delayed_fput();
+
+	print_scheduler_version();
 
 	if (ramdisk_execute_command) {
 		if (!run_init_process(ramdisk_execute_command))

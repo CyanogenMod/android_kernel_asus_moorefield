@@ -903,4 +903,10 @@ config TOUCHSCREEN_FTXXXX
 	  To compile this driver as a module, choose M here: the
 	  module will be called ftxxxx.ko.
 
+config SWEEP2SLEEP
+	tristate "Sweep 2 Sleep feature"
+	default Y
+	help
+	  All credits to AndiP (Lord Boeffla)
+
 endif

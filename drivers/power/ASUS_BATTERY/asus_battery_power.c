@@ -26,6 +26,10 @@
 #include <asm/intel_mid_gpadc.h>
 #include <linux/switch.h>
 
+#ifdef CONFIG_BLX
+#include <linux/blx.h>
+#endif
+
 #define DISABLE_CHARGING_AT_LOW_TEMP false
 #define VWARN1_CFG_REG	0x3C
 #define VPROG2_CFG_REG	0xAD
@@ -682,7 +686,7 @@ static int asus_battery_update_status_no_mutex(int percentage)
 {
         int status;
         int temperature, vbat;
-        //int flags; //for bq series
+		
         struct battery_info_reply tmp_batt_info;
         u32 cable_status;
 
@@ -692,15 +696,15 @@ static int asus_battery_update_status_no_mutex(int percentage)
 
         if (cable_status == USB_ADAPTER || cable_status == USB_PC) {
                 status = POWER_SUPPLY_STATUS_CHARGING;
-#ifdef CONFIG_ASUS_FACTORY_MODE
-                if (percentage >= 60 && tmp_batt_info.eng_charging_limit) {
-                        BAT_DBG("in fac mode and capasity > 60 percent\n");
+#ifdef CONFIG_BLX
+                if (percentage >= get_charginglimit() && get_charginglimit() <= 98) {
 #if defined(CONFIG_A500CG_BATTERY_SMB347)
 			smb347_charging_toggle(false);
 #elif defined(CONFIG_SMB1357_CHARGER)
 			smb1357_charging_toggle(false);
 #endif
-                        status = POWER_SUPPLY_STATUS_DISCHARGING;
+						//Fake the battery to be full now and exit here
+                        status = POWER_SUPPLY_STATUS_FULL;
                         goto final;
                 }
 #endif
@@ -812,11 +816,21 @@ static int asus_battery_update_status_no_mutex(int percentage)
 							status = POWER_SUPPLY_STATUS_NOT_QUICK_CHARGING;
 					}
 				}
+				#ifdef CONFIG_BLX
+				if(get_charginglimit() >= 99)
+				{
+					if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+						smb1357_charging_toggle(false);
+						smb1357_charging_toggle(true);
+					}
+				}
+				#else
 				/*recharge*/
 				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
 					smb1357_charging_toggle(false);
 					smb1357_charging_toggle(true);
 				}
+				#endif
 			}
 			if( temperature >=100 && temperature <200){
 				if(temp_type<=IN_15_100&&temperature<130){
@@ -842,11 +856,21 @@ static int asus_battery_update_status_no_mutex(int percentage)
 					smb1357_charging_toggle(true);
 					temp_type = IN_100_200;
 				}
+				#ifdef CONFIG_BLX
+				if(get_charginglimit() >= 99)
+				{
+					if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+						smb1357_charging_toggle(false);
+						smb1357_charging_toggle(true);
+					}
+				}
+				#else
 				/*recharge*/
 				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
 					smb1357_charging_toggle(false);
 					smb1357_charging_toggle(true);
 				}
+				#endif
 			}
 			if( temperature >=200 && temperature <400){
 				if(temp_type<=IN_100_200&&temperature<230){
@@ -887,11 +911,21 @@ static int asus_battery_update_status_no_mutex(int percentage)
 					smb1357_charging_toggle(true);
 					temp_type = IN_200_400;
 				}
+				#ifdef CONFIG_BLX
+				if(get_charginglimit() >= 99)
+				{
+					if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+						smb1357_charging_toggle(false);
+						smb1357_charging_toggle(true);
+					}
+				}
+				#else
 				/*recharge*/
 				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
 					smb1357_charging_toggle(false);
 					smb1357_charging_toggle(true);
 				}
+				#endif
 			}
 			if( temperature >=400 && temperature <450){
 				if(temp_type>=IN_450_500&&temperature>420){
@@ -928,11 +962,22 @@ handle400_450:
 					smb1357_charging_toggle(true);
 					temp_type = IN_400_450;
 				}
+
+				#ifdef CONFIG_BLX
+				if(get_charginglimit() >= 99)
+				{
+					if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+						smb1357_charging_toggle(false);
+						smb1357_charging_toggle(true);
+					}
+				}
+				#else
 				/*recharge*/
 				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
 					smb1357_charging_toggle(false);
 					smb1357_charging_toggle(true);
 				}
+				#endif
 			}
 			if( temperature >=450 && temperature <500){
 				if(temp_type>=IN_500_600&&temperature>470){
@@ -969,11 +1014,21 @@ handle450_500:
 					smb1357_charging_toggle(true);
 					temp_type = IN_450_500;
 				}
+								#ifdef CONFIG_BLX
+				if(get_charginglimit() >= 99)
+				{
+					if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
+						smb1357_charging_toggle(false);
+						smb1357_charging_toggle(true);
+					}
+				}
+				#else
 				/*recharge*/
 				if((percentage <= 98)&&(smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL)) {
 					smb1357_charging_toggle(false);
 					smb1357_charging_toggle(true);
 				}
+				#endif
 			}
 			if(temperature >=500 && temperature <600){
 handle500_600:
@@ -1123,40 +1178,41 @@ handle500_600:
 		}
 #endif
 #endif
-                if (percentage >= 0 && percentage <= 100) {
-                    switch (percentage) {
-                       case 100:
-                          status = POWER_SUPPLY_STATUS_FULL;
-                          break;
-                       case 99:
-#if defined(CONFIG_A500CG_BATTERY_SMB347)
-                          if (smb347_get_charging_status() == POWER_SUPPLY_STATUS_FULL) {
-#elif defined(CONFIG_SMB1357_CHARGER)
-                          if (smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL) {
+               if (percentage >= 0 && percentage <= 100) {               
+#ifdef CONFIG_BLX
+					if (percentage >= get_charginglimit())
 #else
-			if(0) {
+					if (percentage == 100)
 #endif
-                             //check if Full-charged is detected
+					{
+							status = POWER_SUPPLY_STATUS_FULL;
+							goto final;
+					}
+					
+					if (percentage == 99) 
+					{
+#if defined(CONFIG_A500CG_BATTERY_SMB347)
+                        if (smb347_get_charging_status() == POWER_SUPPLY_STATUS_FULL) {
+#elif defined(CONFIG_SMB1357_CHARGER)
+                        if (smb1357_get_charging_status() == POWER_SUPPLY_STATUS_FULL) {
+#else
+						if(0) {
+#endif
+						//check if Full-charged is detected
                              BAT_DBG("Full-charged is detected when in 99%% !\n");
                              status = POWER_SUPPLY_STATUS_FULL;
-                          } else {
-                             //smb347_charging_toggle(true);
+                             goto final;
                           }
-                          break;
-                       default:
-                          //smb347_charging_toggle(true);
-                          break;
-
-                   }
+					}
+				} 
+				else 
+					BAT_DBG_E("Incorrect percentage !!!!!\n");
                 } else {
-                    BAT_DBG_E("Incorrect percentage !!!!!\n");
-                }
-        } else {
                         status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 #ifdef CONFIG_SMB1357_CHARGER
-			aicl_set_flag = 0;
+						aicl_set_flag = 0;
 #endif
-        }
+				}
 
 final:
         if (status == POWER_SUPPLY_STATUS_FULL)
@@ -1270,15 +1326,33 @@ static void asus_battery_get_info_no_mutex(void)
 	BAT_DBG("WA for full-charged issue, full_charged_flag=%d, pre_soc=%d, percentage=%d, cable_status=%d\n", full_charged_flag, pre_soc, tmp_batt_info.percentage, tmp_batt_info.cable_status);
 	if (tmp_batt_info.cable_status == NO_CABLE) {
 		full_charged_flag = 0;
-	}else if(tmp_batt_info.percentage == 100) {
-		if (pre_soc>=99) {
+	}
+	#ifdef CONFIG_BLX
+	else if(tmp_batt_info.percentage >= get_charginglimit()) {
+		tmp = (get_charginglimit() == 100 ? 99 : get_charginglimit()); //We need to catch the case if BLX is just set to 100
+		if(pre_soc >= tmp)
+		{
 			tmp_batt_info.status = POWER_SUPPLY_STATUS_FULL;
 			full_charged_flag = 1;
-		} else {
-			full_charged_flag = 0;
 		}
+	#else
+	else if(tmp_batt_info.percentage == 100) {
+		if (pre_soc>=99) 
+		{
+			tmp_batt_info.status = POWER_SUPPLY_STATUS_FULL;
+			full_charged_flag = 1;
+		}
+	#endif 
+		else
+			full_charged_flag = 0;
+		
 	}
+#ifdef CONFIG_BLX
+	tmp = (get_charginglimit() >= 99 ? 98 : get_charginglimit()); //if BLX is set to 99 or 100
+	if ((full_charged_flag==1)&&(tmp_batt_info.cable_status ==USB_ADAPTER)&&(tmp_batt_info.percentage>=tmp)) {
+#else
 	if ((full_charged_flag==1)&&(tmp_batt_info.cable_status ==USB_ADAPTER)&&(tmp_batt_info.percentage>=98)) {
+#endif
 		tmp_batt_info.percentage = 100;
 		tmp_batt_info.status = POWER_SUPPLY_STATUS_FULL;
 	}
@@ -1757,33 +1831,12 @@ int asus_battery_init(
         batt_info.critical_polling_time = critical_polling_time > (3*HZ) ? critical_polling_time : BATTERY_CRITICAL_POLL_TIME;
         batt_info.critical_polling_time = BATTERY_CRITICAL_POLL_TIME;
         batt_info.percentage = 50;
-/* chris20121116: do not initialize it here */
-#if 0
-        batt_info.cable_status = NO_CABLE;
-#endif
         batt_info.batt_temp = 250;
         batt_info.present = 1;
         batt_info.test_flag = test_flag;
         if (test_flag)
                 BAT_DBG("test_flag: 0x%08X\n", test_flag);
-#if 0
-        /* Allocate ADC Channels */
-	batt_info.gpadc_handle =
-		intel_mid_gpadc_alloc(CLT_BATT_NUM_GPADC_SENSORS,
-				  CLT_GPADC_BPRESIST_CHNUM | CH_NEED_VCALIB |
-				  CH_NEED_VREF);
-        if (batt_info.gpadc_handle == NULL) {
-              BAT_DBG_E("ADC allocation failed: Check if ADC driver came up \n");
-        }
 
-        ret = intel_mid_gpadc_sample(batt_info.gpadc_handle,
-				CLT_GPADC_BPTHERM_SAMPLE_COUNT,
-				&batt_info.gpadc_resistance_val);
-	if (ret) {
-		BAT_DBG_E("adc driver api returned error(%d)\n", ret);
-	}
-        BAT_DBG("battery resistance = %d\n", batt_info.gpadc_resistance_val);
-#endif
         mutex_unlock(&batt_info_mutex);
 
         if (test_flag & TEST_INFO_NO_REG_POWER) {

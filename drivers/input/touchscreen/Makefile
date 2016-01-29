@@ -73,6 +73,7 @@ obj-$(CONFIG_TOUCHSCREEN_WM97XX_ZYLONITE)	+= zylonite-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_W90X900)	+= w90p910_ts.o
 obj-$(CONFIG_TOUCHSCREEN_TPS6507X)	+= tps6507x-ts.o
 obj-$(CONFIG_TOUCHSCREEN_HIMAX_HX8528_ME372CL) += hx8528_me372cl.o
+obj-$(CONFIG_SWEEP2SLEEP)		+= sweep2sleep.o
 obj-$(CONFIG_TOUCHSCREEN_FTXXXX) += ftxxxx.o 
 ftxxxx-objs += ftxxxx_ts.o ftxxxx_ex_fun.o focaltech_ctl.o test_lib.o ini.o
 #ftxxxx-objs += ftxxxx_ts.o ftxxxx_ex_fun.o focaltech_ctl.o ../../../source/drivers/input/touchscreen/libtest.a

@@ -1,0 +1,93 @@
+#!/bin/bash
+clear
+start=`date +%s`
+echo "script made by eoghan2t7 of xda"
+printf "say thanks to him if this helped you :) \n\n"
+wmctrl -r :ACTIVE: -N "Applying Build Settings"
+NOW=$(date +"%d-%m-%Y")
+echo "Current Date : $NOW"
+echo "Applying Build Settings"
+
+
+#CONFIGS
+export SLEEP=1
+echo "Setting CPU Cores/Threads"
+export CPUS=`nproc`
+echo "Setting Version Number"
+export VER=v$1
+echo "Setting Extra Version"
+export EV=EXTRAVERSION=_FlareM_v$1
+echo "Setting Defconfig"
+export DEFCONFIG=cyanogenmod_zenfone2_defconfig
+echo "Setting bzImage Location For FlareM kernel By say99 Of XDA (thanks to eoghan2t7)"
+export BZIMAGE=arch/x86/boot/bzImage
+echo "Enabling Graphite Optimizations"
+export ENABLE_GRAPHITE=true
+echo "Enviroment Setup Complete Now Moving To Compiling"
+
+#Build
+echo "Cleaning Out Compiled Files"
+sleep $SLEEP
+#make clean
+wmctrl -r :ACTIVE: -N "Starting Build Process"
+echo "Starting Build Process"
+export USE_CCACHE=1
+sleep $SLEEP
+if [ -f .config ];
+then
+   echo ".config exists"
+   echo "Continuing To Compiler"
+   sleep $SLEEP
+else
+   echo ".config Does Not Exists"
+   echo "Compiling From $DEFCONFIG"
+   make $DEFCONFIG
+   sleep $SLEEP
+fi
+wmctrl -r :ACTIVE: -N "Compiling FlareM Kernel"
+make $EV ARCH=x86_64 -j$CPUS CROSS_COMPILE=x86_64-linux-
+
+if [ -f $BZIMAGE ];
+then
+   echo "$BZIMAGE exists"
+   echo "Compile Complete Continuing To Packing"
+   sleep $SLEEP
+else
+   echo "$BZIMAGE Does Not Exists Please Check For Compile Errors"
+   echo "Now exiting script"
+   sleep $SLEEP
+   exit 0
+fi
+clear
+#make it a bit more beautiful :P
+echo "script made by eoghan2t7 of xda"
+printf "say thanks to him if this helped you :) \n\n"
+echo "Current Date : $NOW"
+echo "Applying Build Settings : done"
+echo "Version Number = $VER"
+echo "cleaning previous files : done"
+echo "Starting Build Process  : done"
+echo "Build complete"
+
+#Kernel Packing
+wmctrl -r :ACTIVE: -N "FlareM Kernel Packing"
+echo "Starting Packing To Recovery Flashable Zip"
+cd out/
+echo "Removing Old Files"
+rm -rf bzImage *.zip
+sleep $SLEEP
+echo "Copying bzImage"
+mv ../arch/x86/boot/bzImage bzImage
+sleep $SLEEP
+echo "Compiling FlareM_"$VER".zip"
+find . -type f -exec zip FlareM_"$VER".zip {} +
+nowf=$(date +"%T")
+cd ..
+make clean
+rm out/bzImage
+printf "cleaned files"
+printf "\n\nzip created\n"
+end=`date +%s`
+runtime=$((end-start))
+echo "Completion Time :"
+echo "$runtime sec\n"
