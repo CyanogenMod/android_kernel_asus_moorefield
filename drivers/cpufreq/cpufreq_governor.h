@@ -184,6 +184,7 @@ struct od_dbs_tuners {
 	unsigned int up_threshold;
 	unsigned int powersave_bias;
 	unsigned int io_is_busy;
+	unsigned int powersave_bias_threshold;
 };
 
 struct cs_dbs_tuners {
