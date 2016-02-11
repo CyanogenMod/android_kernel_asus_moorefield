@@ -767,16 +767,16 @@ static int cpu_task_hot(struct task_struct *p, u64 now)
 	/*
 	 * buddy candidates are cache hot:
 	 */
-	if (sched_feat(CACHE_HOT_BUDDY) && this_rq()->nr_running &&
-			(&p->se == p->se.cfs_rq->next ||
-			 &p->se == p->se.cfs_rq->last)) {
-		return 1;
-	}
+///	if (sched_feat(CACHE_HOT_BUDDY) && this_rq()->nr_running &&
+//			(&p->se == p->se.cfs_rq->next ||
+//			 &p->se == p->se.cfs_rq->last)) {
+//		return 1;
+//	}
 
-	delta = now - p->se.exec_start;
+//	delta = now - p->se.exec_start;
 
-	if (delta < (s64)sysctl_sched_migration_cost)
-		return 1;
+//	if (delta < (s64)sysctl_sched_migration_cost)
+//		return 1;
 
 	return 0;
 }

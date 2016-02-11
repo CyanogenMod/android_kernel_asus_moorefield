@@ -48,8 +48,8 @@ static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data_fallback);
 /* This one keeps track of the previously set governor of a removed CPU */
 static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
 #endif
-DEFINE_MUTEX(cpufreq_governor_lock);
 static DEFINE_RWLOCK(cpufreq_driver_lock);
+static DEFINE_MUTEX(cpufreq_governor_lock);
 
 static struct kset *cpufreq_kset;
 static struct kset *cpudev_kset;
@@ -75,7 +75,8 @@ static DEFINE_PER_CPU(int, cpufreq_policy_cpu);
 static DEFINE_PER_CPU(struct rw_semaphore, cpu_policy_rwsem);
 
 #define lock_policy_rwsem(mode, cpu)					\
-static int lock_policy_rwsem_##mode(int cpu)				\
+int lock_policy_rwsem_##mode						\
+(int cpu)								\
 {									\
 	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);		\
 	BUG_ON(policy_cpu == -1);					\
@@ -85,18 +86,22 @@ static int lock_policy_rwsem_##mode(int cpu)				\
 }
 
 lock_policy_rwsem(read, cpu);
+
 lock_policy_rwsem(write, cpu);
 
-#define unlock_policy_rwsem(mode, cpu)					\
-static void unlock_policy_rwsem_##mode(int cpu)				\
-{									\
-	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);		\
-	BUG_ON(policy_cpu == -1);					\
-	up_##mode(&per_cpu(cpu_policy_rwsem, policy_cpu));		\
+static void unlock_policy_rwsem_read(int cpu)
+{
+	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);
+	BUG_ON(policy_cpu == -1);
+	up_read(&per_cpu(cpu_policy_rwsem, policy_cpu));
 }
 
-unlock_policy_rwsem(read, cpu);
-unlock_policy_rwsem(write, cpu);
+void unlock_policy_rwsem_write(int cpu)
+{
+	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);
+	BUG_ON(policy_cpu == -1);
+	up_write(&per_cpu(cpu_policy_rwsem, policy_cpu));
+}
 
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy,
@@ -139,16 +144,6 @@ bool have_governor_per_policy(void)
 {
 	return cpufreq_driver->have_governor_per_policy;
 }
-EXPORT_SYMBOL_GPL(have_governor_per_policy);
-
-struct kobject *get_governor_parent_kobj(struct cpufreq_policy *policy)
-{
-	if (have_governor_per_policy())
-		return &policy->kobj;
-	else
-		return cpufreq_global_kobject;
-}
-EXPORT_SYMBOL_GPL(get_governor_parent_kobj);
 
 static struct cpufreq_policy *__cpufreq_cpu_get(unsigned int cpu, bool sysfs)
 {
@@ -327,7 +322,16 @@ void cpufreq_notify_transition(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_notify_transition);
 
-
+void cpufreq_notify_utilization(struct cpufreq_policy *policy,
+		unsigned int util)
+{
+	if (policy)
+		policy->util = util;
+ 
+	if (policy->util >= MIN_CPU_UTIL_NOTIFY)
+		sysfs_notify(&policy->kobj, NULL, "cpu_utilization");
+ 
+}
 
 /*********************************************************************
  *                          SYSFS INTERFACE                          *
@@ -415,6 +419,7 @@ show_one(cpuinfo_transition_latency, cpuinfo.transition_latency);
 show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
 show_one(scaling_cur_freq, cur);
+show_one(cpu_utilization, util);
 
 static int __cpufreq_set_policy(struct cpufreq_policy *data,
 				struct cpufreq_policy *policy);
@@ -631,6 +636,7 @@ cpufreq_freq_attr_ro(scaling_cur_freq);
 cpufreq_freq_attr_ro(bios_limit);
 cpufreq_freq_attr_ro(related_cpus);
 cpufreq_freq_attr_ro(affected_cpus);
+cpufreq_freq_attr_ro(cpu_utilization);
 cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
@@ -643,6 +649,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_min_freq.attr,
 	&scaling_max_freq.attr,
 	&affected_cpus.attr,
+	&cpu_utilization.attr,
 	&related_cpus.attr,
 	&scaling_governor.attr,
 	&scaling_driver.attr,

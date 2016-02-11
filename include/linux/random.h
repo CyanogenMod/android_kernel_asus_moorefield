@@ -50,9 +50,9 @@ static inline void prandom_seed_state(struct rnd_state *state, u64 seed)
 {
 	u32 i = (seed >> 32) ^ (seed << 10) ^ seed;
 
-	state->s1 = __seed(i, 1);
-	state->s2 = __seed(i, 7);
-	state->s3 = __seed(i, 15);
+	state->s1 = __seed(i, 2);
+	state->s2 = __seed(i, 8);
+	state->s3 = __seed(i, 16);
 }
 
 #ifdef CONFIG_ARCH_RANDOM
@@ -75,3 +75,5 @@ static inline u32 next_pseudo_random32(u32 seed)
 }
 
 #endif /* _LINUX_RANDOM_H */
+
+void erandom_get_random_bytes(char *buf, size_t count);

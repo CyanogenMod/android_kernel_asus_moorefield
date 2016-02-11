@@ -299,4 +299,4 @@ else
 $(error Undefined HIVE ISP CSS system version)
 endif
 
-ccflags-y += $(INCLUDES) $(DEFINES) -fno-common -Werror
+ccflags-y += $(INCLUDES) $(DEFINES) -fno-common

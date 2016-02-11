@@ -366,6 +366,12 @@ config SENSORS_TSL2550
 	  This driver can also be built as a module.  If so, the module
 	  will be called tsl2550.
 
+config BLX
+	bool "Support for Battery Life eXtender"
+	default y
+	help
+	Say Y here to enable Battery Life eXtender
+
 config SENSORS_BH1780
 	tristate "ROHM BH1780GLI ambient light sensor"
 	depends on I2C && SYSFS

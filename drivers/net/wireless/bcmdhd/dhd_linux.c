@@ -162,11 +162,11 @@ inline static void tput_set_performance_mode(bool en)
 	else
 		pm_qos_update_request(&tput_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 #endif
-	if(en)
+/*	if(en)
 		boost_mode = 2;
 	else
 		boost_mode = 0;
-	set_cpufreq_boost(boost_mode);
+	set_cpufreq_boost(boost_mode);*/
 }
 
 static int tput_monitor_thread(void *num)

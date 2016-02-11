@@ -8,6 +8,7 @@ obj-$(CONFIG_LGUEST_GUEST) += lguest/
 
 obj-y += realmode/
 obj-y += kernel/
+obj-y += hotplug/
 obj-y += mm/
 
 obj-y += crypto/

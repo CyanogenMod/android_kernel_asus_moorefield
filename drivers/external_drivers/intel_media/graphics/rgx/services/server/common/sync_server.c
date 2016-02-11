@@ -493,9 +493,20 @@ PVRSRV_ERROR
 PVRSRVSyncPrimSetKM(SYNC_PRIMITIVE_BLOCK *psSyncBlk, IMG_UINT32 ui32Index,
 					IMG_UINT32 ui32Value)
 {
-	psSyncBlk->pui32LinAddr[ui32Index] = ui32Value;
-
-	return PVRSRV_OK;
+		if((ui32Index * sizeof(IMG_UINT32)) < psSyncBlk->ui32BlockSize)
+	{
+		psSyncBlk->pui32LinAddr[ui32Index] = ui32Value;
+		return PVRSRV_OK;
+	}
+	else
+	{
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVSyncPrimSetKM: Index %u out of range for "
+							"0x%08X byte sync block (value 0x%08X)",
+							ui32Index,
+							psSyncBlk->ui32BlockSize,
+							ui32Value));
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
 }
 
 PVRSRV_ERROR

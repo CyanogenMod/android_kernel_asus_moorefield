@@ -212,7 +212,8 @@ extern int is_tng_a0;
 /* Returns the number of levels - frequencies - supported for current sku */
 static inline int sku_levels(void)
 {
-	int ret = NUMBER_OF_LEVELS;
+	//pretend to be df_rgx_max_fuse to get maximum clockrange
+	int ret = NUMBER_OF_LEVELS_MAX_FUSE;
 
 	if (is_tng_a0)
 		ret = NUMBER_OF_LEVELS_TNG_A0;

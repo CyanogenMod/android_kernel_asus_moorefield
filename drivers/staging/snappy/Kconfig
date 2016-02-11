@@ -1,0 +1,7 @@
+config SNAPPY_COMPRESS
+	tristate "Google Snappy Compression"
+	default y
+
+config SNAPPY_DECOMPRESS
+	tristate "Google Snappy Decompression"
+	default y

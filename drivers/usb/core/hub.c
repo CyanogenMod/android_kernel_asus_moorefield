@@ -141,6 +141,10 @@ struct usb_hub *usb_hub_to_struct_hub(struct usb_device *hdev)
 
 int usb_device_supports_lpm(struct usb_device *udev)
 {
+	/* Some devices have trouble with LPM */
+	if (udev->quirks & USB_QUIRK_NO_LPM)
+		return 0;
+
 	/* USB 2.1 (and greater) devices indicate LPM support through
 	 * their USB 2.0 Extended Capabilities BOS descriptor.
 	 */
@@ -4165,12 +4169,8 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 			kfree(buf);
 
 			retval = hub_port_reset(hub, port1, udev, delay, false);
-			if (retval < 0){		/* error or disconnect */
-			        /* disable ep0 */
-                                usb_disable_endpoint(udev, 0 + USB_DIR_IN, true);
-                                usb_disable_endpoint(udev, 0 + USB_DIR_OUT, true);
-                                goto fail;
-                        }
+			if (retval < 0)		/* error or disconnect */
+				goto fail;
 			if (oldspeed != udev->speed) {
 				dev_dbg(&udev->dev,
 					"device reset changed speed!\n");
@@ -4286,6 +4286,8 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 			retval = -ENOMSG;
 		goto fail;
 	}
+
+	usb_detect_quirks(udev);
 
 	if (udev->wusb == 0 && le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0201) {
 		retval = usb_get_bos_descriptor(udev);
@@ -4536,7 +4538,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		if (status < 0)
 			goto loop;
 
-		usb_detect_quirks(udev);
 		if (udev->quirks & USB_QUIRK_DELAY_INIT)
 			msleep(1000);
 

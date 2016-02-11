@@ -3615,8 +3615,15 @@ static int si_mc_init(struct radeon_device *rdev)
 	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
 	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* size in MB on si */
-	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
-	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+	tmp = RREG32(CONFIG_MEMSIZE);
+	/* some boards may have garbage in the upper 16 bits */
+	if (tmp & 0xffff0000) {
+		DRM_INFO("Probable bad vram size: 0x%08x\n", tmp);
+		if (tmp & 0xffff)
+			tmp &= 0xffff;
+	}
+	rdev->mc.mc_vram_size = tmp * 1024ULL * 1024ULL;
+	rdev->mc.real_vram_size = rdev->mc.mc_vram_size;
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	si_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
@@ -4512,7 +4519,7 @@ static void si_disable_interrupt_state(struct radeon_device *rdev)
 	}
 
 	if (!ASIC_IS_NODCE(rdev)) {
-		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
+		WREG32(DAC_AUTODETECT_INT_CONTROL, 0);
 
 		tmp = RREG32(DC_HPD1_INT_CONTROL) & DC_HPDx_INT_POLARITY;
 		WREG32(DC_HPD1_INT_CONTROL, tmp);
@@ -5152,6 +5159,10 @@ restart_ih:
 				break;
 			}
 			break;
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
+			break;
 		case 146:
 		case 147:
 			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
@@ -5693,8 +5704,7 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
 
 	if (!vclk || !dclk) {
-		/* keep the Bypass mode, put PLL to sleep */
-		WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+		/* keep the Bypass mode */
 		return 0;
 	}
 
@@ -5710,8 +5720,7 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	/* set VCO_MODE to 1 */
 	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_VCO_MODE_MASK, ~UPLL_VCO_MODE_MASK);
 
-	/* toggle UPLL_SLEEP to 1 then back to 0 */
-	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+	/* disable sleep mode */
 	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_SLEEP_MASK);
 
 	/* deassert UPLL_RESET */
@@ -5766,6 +5775,9 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
 
 	mdelay(100);
+
+	/* posting read */
+	RREG32(SRBM_STATUS);
 
 	return 0;
 }

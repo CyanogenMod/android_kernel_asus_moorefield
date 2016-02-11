@@ -3269,7 +3269,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_dapm_path *source_p, *sink_p;
 	struct snd_soc_dai *source, *sink;
-	const struct snd_soc_pcm_stream *config = w->params;
+	struct snd_soc_pcm_stream *config = w->params;
 	struct snd_pcm_substream substream;
 	struct snd_pcm_hw_params *params = NULL;
 	u64 fmt;

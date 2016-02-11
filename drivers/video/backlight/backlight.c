@@ -21,6 +21,9 @@
 #include <asm/backlight.h>
 #endif
 
+#define SYSTEM_SET_BRIGHTNESS 15
+static unsigned long min_brightness=2;
+
 static const char *const backlight_types[] = {
 	[BACKLIGHT_RAW] = "raw",
 	[BACKLIGHT_PLATFORM] = "platform",
@@ -150,8 +153,8 @@ static ssize_t backlight_store_brightness(struct device *dev,
 {
 	int rc;
 	struct backlight_device *bd = to_backlight_device(dev);
-	unsigned long brightness;
-
+	unsigned long brightness, tmp;
+	
 	rc = kstrtoul(buf, 0, &brightness);
 	if (rc)
 		return rc;
@@ -163,6 +166,11 @@ static ssize_t backlight_store_brightness(struct device *dev,
 		if (brightness > bd->props.max_brightness)
 			rc = -EINVAL;
 		else {
+			if(brightness <= 100) //leave the possibility to set the max value
+			{
+				tmp = SYSTEM_SET_BRIGHTNESS - min_brightness;
+				brightness = (brightness >= SYSTEM_SET_BRIGHTNESS ? brightness-tmp : min_brightness); //otherwise "stretch" min brightness to 2%
+			}
 			pr_debug("set brightness to %lu\n", brightness);
 			bd->props.brightness = brightness;
 			backlight_update_status(bd);
@@ -202,6 +210,32 @@ static ssize_t backlight_show_actual_brightness(struct device *dev,
 	if (bd->ops && bd->ops->get_brightness)
 		rc = sprintf(buf, "%d\n", bd->ops->get_brightness(bd));
 	mutex_unlock(&bd->ops_lock);
+
+	return rc;
+}
+
+static ssize_t backlight_show_min_brightness(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", min_brightness);
+}
+
+static ssize_t backlight_store_min_brightness(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int rc;
+	unsigned long m_brightness;
+
+	rc = kstrtoul(buf, 0, &m_brightness);
+	if (rc)
+		return rc;
+
+	rc = -ENXIO;
+
+	if(m_brightness > 1 && m_brightness < 16)
+		min_brightness = m_brightness;
+	else
+		printk("Invalid min_brightness, please specify a value between 2 and 15\n");
 
 	return rc;
 }
@@ -250,6 +284,7 @@ static struct device_attribute bl_device_attributes[] = {
 		     NULL),
 	__ATTR(max_brightness, 0444, backlight_show_max_brightness, NULL),
 	__ATTR(type, 0444, backlight_show_type, NULL),
+	__ATTR(min_brightness, 0644, backlight_show_min_brightness, backlight_store_min_brightness),
 	__ATTR_NULL,
 };
 

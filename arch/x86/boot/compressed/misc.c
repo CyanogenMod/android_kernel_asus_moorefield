@@ -125,6 +125,9 @@ static char *vidmem;
 static int vidport;
 static int lines, cols;
 
+/* Not needed, but used in some headers pulled in by decompressors */
+extern char * strstr(const char * s1, const char *s2);
+
 #ifdef CONFIG_KERNEL_GZIP
 #include "../../../../lib/decompress_inflate.c"
 #endif
@@ -143,6 +146,10 @@ static int lines, cols;
 
 #ifdef CONFIG_KERNEL_LZO
 #include "../../../../lib/decompress_unlzo.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZ4
+#include "../../../../lib/decompress_unlz4.c"
 #endif
 
 static void scroll(void)

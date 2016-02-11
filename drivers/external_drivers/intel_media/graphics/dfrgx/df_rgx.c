@@ -457,8 +457,8 @@ static int tcd_set_cur_state(struct thermal_cooling_device *tcd,
 
 			if (!cs) {
 				/* We are back in normal operation so set initial values*/
-				df->max_freq = bfdata->gbp_cooldv_latest_freq_max;
-				df->min_freq = bfdata->gbp_cooldv_latest_freq_min;
+				df->max_freq = DF_RGX_FREQ_KHZ_MAX;
+				df->min_freq = DF_RGX_FREQ_KHZ_MIN;
 				b_update_freq = 1;
 			}
 			else {
@@ -732,30 +732,30 @@ static int df_rgx_busfreq_probe(struct platform_device *pdev)
 	bfdata->bf_prev_freq_rlzd = DF_RGX_FREQ_KHZ_MIN_INITIAL;
 
 	/* Set min/max freq depending on stepping/SKU */
-	if (is_tng_a0) {
+	/*if (is_tng_a0) {
 		df->min_freq = DFRGX_FREQ_200_MHZ;
-		df->max_freq = DFRGX_FREQ_320_MHZ;
+		df->max_freq = DFRGX_FREQ_640_MHZ;
 	}
 	if (df_rgx_is_max_fuse_set()) {
 		df->min_freq = DFRGX_FREQ_457_MHZ;
 		df->max_freq = DFRGX_FREQ_640_MHZ;
 	}
-	else {
-		df->min_freq = DFRGX_FREQ_457_MHZ;
-		df->max_freq = DFRGX_FREQ_533_MHZ;
-	}
+	else {*/
+	df->min_freq = DF_RGX_FREQ_KHZ_MIN;
+	df->max_freq = DF_RGX_FREQ_KHZ_MAX;
+	//}
 	DFRGX_DPF(DFRGX_DEBUG_HIGH, "%s: dev_id = 0x%x, min_freq = %lu, max_freq = %lu\n",
 		__func__, RGXGetDRMDeviceID(), df->min_freq, df->max_freq);
 
 	bfdata->gbp_cooldv_state_override = -1;
 
 	/* Thermal freq-state mapping after characterization */
-	if (df_rgx_is_max_fuse_set())
-		bfdata->gpudata[0].freq_limit = DFRGX_FREQ_640_MHZ;
-	else
-		bfdata->gpudata[0].freq_limit = DFRGX_FREQ_533_MHZ;
+	//if (df_rgx_is_max_fuse_set())
+	//bfdata->gpudata[0].freq_limit = DFRGX_FREQ_640_MHZ;
+	//else
+	bfdata->gpudata[0].freq_limit = DFRGX_FREQ_533_MHZ;
 	bfdata->gpudata[1].freq_limit = DFRGX_FREQ_457_MHZ;
-	bfdata->gpudata[2].freq_limit = DFRGX_FREQ_200_MHZ;
+	bfdata->gpudata[2].freq_limit = DFRGX_FREQ_320_MHZ;
 	bfdata->gpudata[3].freq_limit = DFRGX_FREQ_200_MHZ;
 
 

@@ -31,6 +31,9 @@ modules.builtin
 *.lzo
 *.patch
 *.gcno
+*.zip
+out/bzImage
+buildzf2
 
 #
 # Top-level generic files
@@ -80,6 +83,7 @@ GSYMS
 GTAGS
 
 *.orig
+*.rej
 *~
 \#*#
 

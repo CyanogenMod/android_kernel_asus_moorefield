@@ -764,9 +764,6 @@ static void neigh_periodic_work(struct work_struct *work)
 	nht = rcu_dereference_protected(tbl->nht,
 					lockdep_is_held(&tbl->lock));
 
-	if (atomic_read(&tbl->entries) < tbl->gc_thresh1)
-		goto out;
-
 	/*
 	 *	periodically recompute ReachableTime from random function
 	 */
@@ -778,6 +775,9 @@ static void neigh_periodic_work(struct work_struct *work)
 			p->reachable_time =
 				neigh_rand_reach_time(p->base_reachable_time);
 	}
+
+	if (atomic_read(&tbl->entries) < tbl->gc_thresh1)
+		goto out;
 
 	for (i = 0 ; i < (1 << nht->hash_shift); i++) {
 		np = &nht->hash_buckets[i];
@@ -826,7 +826,7 @@ out:
 	 * ARP entry timeouts range from 1/2 base_reachable_time to 3/2
 	 * base_reachable_time.
 	 */
-	schedule_delayed_work(&tbl->gc_work,
+	queue_delayed_work(system_power_efficient_wq, &tbl->gc_work,
 			      tbl->parms.base_reachable_time >> 1);
 	write_unlock_bh(&tbl->lock);
 }
@@ -1277,7 +1277,7 @@ int neigh_compat_output(struct neighbour *neigh, struct sk_buff *skb)
 
 	if (dev_hard_header(skb, dev, ntohs(skb->protocol), NULL, NULL,
 			    skb->len) < 0 &&
-	    dev->header_ops->rebuild(skb))
+	    dev_rebuild_header(skb))
 		return 0;
 
 	return dev_queue_xmit(skb);
@@ -1544,7 +1544,8 @@ static void neigh_table_init_no_netlink(struct neigh_table *tbl)
 
 	rwlock_init(&tbl->lock);
 	INIT_DEFERRABLE_WORK(&tbl->gc_work, neigh_periodic_work);
-	schedule_delayed_work(&tbl->gc_work, tbl->parms.reachable_time);
+	queue_delayed_work(system_power_efficient_wq, &tbl->gc_work,
+			tbl->parms.reachable_time);
 	setup_timer(&tbl->proxy_timer, neigh_proxy_process, (unsigned long)tbl);
 	skb_queue_head_init_class(&tbl->proxy_queue,
 			&neigh_table_proxy_queue_class);

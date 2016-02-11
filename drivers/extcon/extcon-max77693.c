@@ -1192,7 +1192,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 
 
 	/* Initialize MUIC register by using platform data or default data */
-	if (pdata->muic_data) {
+	if (pdata && pdata->muic_data) {
 		init_data = pdata->muic_data->init_data;
 		num_init_data = pdata->muic_data->num_init_data;
 	} else {
@@ -1225,9 +1225,8 @@ static int max77693_muic_probe(struct platform_device *pdev)
 				= init_data[i].data;
 	}
 
-	if (pdata->muic_data) {
-		struct max77693_muic_platform_data *muic_pdata
-						   = pdata->muic_data;
+	if (pdata && pdata->muic_data) {
+		struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
 
 		/*
 		 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
