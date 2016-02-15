@@ -440,8 +440,6 @@ void cpufreq_frequency_table_update_policy_cpu(struct cpufreq_policy *policy);
 
 void cpufreq_frequency_table_put_attr(unsigned int cpu);
 
-void set_cpufreq_boost(unsigned long val);
-
 /*********************************************************************
  *                         CPUFREQ STATS                             *
  *********************************************************************/
