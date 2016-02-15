@@ -184,8 +184,6 @@ static bool tput_latest_performance_mode = false;
 
 inline static void tput_set_performance_mode(bool en)
 {
-	unsigned long boost_mode;
-
 	//do nothing when tput_check_interval_s=0(disable tput monitor)
 	if(!tput_check_interval_s)
 		return;
@@ -203,11 +201,6 @@ inline static void tput_set_performance_mode(bool en)
 	else
 		pm_qos_update_request(&tput_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 #endif
-	if(en)
-		boost_mode = 2;
-	else
-		boost_mode = 0;
-	set_cpufreq_boost(boost_mode);
 }
 
 static int tput_monitor_thread(void *num)
