@@ -2050,6 +2050,10 @@ unsigned long nr_running(void)
 	return sum;
 }
 
+unsigned long nr_running_cpu(int cpu) {
+	return cpu_rq(cpu)->nr_running;
+}
+
 unsigned long long nr_context_switches(void)
 {
 	int i;
