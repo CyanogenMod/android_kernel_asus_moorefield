@@ -79,7 +79,10 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	struct cpufreq_policy *policy = cdbs->shared->policy;
 	unsigned int sampling_rate;
+	unsigned int total_load = 0;
 	unsigned int max_load = 0;
+	unsigned int n_cpus = 0;
+	unsigned int n_running = 0;
 	unsigned int ignore_nice;
 	unsigned int j;
 
@@ -197,7 +200,13 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 
 		if (load > max_load)
 			max_load = load;
+		total_load += load;
+		n_cpus++;
+		n_running += nr_running_cpu(j);
 	}
+
+	if (n_running > n_cpus && n_cpus)
+		max_load = total_load / n_cpus;
 
 	dbs_data->cdata->gov_check_cpu(cpu, max_load);
 }
