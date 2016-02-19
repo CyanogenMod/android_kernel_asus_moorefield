@@ -114,6 +114,8 @@ extern int gesture_mode;
 
 extern int glove_mode;
 extern int cover_mode;
+extern bool keypad_enable;
+static int virtual_keys_abs_y = 0;
 int sleep_mode = 0;
 
 struct ftxxxx_platform_data ftxxxx_pdata = {
@@ -681,9 +683,11 @@ static void ftxxxx_report_value(struct ftxxxx_ts_data *data)
 
 	for (i = 0; i < event->touch_point; i++)
 	{
-		//dev_dbg(&data->client->dev, "[ftxxxx] event= %d, x= %d, y= %d, point= %d\n", event->au8_touch_event[i], event->au16_x[i], event->au16_y[i], event->touch_point);
+		// dev_info(&data->client->dev, "[ftxxxx] event= %d, x= %d, y= %d virtual@ %d, point= %d\n", event->au8_touch_event[i], event->au16_x[i], event->au16_y[i], virtual_keys_abs_y, event->touch_point);
 
-		if (event->au16_y[i]==2500)
+		if (virtual_keys_abs_y && !keypad_enable && event->au16_y[i] >= virtual_keys_abs_y) {
+		    /* Eat the area of the touchscreen used by virtual keys */
+		} else if (event->au16_y[i]==2500)
 		{
 			if(event->au8_touch_event[i]== 0 || event->au8_touch_event[i] == 2)
 			{
@@ -691,15 +695,18 @@ static void ftxxxx_report_value(struct ftxxxx_ts_data *data)
 				{
 					case 200:
 						//Tempdev_dbg(&data->client->dev, "[ftxxxx] Press BACK KEY\n");
-						input_report_key(data->input_dev, KEY_BACK, 1);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_BACK, 1);
 						break;
 					case 540:
 						//Tempdev_dbg(&data->client->dev, "[ftxxxx] Press HOME KEY\n");
-						input_report_key(data->input_dev, KEY_HOME, 1);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_HOME, 1);
 						break;
 					case 800:
 						//Tempdev_dbg(&data->client->dev, "[ftxxxx] Press MENU KEY\n");
-						input_report_key(data->input_dev, KEY_MENU, 1);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_MENU, 1);
 						break;
 					default:
 						break;
@@ -710,13 +717,16 @@ static void ftxxxx_report_value(struct ftxxxx_ts_data *data)
 				switch(event->au16_x[i])
 				{
 					case 200:
-						input_report_key(data->input_dev, KEY_BACK, 0);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_BACK, 0);
 						break;
 					case 540:
-						input_report_key(data->input_dev, KEY_HOME, 0);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_HOME, 0);
 						break;
 					case 800:
-						input_report_key(data->input_dev, KEY_MENU, 0);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_MENU, 0);
 						break;
 					default:
 						break;
@@ -969,6 +979,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 		{
 			if (Read_PROJ_ID() == PROJ_ID_ZE550ML)
 			{
+				virtual_keys_abs_y = 1341 - 100/2;
 				return sprintf(buf,  
 					__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":140:1341:180:100"  
 					"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":360:1341:170:100"  
@@ -977,6 +988,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 			}
 			else if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 			{
+				virtual_keys_abs_y = 2061 - 250/2;
 				return sprintf(buf,  
 					__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
 					"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
@@ -985,6 +997,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 			}
 			else if (Read_PROJ_ID() == PROJ_ID_ZX550ML)
 			{
+				virtual_keys_abs_y = 2061 - 250/2;
 				return sprintf(buf,  
 					__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
 					"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
@@ -996,6 +1009,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 		{
 			if (Read_PROJ_ID() == PROJ_ID_ZE550ML)
 			{
+				virtual_keys_abs_y = 1330 - 250/2;
 				return sprintf(buf,  
 					__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":130:1330:160:100"  
 					"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":360:1330:170:100"  
@@ -1004,6 +1018,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 			}
 			else if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 			{
+				virtual_keys_abs_y = 2045 - 250/2;
 				return sprintf(buf,  
 					__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":160:2045:240:250"  
 					"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":520:2045:250:250"  
@@ -1012,6 +1027,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 			}
 			else if (Read_PROJ_ID() == PROJ_ID_ZX550ML)
 			{
+				virtual_keys_abs_y = 2061 - 250/2;
 				return sprintf(buf,  
 					__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
 					"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
@@ -1022,6 +1038,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 	}
 	else if (Read_PROJ_ID() == PROJ_ID_ZS570ML || Read_PROJ_ID() == PROJ_ID_ZS571ML)
 	{
+		virtual_keys_abs_y = 2045 - 250/2;
 		return sprintf(buf,  
 				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":160:2045:240:250"  
 				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":520:2045:250:250"  
@@ -1031,6 +1048,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 	else
 	{
 		//default ZE551ML virtual key position.
+		virtual_keys_abs_y = 2045 - 250/2;
 		return sprintf(buf,  
 			__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":160:2045:240:250"  
 			"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":520:2045:250:250"  
