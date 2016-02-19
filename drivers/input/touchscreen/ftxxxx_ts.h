@@ -2,6 +2,10 @@
 #define __LINUX_ftxxxx_TS_H__
 
 #include <linux/version.h>
+#include <linux/switch.h>
+#include <linux/wakelock.h>
+#include <linux/earlysuspend.h>
+#include <linux/input.h>
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 8, 0))
 #if defined(MODULE) || defined(CONFIG_HOTPLUG)
@@ -84,6 +88,42 @@ struct ftxxxx_platform_data {
 	int screen_max_x;
 	int screen_max_y;
 	int pressure_max;
+};
+
+struct ts_event {
+	u16 au16_x[CFG_MAX_TOUCH_POINTS];	/*x coordinate */
+	u16 au16_y[CFG_MAX_TOUCH_POINTS];	/*y coordinate */
+	u8 au8_touch_event[CFG_MAX_TOUCH_POINTS];	/*touch event:
+												0 -- down; 1-- contact; 2 -- contact */
+	u8 au8_finger_id[CFG_MAX_TOUCH_POINTS];	/*touch ID */
+	u8 pressure[CFG_MAX_TOUCH_POINTS];
+	u8 area[CFG_MAX_TOUCH_POINTS];
+	u8 touch_point;
+};
+
+struct ftxxxx_ts_data {
+	unsigned int irq;
+	unsigned int x_max;
+	unsigned int y_max;
+	bool usb_status;
+	unsigned int fw_ver;
+	unsigned int vendor_id;
+	struct i2c_client *client;
+	struct input_dev *input_dev;
+	struct ts_event event;
+	struct ftxxxx_platform_data *pdata;
+#ifdef CONFIG_PM
+	struct early_suspend early_suspend;
+#endif
+	struct switch_dev touch_sdev;
+	int touchs;
+	struct workqueue_struct *ftxxxx_wq;
+	struct work_struct work;
+	struct workqueue_struct *usb_wq;
+	struct work_struct usb_detect_work;
+	struct mutex mutex_lock;
+	struct wake_lock wake_lock;
+	bool suspend_flag;
 };
 
 #endif

@@ -16,8 +16,6 @@
 */
 //#define DEBUG
 #include <linux/i2c.h>
-#include <linux/input.h>
-#include <linux/earlysuspend.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -37,9 +35,7 @@
 #include <linux/HWVersion.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/switch.h>
 #include <linux/proc_fs.h>
-#include <linux/wakelock.h>
 #include <asm/intel-mid.h>
 #include "ftxxxx_ts.h"
 #include "ftxxxx_ex_fun.h"
@@ -119,42 +115,6 @@ extern int gesture_mode;
 extern int glove_mode;
 extern int cover_mode;
 int sleep_mode = 0;
-
-struct ts_event {
-	u16 au16_x[CFG_MAX_TOUCH_POINTS];	/*x coordinate */
-	u16 au16_y[CFG_MAX_TOUCH_POINTS];	/*y coordinate */
-	u8 au8_touch_event[CFG_MAX_TOUCH_POINTS];	/*touch event:
-												0 -- down; 1-- contact; 2 -- contact */
-	u8 au8_finger_id[CFG_MAX_TOUCH_POINTS];	/*touch ID */
-	u8 pressure[CFG_MAX_TOUCH_POINTS];
-	u8 area[CFG_MAX_TOUCH_POINTS];
-	u8 touch_point;
-};
-
-struct ftxxxx_ts_data {
-	unsigned int irq;
-	unsigned int x_max;
-	unsigned int y_max;
-	bool usb_status;
-	unsigned int fw_ver;
-	unsigned int vendor_id;
-	struct i2c_client *client;
-	struct input_dev *input_dev;
-	struct ts_event event;
-	struct ftxxxx_platform_data *pdata;
-#ifdef CONFIG_PM
-	struct early_suspend early_suspend;
-#endif
-	struct switch_dev touch_sdev;
-	int touchs;
-	struct workqueue_struct *ftxxxx_wq;
-	struct work_struct work;
-	struct workqueue_struct *usb_wq;
-	struct work_struct usb_detect_work;
-	struct mutex mutex_lock;
-	struct wake_lock wake_lock;
-	bool suspend_flag;
-};
 
 struct ftxxxx_platform_data ftxxxx_pdata = {
 	.gpio_irq = FTXXXX_INT_PIN,
