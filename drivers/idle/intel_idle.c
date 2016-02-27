@@ -838,7 +838,7 @@ static int intel_idle(struct cpuidle_device *dev,
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 
-	if (!need_resched()) {
+	if (!current_set_polling_and_test()) {
 #ifdef CONFIG_XEN
 		HYPERVISOR_mwait_op(eax, ecx,
 					(void *)&current_thread_info()->flags,
@@ -850,6 +850,7 @@ static int intel_idle(struct cpuidle_device *dev,
 			&& per_cpu(predicted_time, cpu) > LOW_LATENCY_S0I1)
 			eax = low_latency_s0ix_state(eax);
 #endif
+
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())

@@ -247,7 +247,8 @@ int intel_scu_ipc_check_status(void)
 	int loop_count = 3000000;
 
 	if (ipcdev.ioc && (system_state == SYSTEM_RUNNING) &&
-			(!suspend_in_progress())) {
+			(!suspend_in_progress()) &&
+			!in_interrupt() && !irqs_disabled()) {
 		if (0 == wait_for_completion_timeout(
 				&ipcdev.cmd_complete, 3 * HZ))
 			ret = -ETIMEDOUT;

@@ -1554,6 +1554,28 @@ int pmic_handle_low_supply(void)
 		chc.vbus_connect_status = false;
 		mutex_unlock(&chc.evt_queue_lock);
 
+		/* check cable status again */
+		dev_info(chc.dev, "is_internal_usb_phy=%d, otg_mode_enabled=%d\n", chc.is_internal_usb_phy, chc.otg_mode_enabled);
+		for(i=0;i<5;i++) {
+			ret = pmic_read_reg(CHGRCTRL1_ADDR, &val);
+			if (ret != 0) {
+				dev_err(chc.dev,
+				"Error reading CHGRCTRL1-register 0x%2x\n",
+				CHGRCTRL1_ADDR);
+				break;
+			}
+			dev_info(chc.dev, "PMIC CHGRCTRL1_ADDR 104C = 0x%2x\n", val);
+			if (val & CHGRCTRL1_OTGMODE_MASK) {
+				chc.otg_mode_enabled = true;
+				dev_info(chc.dev, "otg_mode_enabled true, check again after 200ms\n");
+				msleep(200);
+			} else {
+				chc.otg_mode_enabled = false;
+				dev_info(chc.dev, "otg_mode_enabled false, report cable out\n");
+				break;
+			}
+		}
+
 		if (chc.is_internal_usb_phy && !chc.otg_mode_enabled)
 			handle_internal_usbphy_notifications(mask);
 		else {

@@ -8,6 +8,7 @@ obj-y				+= leds/
 obj-y               		+= lpss/
 obj-y				+= misc/
 obj-$(CONFIG_MDM_CTRL)		+= modem_control/
+obj-$(CONFIG_MDM_APCDMP)	+= modem_ap_cdmp/
 obj-y				+= pinctrl/
 obj-y                           += platform/x86/
 obj-$(CONFIG_POWER_SUPPLY)	+= power/

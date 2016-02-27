@@ -10,9 +10,18 @@
 #include <errno.h>
 #include <unistd.h>
 #include <elf.h>
-#include <byteswap.h>
+#  if defined(__APPLE__)
+#    include <libkern/OSByteOrder.h>
+#    define __bswap_32 OSSwapInt32
+#  else
+#    include <byteswap.h>
+#  endif
 #define USE_BSD
-#include <endian.h>
+#  if defined(__APPLE__)
+#    include <machine/endian.h>
+#  else
+#    include <endian.h>
+#  endif
 #include <regex.h>
 #include <tools/le_byteshift.h>
 

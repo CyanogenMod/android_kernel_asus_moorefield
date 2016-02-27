@@ -16,8 +16,6 @@
 */
 //#define DEBUG
 #include <linux/i2c.h>
-#include <linux/input.h>
-#include <linux/earlysuspend.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -37,9 +35,7 @@
 #include <linux/HWVersion.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/switch.h>
 #include <linux/proc_fs.h>
-#include <linux/wakelock.h>
 #include <asm/intel-mid.h>
 #include "ftxxxx_ts.h"
 #include "ftxxxx_ex_fun.h"
@@ -65,7 +61,6 @@
 
 #ifdef FTS_GESTURE
 //zax 20140922
-#define KEY_GESTURE_DOUBLECLICK 256
 //#define  KEY_GESTURE_U	KEY_U
 //#define  KEY_GESTURE_UP	KEY_UP
 //#define  KEY_GESTURE_DOWN	KEY_DOWN
@@ -117,40 +112,9 @@ extern int gesture_mode;
 
 extern int glove_mode;
 extern int cover_mode;
+extern bool keypad_enable;
+static int virtual_keys_abs_y = 0;
 int sleep_mode = 0;
-
-struct ts_event {
-	u16 au16_x[CFG_MAX_TOUCH_POINTS];	/*x coordinate */
-	u16 au16_y[CFG_MAX_TOUCH_POINTS];	/*y coordinate */
-	u8 au8_touch_event[CFG_MAX_TOUCH_POINTS];	/*touch event:
-												0 -- down; 1-- contact; 2 -- contact */
-	u8 au8_finger_id[CFG_MAX_TOUCH_POINTS];	/*touch ID */
-	u8 pressure[CFG_MAX_TOUCH_POINTS];
-	u8 area[CFG_MAX_TOUCH_POINTS];
-	u8 touch_point;
-};
-
-struct ftxxxx_ts_data {
-	unsigned int irq;
-	unsigned int x_max;
-	unsigned int y_max;
-	unsigned int fw_ver;
-	unsigned int vendor_id;
-	struct i2c_client *client;
-	struct input_dev *input_dev;
-	struct ts_event event;
-	struct ftxxxx_platform_data *pdata;
-#ifdef CONFIG_PM
-	struct early_suspend early_suspend;
-#endif
-	struct switch_dev touch_sdev;
-	int touchs;
-	struct workqueue_struct *ftxxxx_wq;
-	struct work_struct work;
-	struct mutex mutex_lock;
-	struct wake_lock wake_lock;
-	bool suspend_flag;
-};
 
 struct ftxxxx_platform_data ftxxxx_pdata = {
 	.gpio_irq = FTXXXX_INT_PIN,
@@ -297,7 +261,7 @@ int ftxxxx_i2c_Write(struct i2c_client *client, char *writebuf, int writelen)
 #ifdef FTS_GESTURE//zax 20140922
 static void check_gesture(struct ftxxxx_ts_data *data,int gesture_id)
 {
-	printk("[ftxxxx] gesture_id==0x%x\n",gesture_id);
+	//Tempprintk("[ftxxxx] gesture_id==0x%x\n",gesture_id);
 
 	switch(gesture_id)
 	{
@@ -331,9 +295,8 @@ static void check_gesture(struct ftxxxx_ts_data *data,int gesture_id)
 			//input_report_key(data->input_dev, KEY_GESTURE_U, 0);
 			//input_sync(data->input_dev);
 			if (dclick_mode == 1) {
-				input_report_key(data->input_dev, KEY_GESTURE_DOUBLECLICK, 1);
-				input_sync(data->input_dev);
-				input_report_key(data->input_dev, KEY_GESTURE_DOUBLECLICK, 0);
+				input_report_key(data->input_dev, KEY_POWER, 1);
+				input_report_key(data->input_dev, KEY_POWER, 0);
 				input_sync(data->input_dev);
 			}
 			break;
@@ -419,7 +382,7 @@ static int fts_read_Gesturedata(struct ftxxxx_ts_data *data)
 	pointnum = 0;
 
 	ret = ftxxxx_i2c_Read(data->client, buf, 1, buf, FTS_GESTURE_POINTS_HEADER);
-	printk("[ftxxxx] tpd read FTS_GESTURE_POINTS_HEADER.\n");
+	//Tempprintk("[ftxxxx] tpd read FTS_GESTURE_POINTS_HEADER.\n");
 
 	if (ret < 0)
 	{
@@ -716,9 +679,11 @@ static void ftxxxx_report_value(struct ftxxxx_ts_data *data)
 
 	for (i = 0; i < event->touch_point; i++)
 	{
-		//dev_dbg(&data->client->dev, "[ftxxxx] event= %d, x= %d, y= %d, point= %d\n", event->au8_touch_event[i], event->au16_x[i], event->au16_y[i], event->touch_point);
+		// dev_info(&data->client->dev, "[ftxxxx] event= %d, x= %d, y= %d virtual@ %d, point= %d\n", event->au8_touch_event[i], event->au16_x[i], event->au16_y[i], virtual_keys_abs_y, event->touch_point);
 
-		if (event->au16_y[i]==2500)
+		if (virtual_keys_abs_y && !keypad_enable && event->au16_y[i] >= virtual_keys_abs_y) {
+		    /* Eat the area of the touchscreen used by virtual keys */
+		} else if (event->au16_y[i]==2500)
 		{
 			if(event->au8_touch_event[i]== 0 || event->au8_touch_event[i] == 2)
 			{
@@ -726,15 +691,18 @@ static void ftxxxx_report_value(struct ftxxxx_ts_data *data)
 				{
 					case 200:
 						//Tempdev_dbg(&data->client->dev, "[ftxxxx] Press BACK KEY\n");
-						input_report_key(data->input_dev, KEY_BACK, 1);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_BACK, 1);
 						break;
 					case 540:
 						//Tempdev_dbg(&data->client->dev, "[ftxxxx] Press HOME KEY\n");
-						input_report_key(data->input_dev, KEY_HOME, 1);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_HOME, 1);
 						break;
 					case 800:
 						//Tempdev_dbg(&data->client->dev, "[ftxxxx] Press MENU KEY\n");
-						input_report_key(data->input_dev, KEY_MENU, 1);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_MENU, 1);
 						break;
 					default:
 						break;
@@ -745,13 +713,16 @@ static void ftxxxx_report_value(struct ftxxxx_ts_data *data)
 				switch(event->au16_x[i])
 				{
 					case 200:
-						input_report_key(data->input_dev, KEY_BACK, 0);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_BACK, 0);
 						break;
 					case 540:
-						input_report_key(data->input_dev, KEY_HOME, 0);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_HOME, 0);
 						break;
 					case 800:
-						input_report_key(data->input_dev, KEY_MENU, 0);
+						if (keypad_enable)
+							input_report_key(data->input_dev, KEY_MENU, 0);
 						break;
 					default:
 						break;
@@ -932,26 +903,30 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 	{
 		if (Read_PROJ_ID() == PROJ_ID_ZE550ML)
 		{
+			/* note: the reported format is <keycode>:<center-x>:<center-y>:<width>:<height> */
+			virtual_keys_abs_y = 1341 - 100/2;
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":140:1330:180:100"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":360:1330:170:100"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":580:1330:180:100"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":140:1341:180:100"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":360:1341:170:100"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":580:1341:180:100"  
 				"\n");
 		}
 		else if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 		{
+			virtual_keys_abs_y = 2061 - 250/2;
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2045:260:250"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2061:260:250"  
 				"\n");
 		}
 		else if (Read_PROJ_ID() == PROJ_ID_ZX550ML)
 		{
+			virtual_keys_abs_y = 2061 - 250/2;
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2045:260:250"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2061:260:250"  
 				"\n");
 		}
 	}
@@ -959,6 +934,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 	{
 		if (Read_PROJ_ID() == PROJ_ID_ZE550ML)
 		{
+			virtual_keys_abs_y = 1330 - 100/2;
 			return sprintf(buf,  
 				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":130:1330:160:100"  
 				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":360:1330:170:100"  
@@ -967,6 +943,7 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 		}
 		else if (Read_PROJ_ID() == PROJ_ID_ZE551ML || Read_PROJ_ID() == PROJ_ID_ZE551ML_CKD)
 		{
+			virtual_keys_abs_y = 2045 - 250/2;
 			return sprintf(buf,  
 				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":160:2045:240:250"  
 				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":520:2045:250:250"  
@@ -975,10 +952,11 @@ static ssize_t virtual_keys_show(struct kobject *kobj,
 		}
 		else if (Read_PROJ_ID() == PROJ_ID_ZX550ML)
 		{
+			virtual_keys_abs_y = 2061 - 250/2;
 			return sprintf(buf,  
-				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2045:260:250"  
-				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2045:260:250"  
+				__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":215:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":540:2061:260:250"  
+				"\n" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":865:2061:260:250"  
 				"\n");
 		}
 	}
@@ -1346,7 +1324,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	auc_i2c_write_buf[1] = 0x00;
 	ftxxxx_i2c_Write(client, auc_i2c_write_buf, 2);	//let fw close gesture function 
 	*/
-	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_DOUBLECLICK);
+	input_set_capability(input_dev, EV_KEY, KEY_POWER);
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_U); 
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_UP); 
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_DOWN);
@@ -1361,8 +1339,8 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_V);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_Z);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_C);
-		
-	__set_bit(KEY_GESTURE_DOUBLECLICK, input_dev->keybit);
+
+        __set_bit(KEY_POWER, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_RIGHT, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_LEFT, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_UP, input_dev->keybit);

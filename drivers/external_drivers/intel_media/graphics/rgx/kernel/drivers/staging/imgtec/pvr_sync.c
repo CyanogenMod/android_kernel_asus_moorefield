@@ -649,6 +649,9 @@ static void pvr_sync_print_obj(struct seq_file *s,
 	struct pvr_sync_timeline *timeline =
 	    (struct pvr_sync_timeline *)sync_timeline;
 
+	if(!timeline && !timeline->timeline_sync)
+		return;
+
 	seq_printf(s, "id=%u fw=0x%x curr=%u next=%u",
 			   timeline->timeline_sync->id,
 			   timeline->timeline_sync->vaddr,

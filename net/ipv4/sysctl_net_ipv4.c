@@ -147,7 +147,7 @@ static int proc_tcp_default_init_rwnd(ctl_table *ctl, int write,
 	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
 	int new_value = *(int *)ctl->data;
 
-	if (!write || ret <= 0 || new_value < 3 || new_value > 100)
+	if (write && ret == 0 && (new_value < 3 || new_value > 100))
 		*(int *)ctl->data = old_value;
 
 	return ret;

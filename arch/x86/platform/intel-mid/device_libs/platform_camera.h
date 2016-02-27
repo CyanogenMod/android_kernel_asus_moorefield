@@ -18,9 +18,9 @@
 #include <asm/intel_scu_ipcutil.h>
 extern int Read_HW_ID(void);
 extern int Read_PROJ_ID(void);
-static unsigned int HW_ID = 0xFF;
-static unsigned int PROJECT_ID = 0xFF;
-static unsigned int SPI_ENABLE = 1;
+#define HW_ID 0xFF
+#define PROJECT_ID 0xFF
+#define SPI_ENABLE 1
 extern int intel_scu_ipc_msic_vemmc1(int);
 
 extern const struct intel_v4l2_subdev_id v4l2_ids[] __attribute__((weak));

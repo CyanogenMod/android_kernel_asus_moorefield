@@ -107,7 +107,7 @@ static const struct arizona_micd_range micd_ctp_ranges[] = {
 	{ .max = 430, .key = BTN_5 },
 };
 
-static const struct arizona_micd_config micd_modes[] = {
+static struct arizona_micd_config micd_modes[] = {
 	/*{Acc Det on Micdet2, Use Micbias1 for detection,
 	 * Set GPIO to 0 to selecte this polarity}*/
 	{ ARIZONA_ACCDET_SRC, 1, 0 },
@@ -158,7 +158,7 @@ void *moor_wm8280_audio_platform_data(void *info)
 	codec_gpio = get_gpio_by_name("audiocodec_int");
 	if (codec_gpio < 0) {
 		pr_err("%s failed for : %d\n", __func__, codec_gpio);
-		return -EINVAL;
+		return NULL;
 	}
 	florida_board_info.irq = codec_gpio + INTEL_MID_IRQ_OFFSET;
 

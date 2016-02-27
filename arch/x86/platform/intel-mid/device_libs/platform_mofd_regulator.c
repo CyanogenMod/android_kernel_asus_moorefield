@@ -41,7 +41,7 @@ static struct intel_pmic_info vprog1_info = {
 	.pmic_reg   = VPROG1CNT_ADDR,
 	.init_data  = &vprog1_data,
 	.table_len  = ARRAY_SIZE(VPROG1_VSEL_table),
-	.table      = VPROG1_VSEL_table,
+	.table      = (const u16 *) VPROG1_VSEL_table,
 };
 
 static struct platform_device vprog1_device = {
@@ -72,7 +72,7 @@ static struct intel_pmic_info vprog2_info = {
 	.pmic_reg   = VPROG2CNT_ADDR,
 	.init_data  = &vprog2_data,
 	.table_len  = ARRAY_SIZE(VPROG2_VSEL_table),
-	.table      = VPROG2_VSEL_table,
+	.table      = (const u16 *) VPROG2_VSEL_table,
 };
 
 static struct platform_device vprog2_device = {
@@ -103,7 +103,7 @@ static struct intel_pmic_info vprog3_info = {
 	.pmic_reg   = VPROG3CNT_ADDR,
 	.init_data  = &vprog3_data,
 	.table_len  = ARRAY_SIZE(VPROG3_VSEL_table),
-	.table      = VPROG3_VSEL_table,
+	.table      = (const u16 *) VPROG3_VSEL_table,
 };
 
 static struct platform_device vprog3_device = {
@@ -134,7 +134,7 @@ static struct intel_pmic_info vflex_info = {
 	.pmic_reg   = VFLEXCNT_ADDR,
 	.init_data  = &vflex_data,
 	.table_len  = ARRAY_SIZE(VFLEX_VSEL_table),
-	.table      = VFLEX_VSEL_table,
+	.table      = (const u16 *) VFLEX_VSEL_table,
 };
 
 static struct platform_device vflex_device = {

@@ -1129,7 +1129,7 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		}
 
 		attributes.pgnr = pgnr;
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 		attributes.type = buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_ION
 					? HRT_USR_ION : HRT_USR_PTR;
 #else

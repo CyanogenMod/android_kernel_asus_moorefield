@@ -1,0 +1,13 @@
+#
+# Modem Core Dump by AP
+# Perform gpio_06 to request 7262 coredump on IMC modems
+#
+
+config MDM_APCDMP
+	tristate "Modem AP CORE DUMP driver"
+	default y
+	---help---
+          The modem control driver for IMC modems. This driver will test in NFC verified
+	  This is only test
+          Verified for XMM6260, XMM7160, XMM6360 and XMM 6263 modems.
+

@@ -1,3 +1,7 @@
 if EXTERNAL_CAMERA
 source drivers/external_drivers/camera/drivers/Kconfig
 endif
+
+config ION_FOR_CAMERA
+	depends on ION
+	default n

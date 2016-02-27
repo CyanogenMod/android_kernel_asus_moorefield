@@ -17,6 +17,7 @@
 #ifndef _CPUFREQ_GOVERNOR_H
 #define _CPUFREQ_GOVERNOR_H
 
+#include <linux/atomic.h>
 #include <linux/cpufreq.h>
 #include <linux/kobject.h>
 #include <linux/mutex.h>
@@ -26,11 +27,11 @@
 /*
  * The polling frequency depends on the capability of the processor. Default
  * polling frequency is 1000 times the transition latency of the processor. The
- * governor will work on any processor with transition latency <= 10mS, using
+ * governor will work on any processor with transition latency <= 10ms, using
  * appropriate sampling rate.
  *
- * For CPUs with transition latency > 10mS (mostly drivers with CPUFREQ_ETERNAL)
- * this governor will not work. All times here are in uS.
+ * For CPUs with transition latency > 10ms (mostly drivers with CPUFREQ_ETERNAL)
+ * this governor will not work. All times here are in us (micro seconds).
  */
 #define MIN_SAMPLING_RATE_RATIO			(2)
 #define LATENCY_MULTIPLIER			(1000)
@@ -110,7 +111,7 @@ store_one(_gov, file_name)
 
 /* create helper routines */
 #define define_get_cpu_dbs_routines(_dbs_info)				\
-static struct cpu_dbs_common_info *get_cpu_cdbs(int cpu)		\
+static struct cpu_dbs_info *get_cpu_cdbs(int cpu)			\
 {									\
 	return &per_cpu(_dbs_info, cpu).cdbs;				\
 }									\
@@ -129,25 +130,38 @@ static void *get_cpu_dbs_info_s(int cpu)				\
  * cs_*: Conservative governor
  */
 
+/* Common to all CPUs of a policy */
+struct cpu_common_dbs_info {
+	struct cpufreq_policy *policy;
+	/*
+	 * Per policy mutex that serializes load evaluation from limit-change
+	 * and work-handler.
+	 */
+	struct mutex timer_mutex;
+
+	ktime_t time_stamp;
+	atomic_t skip_work;
+	struct work_struct work;
+};
+
 /* Per cpu structures */
-struct cpu_dbs_common_info {
-	int cpu;
+struct cpu_dbs_info {
 	u64 prev_cpu_idle;
 	u64 prev_cpu_wall;
 	u64 prev_cpu_nice;
-	struct cpufreq_policy *cur_policy;
-	struct delayed_work work;
 	/*
-	 * percpu mutex that serializes governor limit change with gov_dbs_timer
-	 * invocation. We do not want gov_dbs_timer to run when user is changing
-	 * the governor or limits.
+	 * Used to keep track of load in the previous interval. However, when
+	 * explicitly set to zero, it is used as a flag to ensure that we copy
+	 * the previous load to the current interval only once, upon the first
+	 * wake-up from idle.
 	 */
-	struct mutex timer_mutex;
-	ktime_t time_stamp;
+	unsigned int prev_load;
+	struct timer_list timer;
+	struct cpu_common_dbs_info *shared;
 };
 
 struct od_cpu_dbs_info_s {
-	struct cpu_dbs_common_info cdbs;
+	struct cpu_dbs_info cdbs;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int freq_lo;
 	unsigned int freq_lo_jiffies;
@@ -157,19 +171,17 @@ struct od_cpu_dbs_info_s {
 };
 
 struct cs_cpu_dbs_info_s {
-	struct cpu_dbs_common_info cdbs;
+	struct cpu_dbs_info cdbs;
 	unsigned int down_skip;
 	unsigned int requested_freq;
-	unsigned int enable:1;
 };
 
-/* Per policy Governers sysfs tunables */
+/* Per policy Governors sysfs tunables */
 struct od_dbs_tuners {
 	unsigned int ignore_nice_load;
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
-	unsigned int adj_up_threshold;
 	unsigned int powersave_bias;
 	unsigned int io_is_busy;
 };
@@ -183,7 +195,7 @@ struct cs_dbs_tuners {
 	unsigned int freq_step;
 };
 
-/* Common Governer data across policies */
+/* Common Governor data across policies */
 struct dbs_data;
 struct common_dbs_data {
 	/* Common across governors */
@@ -196,26 +208,29 @@ struct common_dbs_data {
 	/* Common data for platforms that don't set have_governor_per_policy */
 	struct dbs_data *gdbs_data;
 
-	struct cpu_dbs_common_info *(*get_cpu_cdbs)(int cpu);
+	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
 	void *(*get_cpu_dbs_info_s)(int cpu);
-	void (*gov_dbs_timer)(struct work_struct *work);
+	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy,
+				      bool modify_all);
 	void (*gov_check_cpu)(int cpu, unsigned int load);
-	int (*init)(struct dbs_data *dbs_data);
-	void (*exit)(struct dbs_data *dbs_data);
+	int (*init)(struct dbs_data *dbs_data, bool notify);
+	void (*exit)(struct dbs_data *dbs_data, bool notify);
 
 	/* Governor specific ops, see below */
 	void *gov_ops;
+
+	/*
+	 * Protects governor's data (struct dbs_data and struct common_dbs_data)
+	 */
+	struct mutex mutex;
 };
 
-/* Governer Per policy data */
+/* Governor Per policy data */
 struct dbs_data {
 	struct common_dbs_data *cdata;
 	unsigned int min_sampling_rate;
 	int usage_count;
 	void *tuners;
-
-	/* dbs_mutex protects dbs_enable in governor start/stop */
-	struct mutex mutex;
 };
 
 /* Governor specific ops, will be passed to dbs_data->gov_ops */
@@ -224,10 +239,6 @@ struct od_ops {
 	unsigned int (*powersave_bias_target)(struct cpufreq_policy *policy,
 			unsigned int freq_next, unsigned int relation);
 	void (*freq_increase)(struct cpufreq_policy *p, unsigned int freq);
-};
-
-struct cs_ops {
-	struct notifier_block *notifier_block;
 };
 
 static inline int delay_for_sampling_rate(unsigned int sampling_rate)
@@ -257,13 +268,14 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 }
 
 u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
+
+extern struct mutex cpufreq_governor_lock;
+
+void gov_add_timers(struct cpufreq_policy *policy, unsigned int delay);
+void gov_cancel_work(struct cpu_common_dbs_info *shared);
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
-bool need_load_eval(struct cpu_dbs_common_info *cdbs,
-		unsigned int sampling_rate);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		struct common_dbs_data *cdata, unsigned int event);
-void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
-		unsigned int delay, bool all_cpus);
 void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
 		unsigned int powersave_bias);

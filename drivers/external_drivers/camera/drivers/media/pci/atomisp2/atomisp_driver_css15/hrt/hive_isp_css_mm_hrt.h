@@ -35,7 +35,7 @@
 
 enum hrt_userptr_type {
 	HRT_USR_PTR = 0,
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 	HRT_USR_ION,
 #endif
 };

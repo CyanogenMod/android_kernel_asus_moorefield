@@ -49,6 +49,21 @@ struct cntry_locales_custom {
 	char custom_locale[WLC_CNTRY_BUF_SZ];	/* Custom firmware locale */
 	int32 custom_locale_rev;		/* Custom local revisin default -1 */
 };
+struct txpwr_custom {
+	char iso_abbrev[WLC_CNTRY_BUF_SZ];	/* ISO 3166-1 country abbreviation */
+	char *max2g;          /*maxp2ga0*/
+	char *max5g[4];       /*maxp5ga0*/
+	/* 2.4G b mode txpwr */
+	char *bmodepo;       /*cckbw202gpo*/
+	/* 2.4G g mode txpwr */
+	char *gmodedotpo;    /*dot11agofdmhrbw202gpo*/
+	char *gmodepo;       /*ofdmlrbw202gpo*/
+	/* 2.4G n mode txpwr */
+	char *nmodebw20po;   /*mcsbw202gpo*/
+	char *nmodebw40po;   /*mcsbw402gpo*/
+	/* 5G low/middle/high txpwr */
+	char *agmodelmhpo;   /*all use same power level*/
+};
 /* ============================================== */
 /* Defines from wlc_pub.h */
 #define	WL_IW_RSSI_MINVAL		-200	/* Low value, e.g. for forcing roam */

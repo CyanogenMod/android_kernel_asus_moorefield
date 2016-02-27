@@ -172,6 +172,8 @@ source "drivers/reset/Kconfig"
 
 source "drivers/external_drivers/Kconfig"
 
+source "drivers/android/Kconfig"
+
 endmenu
 
 #+++++++++++++++++++++lynn 2014/10/27 FAC++++++++++++++++++++++

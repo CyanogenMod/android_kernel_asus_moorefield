@@ -46,11 +46,11 @@ extern void bq24261_inlmt_to_reg(int, u8*);
 extern int bq24261_get_bat_health(void);
 extern int bq24261_get_bat_status(void);
 #else
-static int bq24261_get_bat_health(void)
+static inline int bq24261_get_bat_health(void)
 {
 	return 0;
 }
-static int bq24261_get_bat_status(void)
+static inline int bq24261_get_bat_status(void)
 {
 	return 0;
 }

@@ -91,7 +91,7 @@ static ia_css_ptr __hrt_isp_css_mm_alloc(size_t bytes, void *userptr,
 {
 	if (!init_done)
 		hrt_isp_css_mm_init();
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 	if (type == HRT_USR_ION)
 		return hmm_alloc(bytes, HMM_BO_ION, 0,
 					 userptr, cached);

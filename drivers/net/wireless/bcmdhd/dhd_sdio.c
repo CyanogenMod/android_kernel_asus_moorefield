@@ -59,7 +59,11 @@
 
 int read_custom_country_code(char *country_code);
 int override_nvram_ccode(char *memblk, char *ccode);
+#ifdef ASUS_CUSTOMIZE_TXPWR
+int override_nvram_txpwr(char *memblk, char *ccode);
 #endif
+#endif
+
 
 bool dhd_mp_halting(dhd_pub_t *dhdp);
 extern void bcmsdh_waitfor_iodrain(void *sdh);
@@ -628,6 +632,11 @@ const struct cntry_locales_custom ccode_custom_table[] = {
     {"US", "US", 151},
     {"VN", "VN", 4},
 
+};
+#endif
+#ifdef ASUS_CUSTOMIZE_TXPWR
+const struct txpwr_custom txpwr_custom_table[] = {
+    {"US","76",{"76","76","76","76"},"9999","dddd","00dd","dddddddd","dddddddd","ffffffff"},
 };
 #endif
 static void
@@ -8087,6 +8096,13 @@ dhdsdio_download_nvram(struct dhd_bus *bus)
     read_custom_country_code(country_code);
     DHD_ERROR(("%s: Custom country_code = %s \n", __FUNCTION__, country_code));
     override_nvram_ccode(memblock, country_code);
+#ifdef ASUS_CUSTOMIZE_TXPWR
+    DHD_ERROR(("%s: Enable ASUS_CUSTOMIZE_TXPWR feature ! \n", __FUNCTION__, country_code));
+    if (country_code){
+        DHD_ERROR(("%s: Override Custom Txpowr if exist table for %s \n", __FUNCTION__, country_code));
+        override_nvram_txpwr(memblock, country_code);
+    }
+#endif
 #endif
 	if (len > 0 && len < MAX_NVRAMBUF_SIZE) {
 		bufp = (char *)memblock;
@@ -8185,6 +8201,86 @@ int override_nvram_ccode(char *memblk, char *ccode)
     DHD_ERROR(("%s: Can not find conutry from ccode_custom_table\n", __FUNCTION__));
     return 0;
 }
+
+#ifdef ASUS_CUSTOMIZE_TXPWR
+int override_nvram_txpwr(char *memblk, char *ccode)
+{
+    int size, i;
+    char *max2gPrefix = "maxp2ga0=", *max5gPrefix = "maxp5ga0=";
+    char *bmodtxpwrPrefix = "cckbw202gpo=";
+    char *gmoddotpoPrefix = "dot11agofdmhrbw202gpo=", *gmodepoPrefix = "ofdmlrbw202gpo=";
+    char *nmodebw20Prefix = "mcsbw202gpo=", *nmodebw40Prefix = "mcsbw402gpo=";
+
+    char *amode205glPrefix = "mcsbw205glpo=", *amode405glPrefix = "mcsbw405glpo=", *amode805glPrefix = "mcsbw805glpo=", *amode1605glPrefix = "mcsbw1605glpo=";
+    char *amode205gmPrefix = "mcsbw205gmpo=", *amode405gmPrefix = "mcsbw405gmpo=", *amode805gmPrefix = "mcsbw805gmpo=", *amode1605gmPrefix = "mcsbw1605gmpo=";
+    char *amode205ghPrefix = "mcsbw205ghpo=", *amode405ghPrefix = "mcsbw405ghpo=", *amode805ghPrefix = "mcsbw805ghpo=", *amode1605ghPrefix = "mcsbw1605ghpo=";
+
+    char *retmax2gStr, *retmax5gStr;
+    char *retbmodtxpwrStr;
+    char *retgmoddotpoStr, *retgmodepoStr;
+    char *retnmodebw20Str, *retnmodebw40Str;
+    char *ret205glStr, *ret405glStr, *ret805glStr, *ret1605glStr;
+    char *ret205gmStr, *ret405gmStr, *ret805gmStr, *ret1605gmStr;
+    char *ret205ghStr, *ret405ghStr, *ret805ghStr, *ret1605ghStr;
+
+    size = ARRAYSIZE(txpwr_custom_table);
+
+    for (i = 0; i < size; i++) {
+        if (strncmp(ccode, txpwr_custom_table[i].iso_abbrev, 2) == 0){
+           DHD_ERROR(("%s: txpwr_custom_table[%d] exist country %s override txpwr setting \n", __FUNCTION__, i, ccode));
+	   retmax2gStr = strstr(memblk, max2gPrefix);
+	   retmax5gStr = strstr(memblk, max5gPrefix);
+	   retbmodtxpwrStr = strstr(memblk, bmodtxpwrPrefix);
+	   retgmoddotpoStr = strstr(memblk, gmoddotpoPrefix);
+	   retgmodepoStr = strstr(memblk, gmodepoPrefix);
+	   retnmodebw20Str = strstr(memblk, nmodebw20Prefix);
+	   retnmodebw40Str = strstr(memblk, nmodebw40Prefix);
+	   ret205glStr = strstr(memblk, amode205glPrefix);
+	   ret405glStr = strstr(memblk, amode405glPrefix);
+	   ret805glStr = strstr(memblk, amode805glPrefix);
+	   ret1605glStr = strstr(memblk, amode1605glPrefix);
+	   ret205gmStr = strstr(memblk, amode205gmPrefix);
+	   ret405gmStr = strstr(memblk, amode405gmPrefix);
+	   ret805gmStr = strstr(memblk, amode805gmPrefix);
+	   ret1605gmStr = strstr(memblk, amode1605gmPrefix);
+	   ret205ghStr = strstr(memblk, amode205ghPrefix);
+	   ret405ghStr = strstr(memblk, amode405ghPrefix);
+	   ret805ghStr = strstr(memblk, amode805ghPrefix);
+	   ret1605ghStr = strstr(memblk, amode1605ghPrefix);
+
+           /* 2.4 G max Tx power */
+	   memcpy(retmax2gStr+9, txpwr_custom_table[i].max2g, strlen(txpwr_custom_table[i].max2g));
+           /* 5 G max Tx power */
+           memcpy(retmax5gStr+9, txpwr_custom_table[i].max5g[0], strlen(txpwr_custom_table[i].max5g[0]));
+	   /* b mode Tx power */
+	   memcpy(retbmodtxpwrStr+14, txpwr_custom_table[i].bmodepo, strlen(txpwr_custom_table[i].bmodepo));
+	   /* g mode Tx power */
+	   memcpy(retgmoddotpoStr+24, txpwr_custom_table[i].gmodedotpo, strlen(txpwr_custom_table[i].gmodedotpo));
+	   memcpy(retgmodepoStr+17, txpwr_custom_table[i].gmodepo, strlen(txpwr_custom_table[i].gmodepo));
+	   /* n mode Tx power */
+	   memcpy(retnmodebw20Str+14, txpwr_custom_table[i].nmodebw20po, strlen(txpwr_custom_table[i].nmodebw20po));
+	   memcpy(retnmodebw40Str+14, txpwr_custom_table[i].nmodebw40po, strlen(txpwr_custom_table[i].nmodebw40po));
+	   /* 5 G  mode Tx power */
+	   memcpy(ret205glStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret405glStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret805glStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret1605glStr+16, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret205gmStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret405gmStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret805gmStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret1605gmStr+16, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret205ghStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret405ghStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret805ghStr+15, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+	   memcpy(ret1605ghStr+16, txpwr_custom_table[i].agmodelmhpo, strlen(txpwr_custom_table[i].agmodelmhpo));
+
+	   return 0;
+        }
+    }
+    DHD_ERROR(("%s: Can not find conutry from txpwr_custom_table \n", __FUNCTION__));
+    return 0;
+}
+#endif
 #endif
 static int
 _dhdsdio_download_firmware(struct dhd_bus *bus)

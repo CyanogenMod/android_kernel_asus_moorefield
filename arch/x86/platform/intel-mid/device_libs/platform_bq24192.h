@@ -53,7 +53,7 @@ extern void *bq24192_platform_data(void *info) __attribute__((weak));
 #ifdef CONFIG_CHARGER_BQ24192
 extern int platform_get_battery_pack_temp(int *temp);
 #else
-static int platform_get_battery_pack_temp(int *temp)
+static inline int platform_get_battery_pack_temp(int *temp)
 {
 	return 0;
 }

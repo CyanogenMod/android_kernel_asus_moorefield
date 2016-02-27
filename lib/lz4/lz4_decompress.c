@@ -1,7 +1,7 @@
 /*
  * LZ4 Decompressor for Linux kernel
  *
- * Copyright (C) 2013, LG Electronics, Kyungsik Lee <kyungsik.lee@lge.com>
+ * Copyright (C) 2013 LG Electronics Co., Ltd. (http://www.lge.com/)
  *
  * Based on LZ4 implementation by Yann Collet.
  *
@@ -192,8 +192,6 @@ static int lz4_uncompress_unknownoutputsize(const char *source, char *dest,
 			int s = 255;
 			while ((ip < iend) && (s == 255)) {
 				s = *ip++;
-				if (unlikely(length > (size_t)(length + s)))
-					goto _output_error;
 				length += s;
 			}
 		}
@@ -234,8 +232,6 @@ static int lz4_uncompress_unknownoutputsize(const char *source, char *dest,
 		if (length == ML_MASK) {
 			while (ip < iend) {
 				int s = *ip++;
-				if (unlikely(length > (size_t)(length + s)))
-					goto _output_error;
 				length += s;
 				if (s == 255)
 					continue;
@@ -288,7 +284,7 @@ static int lz4_uncompress_unknownoutputsize(const char *source, char *dest,
 
 	/* write overflow error detected */
 _output_error:
-	return -1;
+	return (int) (-(((char *) ip) - source));
 }
 
 int lz4_decompress(const unsigned char *src, size_t *src_len,

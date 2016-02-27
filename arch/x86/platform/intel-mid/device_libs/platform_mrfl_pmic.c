@@ -116,7 +116,7 @@ out:
  * as soon as the IPC driver is loaded.
  * Issue is supposed to be fixed with A2-PMIC
  */
-void __init pmic_reset_value_wa(void)
+int __init pmic_reset_value_wa(void)
 {
 	u8 id_val;
 	int ret;
@@ -138,5 +138,7 @@ void __init pmic_reset_value_wa(void)
 			intel_scu_ipc_iowrite8(MCHGRIRQ1_ADDR, 0x1F);
 		}
 	}
+
+	return 0;
 }
 rootfs_initcall(pmic_reset_value_wa);

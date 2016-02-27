@@ -49,7 +49,7 @@
 #include "hmm/hmm_bo_dev.h"
 #include "hmm/hmm_common.h"
 
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 #include <linux/ion.h>
 #include <linux/scatterlist.h>
 #endif
@@ -624,7 +624,7 @@ static int get_pfnmap_pages(struct task_struct *tsk, struct mm_struct *mm,
 	return __get_pfnmap_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
 }
 
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 static int alloc_ion_pages(struct hmm_buffer_object *bo,
 			     unsigned int shared_fd)
 {
@@ -767,7 +767,7 @@ out_of_mem:
 
 	return -ENOMEM;
 }
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 static void free_ion_pages(struct hmm_buffer_object *bo)
 {
 	atomisp_kernel_free(bo->page_obj);
@@ -822,7 +822,7 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 				cached, &dynamic_pool, &reserved_pool);
 	else if (type == HMM_BO_USER)
 		ret = alloc_user_pages(bo, userptr, cached);
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 	else if (type == HMM_BO_ION)
 		/*
 		 * TODO:
@@ -875,7 +875,7 @@ void hmm_bo_free_pages(struct hmm_buffer_object *bo)
 		free_private_pages(bo, &dynamic_pool, &reserved_pool);
 	else if (bo->type == HMM_BO_USER)
 		free_user_pages(bo);
-#ifdef CONFIG_ION
+#ifdef CONFIG_ION_FOR_CAMERA
 	else if (bo->type == HMM_BO_ION)
 		free_ion_pages(bo);
 #endif

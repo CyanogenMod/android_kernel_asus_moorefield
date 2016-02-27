@@ -120,7 +120,7 @@ long getProjectId(void)
     }
 
     ret = strict_strtol(buffer,10,&project_id);
-    psh_err("The project id is = 0x%x\n", project_id);
+    psh_err("The project id is = 0x%lx\n", project_id);
 	
     return project_id;
 
