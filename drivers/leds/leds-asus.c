@@ -162,6 +162,26 @@ static ssize_t blink_show(struct device *dev,
 
 	return len;
 }
+
+/* This table is pulled from a kernel driver for a tca6507 chip and seems (experimentally)
+ * to be close enough to what our chip is doing to go with it.
+ */
+static const int blink_ms[] = {
+	64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 5760, 8128, 16320
+};
+#define N_BLINK_MS (sizeof(blink_ms) / sizeof(blink_ms[0]))
+
+static int ms_to_value(int ms)
+{
+	int i;
+
+	/* Divide by 2 because the value is used for both the time in state and fade time */
+	ms /= 2;
+
+	for (i = 0; i < N_BLINK_MS-1 && blink_ms[i] < ms; i++) {}
+	return 0x40 + i;
+}
+
 static ssize_t blink_store(struct device *dev,
         struct device_attribute *attr,
         const char *buf, size_t count)
@@ -169,9 +189,14 @@ static ssize_t blink_store(struct device *dev,
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_info_data *led_dat = container_of(led_cdev, struct led_info_data, cdev);
 	int value;
+	int on_time_ms = 1, off_time_ms = 1000;
+	int on_value, off_value;
 
-	sscanf(buf, "%d", &value);
-	LED_INFO("%s +++, value=%d, led=%s\n", __func__, value, led_dat->cdev.name);
+	sscanf(buf, "%d %d %d", &value, &on_time_ms, &off_time_ms);
+	on_value = ms_to_value(on_time_ms);
+	off_value = ms_to_value(off_time_ms);
+	LED_INFO("%s +++, value=%d, led=%s on_time=%d|%x off_time=%d|%x\n", __func__,
+		value, led_dat->cdev.name, on_time_ms, on_value, off_time_ms, off_value);
 #ifdef CONTROL_LED
 	if(disable_led_flag==0) {
 #endif
@@ -199,24 +224,20 @@ static ssize_t blink_store(struct device *dev,
 			if(!strcmp(led_dat->cdev.name, "red")) {
 				led_i2c_write(led_client, SELECT1_REG, (led_i2c_read(led_client, SELECT1_REG)|RED_BIT));
 				led_i2c_write(led_client, SELECT2_REG, (led_i2c_read(led_client, SELECT2_REG)|RED_BIT));
-				led_i2c_write(led_client, FADE_ON_TIME_REG, 0x40);
-				led_i2c_write(led_client, FULLY_ON_TIME_REG, 0x41);
-				led_i2c_write(led_client, F_FULLY_OFF_TIME_REG, 0x4C);
-				led_i2c_write(led_client, FADE_OFF_TIME_REG, 0x40);
-				led_i2c_write(led_client, S_FULLY_OFF_TIME_REG, 0x4C);
 				red_led_flag = 1;
 				red_blink_flag = 1;
 			}else if(!strcmp(led_dat->cdev.name, "green")) {
 				led_i2c_write(led_client, SELECT1_REG, (led_i2c_read(led_client, SELECT1_REG)|GREEN_BIT));
 				led_i2c_write(led_client, SELECT2_REG, (led_i2c_read(led_client, SELECT2_REG)|GREEN_BIT));
-				led_i2c_write(led_client, FADE_ON_TIME_REG, 0x40);
-				led_i2c_write(led_client, FULLY_ON_TIME_REG, 0x41);
-				led_i2c_write(led_client, F_FULLY_OFF_TIME_REG, 0x4A);
-				led_i2c_write(led_client, FADE_OFF_TIME_REG, 0x40);
-				led_i2c_write(led_client, S_FULLY_OFF_TIME_REG, 0x4A);
 				green_led_flag = 1;
 				green_blink_flag = 1;
 			}
+
+			led_i2c_write(led_client, FADE_ON_TIME_REG, on_value);
+			led_i2c_write(led_client, FULLY_ON_TIME_REG, on_value+1);
+			led_i2c_write(led_client, F_FULLY_OFF_TIME_REG, off_value);
+			led_i2c_write(led_client, FADE_OFF_TIME_REG, on_value);
+			led_i2c_write(led_client, S_FULLY_OFF_TIME_REG, off_value);
 		}else
 			LED_INFO("%s, incorrect pwm value:%d (0-100).\n", __func__, value);
 #ifdef CONTROL_LED
