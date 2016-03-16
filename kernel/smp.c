@@ -103,18 +103,20 @@ void __init call_function_init(void)
  */
 static void csd_lock_wait(struct call_single_data *csd)
 {
+	bool dumped = false;
 	unsigned long timeout = jiffies + 5 * HZ;	/* must be less than Soft & Hard lockup timeouts */
 
 	while (csd->flags & CSD_FLAG_LOCK) {
 		cpu_relax();
 
 		/* Dump useful info in case of deadlock */
-		if (time_after(jiffies, timeout)) {
+		if (! dumped && time_after(jiffies, timeout)) {
 			timeout = jiffies + 5 * HZ;
 			pr_emerg("BUG: CPU %d waiting for CSD lock held by CPU %d\n",
 				smp_processor_id(), csd->cpu);
 			dump_stack();
 			trigger_all_cpu_backtrace();
+			dumped = true;
 		}
 	}
 }
