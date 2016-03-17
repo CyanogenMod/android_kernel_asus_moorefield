@@ -516,7 +516,7 @@ static void __device_release_driver(struct device *dev)
 						     BUS_NOTIFY_UNBIND_DRIVER,
 						     dev);
 
-		pm_runtime_put_sync(dev);
+		pm_runtime_put(dev);
 
 		if (dev->bus && dev->bus->remove)
 			dev->bus->remove(dev);
