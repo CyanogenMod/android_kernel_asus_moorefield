@@ -297,8 +297,8 @@ static void check_gesture(struct ftxxxx_ts_data *data,int gesture_id)
 			//input_report_key(data->input_dev, KEY_GESTURE_U, 0);
 			//input_sync(data->input_dev);
 			if (dclick_mode == 1) {
-				input_report_key(data->input_dev, KEY_POWER, 1);
-				input_report_key(data->input_dev, KEY_POWER, 0);
+				input_report_key(data->input_dev, KEY_WAKEUP, 1);
+				input_report_key(data->input_dev, KEY_WAKEUP, 0);
 				input_sync(data->input_dev);
 			}
 			break;
@@ -1439,7 +1439,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	auc_i2c_write_buf[1] = 0x00;
 	ftxxxx_i2c_Write(client, auc_i2c_write_buf, 2);	//let fw close gesture function 
 	*/
-	input_set_capability(input_dev, EV_KEY, KEY_POWER);
+	input_set_capability(input_dev, EV_KEY, KEY_WAKEUP);
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_U); 
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_UP); 
 	//input_set_capability(input_dev, EV_KEY, KEY_GESTURE_DOWN);
@@ -1455,7 +1455,7 @@ static int ftxxxx_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_Z);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_C);
 
-        __set_bit(KEY_POWER, input_dev->keybit);
+        __set_bit(KEY_WAKEUP, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_RIGHT, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_LEFT, input_dev->keybit);
 	//__set_bit(KEY_GESTURE_UP, input_dev->keybit);
