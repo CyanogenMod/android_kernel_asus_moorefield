@@ -68,14 +68,14 @@
 //#define  KEY_GESTURE_LEFT	KEY_LEFT 
 //#define  KEY_GESTURE_RIGHT	KEY_RIGHT
 //#define  KEY_GESTURE_O	KEY_O
-#define  KEY_GESTURE_E		258
-#define  KEY_GESTURE_C		257
+#define  KEY_GESTURE_E		250
+#define  KEY_GESTURE_C		249
 //#define  KEY_GESTURE_M	KEY_M 
 //#define  KEY_GESTURE_L	KEY_L
-#define  KEY_GESTURE_W		261
-#define  KEY_GESTURE_S		259
-#define  KEY_GESTURE_V		260
-#define  KEY_GESTURE_Z		262
+#define  KEY_GESTURE_W		253
+#define  KEY_GESTURE_S		251
+#define  KEY_GESTURE_V		252
+#define  KEY_GESTURE_Z		254
 
 //#define GESTURE_LEFT		0x20
 //#define GESTURE_RIGHT		0x21
