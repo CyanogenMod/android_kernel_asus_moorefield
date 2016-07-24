@@ -1,0 +1,33 @@
+config TOUCHSCREEN_ATMEL_MXT224
+	tristate "ATMEL mXT224 touchscreen"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have a mXT224 touchscreen
+		If unsure, say N.
+
+config TOUCHSCREEN_R69001_I2C
+	tristate "JDI R69001 touchscreen"
+	depends on I2C
+	default n
+	help
+		Say Y here if you have a R69001 touchscreen
+		If unsure, say N.
+
+config TOUCHSCREEN_ATMEL_MXT_FORK
+	tristate "Atmel mXT I2C Touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have Atmel mXT series I2C touchscreen,
+	  such as ATMXT1664S/ATMXT3432S, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel_mxt_ts.
+
+source "drivers/external_drivers/drivers/input/touchscreen/rmi4/Kconfig"
+source "drivers/external_drivers/drivers/input/touchscreen/synaptics_dsx/Kconfig"
+source "drivers/external_drivers/drivers/input/touchscreen/gt9xx/Kconfig"
+source "drivers/external_drivers/drivers/input/touchscreen/cypress5/Kconfig"

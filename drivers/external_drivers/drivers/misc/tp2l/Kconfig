@@ -1,0 +1,10 @@
+config TRACEPOINT_TO_LOG
+       tristate "Tracepoint binding to T&D logging infrastructure (TP2L)"
+       depends on TRACEPOINTS && DEBUG_FS && INTEL_MID_PTI
+       help
+         This module enables binding between tracepoints and T&D logging
+	 infrastructure (via PTD driver).
+	 A new TP2L probe (allowing the binding) is automatically defined at
+	 precompilation time for each tracepoint (TRACE_EVENT) that is declared
+	 in the trace header files that are included in the TP2L module. The module
+	 also gives a way to enable/disable the TP2L probe for each tracepoint event.

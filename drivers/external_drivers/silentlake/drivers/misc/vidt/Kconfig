@@ -1,0 +1,6 @@
+config VIDT
+    tristate "Virtual Interrupt Descriptor Table"
+    default n
+    help
+      Select this driver to enable VIDT driver for silent lake
+      feature used in Intel moorefield platforms.

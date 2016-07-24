@@ -1,0 +1,41 @@
+config VIDEO_CSS2600
+	tristate "Intel css2600 driver"
+	depends on VIDEO_V4L2
+	select IOMMU_API
+	select IOMMU_IOVA
+	select X86_DEV_DMA_OPS if X86
+	select VIDEOBUF2_DMA_CONTIG
+	select PHYS_ADDR_T_64BIT
+	---help---
+	Say Y here!
+
+choice
+	prompt "css2600 target hardware"
+	depends on VIDEO_CSS2600
+	default VIDEO_CSS2600_2600
+
+config VIDEO_CSS2600_2401
+	tristate "Compile for 2401"
+
+config VIDEO_CSS2600_2600
+	tristate "Compile for 2600"
+
+endchoice
+
+config VIDEO_CSS2600_DEBUG
+	tristate "User space interface for firmware testing"
+	depends on VIDEO_CSS2600_2600
+
+config VIDEO_CSS2600_ISYS
+	bool "Input system"
+	depends on VIDEO_CSS2600
+	---help---
+	FPGA based input system. Select if your FPGA based environment
+	contains an input system.
+
+config VIDEO_CSS2600_PSYS
+	bool "Processing system"
+	depends on VIDEO_CSS2600
+	---help---
+	FPGA based processing system. Select if your FPGA based
+	environment contains a processing system.

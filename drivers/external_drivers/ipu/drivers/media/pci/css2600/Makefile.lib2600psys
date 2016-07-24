@@ -1,0 +1,15 @@
+# note: this file only defines INCLUDES paths for lib2600psys
+
+PSYS2600_INCLUDES := \
+	-I$(srctree)/$(src)/lib2600psys \
+	-I$(srctree)/$(src)/lib2600psys/support \
+	-I$(srctree)/$(src)/lib2600psys/psysapi/data/interface \
+	-I$(srctree)/$(src)/lib2600psys/psysapi/device/interface \
+	-I$(srctree)/$(src)/lib2600psys/psysapi/dynamic/interface \
+	-I$(srctree)/$(src)/lib2600psys/psysapi/kernel/interface \
+	-I$(srctree)/$(src)/lib2600psys/psysapi/param/interface \
+	-I$(srctree)/$(src)/lib2600psys/psysapi/sim/interface \
+	-I$(srctree)/$(src)/lib2600psys/psysapi/static/interface
+
+ccflags-y += $(PSYS2600_INCLUDES)
+

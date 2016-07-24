@@ -1,0 +1,15 @@
+#ifndef _SUBSYSTEM_MMU_DEFS_
+#define _SUBSYSTEM_MMU_DEFS_
+
+#include "processing_system_system.h"
+
+#define HOST_AB_MMU_ADDR	_hrt_master_to_slave_address_host_op0_to_processing_system_unps_logic_configbus_ab_mt_mmu_sl_in
+
+#define AB_MMU_MMU0_ADDR	_hrt_master_to_slave_address_processing_system_unps_logic_configbus_bus_AB_mt_mmu_to_processing_system_unps_logic_mmu_at_system_mmu0_ctrl_in
+#define AB_MMU_MMU1_ADDR	_hrt_master_to_slave_address_processing_system_unps_logic_configbus_bus_AB_mt_mmu_to_processing_system_unps_logic_mmu_at_system_mmu1_ctrl_in
+
+#define HOST_MMU0_ADDR    (HOST_AB_MMU_ADDR + AB_MMU_MMU0_ADDR)
+#define HOST_MMU1_ADDR    (HOST_AB_MMU_ADDR + AB_MMU_MMU1_ADDR)
+
+
+#endif /* _SUBSYSTEM_MMU_DEFS_ */

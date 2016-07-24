@@ -1,0 +1,20 @@
+#
+# LPSS DMA device configuration
+#
+config LPSS_DMA
+	tristate "LPSS DMA support"
+	default n
+	help
+	  Enable support for the Intel(R) LPSS DMA in Intel
+	  MID chipsets.
+
+	  Say Y here if you have such a chipset.
+
+	  If unsure, say N.
+
+config BYT_LPSS_DMA
+	tristate "BYT LPSS DMA support"
+	default n
+	depends on LPSS_DMA
+	help
+	  Baytrail and Cherrytrail LPSS DMA enable

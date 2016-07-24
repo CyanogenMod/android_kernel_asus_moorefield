@@ -1,0 +1,31 @@
+#
+# Intel MID GPS driver.
+#
+
+config INTEL_MID_GPS
+	tristate "Intel MID GPS driver"
+	default n
+	help
+	  Select this driver to enable kernel interface for GPS devices
+	  used in Intel MID platforms.
+	  This driver exports GPIO to user space GPS software
+	  that use a standard tty to communicate with the GPS device.
+
+#
+# Broadcom BCM4774 GPS driver.
+#
+
+config BROADCOM_BCM4774_GPS
+	tristate "Broadcom BCM4774 GPS driver"
+	depends on SERIAL_MFD_HSU || SERIAL_MFD_HSU_EXT
+	default n
+	help
+	  Select this driver to enable kernel interface for GPS devices
+	  used in Broadcom BCM4774 platforms.
+	  This driver exports GPIO to user space GPS software
+	  that use a standard tty to communicate with the GPS device.
+
+config BROADCOM_BCM4774_GPS_UART_PORT
+	int "UART Port (integer)"
+	depends on BROADCOM_BCM4774_GPS
+	default "2"

@@ -1,0 +1,292 @@
+#
+# Copyright(c) 2008 Imagination Technologies Ltd. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms and conditions of the GNU General Public License,
+# version 2, as published by the Free Software Foundation.
+#
+# This program is distributed in the hope it will be useful but, except
+# as otherwise stated in writing, without any warranty; without even the
+# implied warranty of merchantability or fitness for a particular purpose.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# The full GNU General Public License is included in this distribution in
+# the file called "COPYING".
+#
+# Contact Information:
+# Imagination Technologies Ltd. <gpl-support@imgtec.com>
+# Home Park Estate, Kings Langley, Herts, WD4 8LZ, UK
+#
+#
+#
+
+ifneq ($(SUPPORT_DRI_DRM),1)
+$(error SUPPORT_DRI_DRM must be set)
+endif
+
+DISPLAY_CONTROLLER_SOURCES_ROOT := $(KBUILDROOT)/$(DISPLAY_CONTROLLER_DIR)
+
+INCLUDES += 	-I$(EURASIAROOT)/include4 \
+		-I$(EURASIAROOT)/services4/include \
+		-I$(EURASIAROOT)/services4/system/$(PVR_SYSTEM) \
+		-I$(EURASIAROOT)/services4/system/include \
+
+SOURCES	+=	$(DISPLAY_CONTROLLER_SOURCES_ROOT)/drmlfb_displayclass.c \
+			$(DISPLAY_CONTROLLER_SOURCES_ROOT)/drmlfb_linux.c
+
+EXT_EXTRACT_DIR :=
+
+ifeq ("$(DISPLAY_CONTROLLER_VARIANT)", "medfield.new")
+EXT_SOURCE_DIR_REL := drivers/staging/mrst
+else
+EXT_SOURCE_DIR_REL := drivers/gpu/drm/mrst
+endif
+
+ifeq ($(PVR_KBUILD_IN_KERNEL),1)
+# Not in kernel build
+
+ifneq ($(MRST_DRIVER_SOURCE),)
+$(error MRST_DRIVER_SOURCE must not be set for in-kernel builds)
+endif
+
+ifeq ($(DRVKROOT),)
+# Note that DRVKROOT used to point to the "drv" subdirectory
+$(error DRVKROOT must point at the driver sources (e.g. the "mrst" directory))
+endif
+
+EXT_SOURCE_DIR := $(KERNELDIR)/$(EXT_SOURCE_DIR_REL)
+EXT_BUILD_DIR := $(DRVKROOT)
+
+else
+# else ($(PVR_KBUILD_IN_KERNEL),1)
+
+ifeq ($(MRST_DRIVER_SOURCE),)
+ifneq ($(EXTERNAL_3PDD_TARBALL_PATH),)
+EXT_EXTRACT_DIR_REL := $(DISPLAY_CONTROLLER_DIR)/kbuild/tmp_$(PVR_BUILD_DIR)_$(BUILD)_$(MODULE)
+EXT_EXTRACT_DIR_ABS := $(EURASIAROOT)/services4/$(EXT_EXTRACT_DIR_REL)
+EXT_EXTRACT_DIR := $(KBUILDROOT)/$(EXT_EXTRACT_DIR_REL)
+EXT_BUILD_DIR_ABS := $(EXT_EXTRACT_DIR_ABS)/$(EXT_SOURCE_DIR_REL)
+EXT_BUILD_DIR := $(EXT_EXTRACT_DIR)/$(EXT_SOURCE_DIR_REL)
+else
+MRST_DRIVER_SOURCE = $(KERNELDIR)
+endif
+endif
+
+ifeq ($(MRST_DRIVER_SOURCE),)
+EXT_SOURCE_DIR := $(EXT_BUILD_DIR_ABS)
+else
+EXT_SOURCE_DIR := $(MRST_DRIVER_SOURCE)/$(EXT_SOURCE_DIR_REL)
+EXT_BUILD_DIR := $(DISPLAY_CONTROLLER_SOURCES_ROOT)/kbuild/tmp_$(PVR_BUILD_DIR)_$(BUILD)_$(MODULE)
+
+$(src)/$(EXT_BUILD_DIR)/%.c: $(EXT_SOURCE_DIR)/%.c
+	$(SILENT)$(MKDIR) $(dir $@)
+	$(SILENT)$(CP) $< $@
+
+endif
+
+clean-dirs += $(EXT_BUILD_DIR)
+
+MODULE_CFLAGS += -DPVR_MRST_FB_SET_PAR_ON_INIT
+
+ifeq ("$(DISPLAY_CONTROLLER_VARIANT)", "medfield.new")
+MODULE_CFLAGS += -DCONFIG_DRM_INTEL_MID \
+	-DCONFIG_DRM_MDFLD \
+	-DCONFIG_MDFLD_DSI_DBI \
+	-DCONFIG_MDFD_COMMAND_MODE_2
+endif
+
+endif
+# endif ($(PVR_KBUILD_IN_KERNEL),1)
+
+ifneq ("$(DISPLAY_CONTROLLER_VARIANT)", "medfield.new")
+EXT_SOURCE_LIST := \
+	 drv/psb_bl.c \
+	 drv/psb_dpst.c \
+	 drv/psb_drv.c \
+	 drv/psb_fb.c \
+	 drv/psb_gtt.c \
+	 drv/psb_hotplug.c \
+	 drv/psb_intel_bios.c \
+	 drv/psb_intel_display.c \
+	 drv/psb_intel_dsi.c \
+	 drv/psb_intel_i2c.c \
+	 drv/psb_intel_lvds.c \
+	 drv/psb_intel_modes.c \
+	 drv/psb_intel_sdvo.c \
+	 drv/psb_irq.c \
+	 drv/psb_powermgmt.c \
+	 drv/psb_socket.c \
+	 drv/psb_pvr_glue.c \
+	 drv/psb_umevents.c
+endif
+
+ifeq ("$(DISPLAY_CONTROLLER_VARIANT)", "moorestown")
+EXT_SOURCE_LIST += \
+	 drv/psb_reset.c \
+	 drv/psb_buffer.c \
+	 drv/lnc_topaz.c \
+	 drv/lnc_topazinit.c \
+	 drv/psb_fence.c \
+	 drv/psb_mmu.c \
+	 drv/psb_msvdx.c \
+	 drv/psb_msvdxinit.c \
+	 drv/psb_schedule.c \
+	 drv/psb_sgx.c \
+	 drv/psb_ttm_glue.c \
+	 drv/ttm/ttm_agp_backend.c \
+	 drv/ttm/ttm_bo.c \
+	 drv/ttm/ttm_bo_util.c \
+	 drv/ttm/ttm_bo_vm.c \
+	 drv/ttm/ttm_execbuf_util.c \
+	 drv/ttm/ttm_fence.c \
+	 drv/ttm/ttm_fence_user.c \
+	 drv/ttm/ttm_lock.c \
+	 drv/ttm/ttm_memory.c \
+	 drv/ttm/ttm_object.c \
+	 drv/ttm/ttm_pat_compat.c \
+	 drv/ttm/ttm_placement_user.c \
+	 drv/ttm/ttm_tt.c
+endif
+
+ifeq ("$(DISPLAY_CONTROLLER_VARIANT)", "medfield")
+EXT_SOURCE_LIST += \
+	 drv/psb_reset.c \
+	 drv/psb_buffer.c \
+	 drv/lnc_topaz.c \
+	 drv/lnc_topazinit.c \
+	 drv/pnw_topaz.c \
+	 drv/pnw_topazinit.c \
+	 drv/psb_fence.c \
+	 drv/psb_mmu.c \
+	 drv/psb_msvdx.c \
+	 drv/psb_msvdxinit.c \
+	 drv/psb_schedule.c \
+	 drv/psb_sgx.c \
+	 drv/psb_ttm_glue.c \
+	 drv/msvdx_power.c \
+	 drv/mdfld_dsi_dbi.c \
+	 drv/psb_intel_hdmi.c \
+	 drv/psb_intel_hdmi_i2c.c \
+	 drv/topaz_power.c \
+	 drv/ttm/ttm_agp_backend.c \
+	 drv/ttm/ttm_bo.c \
+	 drv/ttm/ttm_bo_util.c \
+	 drv/ttm/ttm_bo_vm.c \
+	 drv/ttm/ttm_execbuf_util.c \
+	 drv/ttm/ttm_fence.c \
+	 drv/ttm/ttm_fence_user.c \
+	 drv/ttm/ttm_lock.c \
+	 drv/ttm/ttm_memory.c \
+	 drv/ttm/ttm_object.c \
+	 drv/ttm/ttm_pat_compat.c \
+	 drv/ttm/ttm_placement_user.c \
+	 drv/ttm/ttm_tt.c
+endif
+
+ifeq ("$(DISPLAY_CONTROLLER_VARIANT)", "medfield.new")
+EXT_SOURCE_LIST := \
+	drv/psb_bl.medfield.c \
+	drv/psb_dpst.medfield.c \
+	drv/psb_drv.medfield.c \
+	drv/psb_fb.medfield.c \
+	drv/psb_gtt.medfield.c \
+	drv/psb_hotplug.medfield.c \
+	drv/psb_intel_bios.medfield.c \
+	drv/psb_intel_display.medfield.c \
+	drv/psb_intel_i2c.medfield.c \
+	drv/psb_intel_lvds.medfield.c \
+	drv/psb_intel_modes.medfield.c \
+	drv/psb_intel_sdvo.medfield.c \
+	drv/psb_intel_hdmi.medfield.c \
+	drv/psb_intel_hdmi_i2c.medfield.c \
+	drv/psb_reset.medfield.c \
+	drv/psb_schedule.medfield.c \
+	drv/psb_sgx.medfield.c \
+	drv/psb_socket.medfield.c \
+	drv/psb_pvr_glue.medfield.c \
+	drv/psb_umevents.medfield.c \
+	drv/psb_intel_dsi.medfield.c \
+	drv/psb_intel_dsi_aava.medfield.c \
+	drv/mdfld_dsi_dbi.medfield.c \
+	drv/mdfld_dsi_dpi.medfield.c \
+	drv/mdfld_dsi_output.medfield.c \
+	drv/psb_powermgmt.medfield.c \
+	drv/psb_irq.medfield.c
+
+EXT_SOURCE_LIST += \
+	imgv/lnc_topaz.medfield.c \
+	imgv/lnc_topazinit.medfield.c \
+	imgv/pnw_topaz.medfield.c \
+	imgv/pnw_topazinit.medfield.c \
+	imgv/psb_buffer.medfield.c \
+	imgv/psb_fence.medfield.c \
+	imgv/psb_mmu.medfield.c \
+	imgv/psb_msvdx.medfield.c \
+	imgv/psb_msvdxinit.medfield.c \
+	imgv/psb_ttm_glue.medfield.c \
+	imgv/psb_ttm_fence.medfield.c \
+	imgv/psb_ttm_fence_user.medfield.c \
+	imgv/psb_ttm_placement_user.medfield.c
+
+EXT_SOURCE_LIST += \
+	ttm/ttm_agp_backend.c \
+	ttm/ttm_memory.c \
+	ttm/ttm_tt.c \
+	ttm/ttm_bo.c \
+        ttm/ttm_bo_util.c \
+	ttm/ttm_bo_vm.c \
+	ttm/ttm_module.c \
+	ttm/ttm_global.c \
+        ttm/ttm_object.c \
+	ttm/ttm_lock.c \
+	ttm/ttm_execbuf_util.c \
+	ttm/ttm_page_alloc.c
+
+EXT_SOURCE_LIST += drm_global.c
+endif
+
+ifneq ("$(DISPLAY_CONTROLLER_VARIANT)", "medfield.new")
+EXT_INCLUDES := \
+		-I$(EXT_SOURCE_DIR)/drv \
+		-I$(EXT_SOURCE_DIR)/drv/ttm
+else
+EXT_INCLUDES := \
+		-I$(EXT_SOURCE_DIR) \
+		-I$(EXT_SOURCE_DIR)/drv \
+		-I$(EXT_SOURCE_DIR)/imgv
+endif
+
+EXT_SOURCES := $(addprefix $(EXT_BUILD_DIR)/,$(EXT_SOURCE_LIST))
+SOURCES := $(EXT_SOURCES) $(SOURCES)
+
+SOURCES += $(KBUILDROOT)/../services4/system/$(PVR_SYSTEM)/sys_pvr_drm_export.c
+
+EXT_INCLUDES_TEMP := $(INCLUDES)
+INCLUDES := $(EXT_INCLUDES) $(EXT_INCLUDES_TEMP)
+
+INCLUDES += -Iinclude/linux
+
+ifeq ("$(DISPLAY_CONTROLLER_VARIANT)", "medfield.new")
+INCLUDES += -Iinclude/drm
+endif
+
+INCLUDES += -I$(EURASIAROOT)/services4/$(DISPLAY_CONTROLLER_DIR)
+
+ifneq ($(EXT_EXTRACT_DIR),)
+
+TAR_OPT_STRIP_COMPONENTS ?= --strip-components
+
+$(src)/$(EXT_BUILD_DIR)/%.c: $(EXTERNAL_3PDD_TARBALL_PATH)
+	$(SILENT)$(MKDIR) $(EXT_EXTRACT_DIR_ABS)
+	$(SILENT)tar $(TAR_OPT_STRIP_COMPONENTS) 1 --touch -jxf $(EXTERNAL_3PDD_TARBALL_PATH) -C $(EXT_EXTRACT_DIR_ABS)
+
+extra_clean:
+	@$(RM) -r $(dir $(EXT_EXTRACT_DIR_ABS))
+
+clean: extra_clean
+
+endif

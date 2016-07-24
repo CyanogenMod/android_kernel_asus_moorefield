@@ -1,0 +1,16 @@
+menuconfig GPS
+	bool "Gps Adapters"
+	default n
+	---help---
+	  Say Y here to enable selecting GPS adapters.
+
+if GPS
+
+# Intel MID GPS
+source "drivers/external_drivers/drivers/gps/intel_mid_gps/Kconfig"
+
+# TI's ST based wl128x GPS
+source "drivers/external_drivers/drivers/gps/wl128x/Kconfig"
+
+endif # GPS
+

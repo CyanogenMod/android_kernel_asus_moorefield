@@ -1,0 +1,26 @@
+#ifndef VIED_NCI_INPUT_FEEDER_RUN_H
+#define VIED_NCI_INPUT_FEEDER_RUN_H
+
+#define _IBC_2600_PROC_CMD_ACK_ADDR 	1
+#define _IBC_2600_REG_IDX_BITS		4
+#define _IBC_2600_GROUP_IDX_BITS	3
+#define _IBC_2600_CMD_INIT_VALUE	0
+#define _IBC_2600_GROUP_PROC_CMD 	2
+#define _IBC_2600_REG_ALIGN 		4
+#define _IBC_2600_DEST_CFG_ST_ADDR	7
+#define _IBC_2600_GROUP_DEST_CFG 	4
+#define _IBC_2600_PROC_CMD_CMD 0
+#define _IBC_2600_CMD_STORE_2ND_BUFFER_MODE 3
+#define _IBC_2600_CMD_FIELD_BITS 2
+#define _IBC_2600_CMD_DEST_IDX(dest_nr) ((dest_nr) * _IBC_2600_CMD_FIELD_BITS)
+#define PSYS_GMEM_BASE_DMA_M2		0x180000
+#define PSYS_GMEM_BASE_DMA_M0		0
+#define	SP_IBC2600_MG_ADDR		0xC0000
+#define	IPF_IBUFF_CTRL_MT_TO_EQC_SLV 0x6000
+#define IPFD_2_SP_CTRL_TILE_EVQ_ADDR 0x1000
+#define IPFD_2_ISP_TILE0_EVQ_ADDR    0x1C1000
+#define AB_2_IPFD_EQC_ADDR	0x8000
+
+void vied_nci_infeeder_stream_run_next(unsigned int stream_id, unsigned int start_address);
+
+#endif //VIED_NCI_INPUT_FEEDER_RUN_H

@@ -1,0 +1,2 @@
+source "drivers/external_drivers/drivers/input/touchscreen/Kconfig"
+source "drivers/external_drivers/drivers/input/misc/Kconfig"

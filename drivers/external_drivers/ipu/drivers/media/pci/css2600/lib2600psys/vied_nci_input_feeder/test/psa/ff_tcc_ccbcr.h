@@ -1,0 +1,999 @@
+// generated file from <device>_reg_descr.hsd by hive_crgen.pl
+#ifndef _ff_tcc_ccbcr_h
+#define _ff_tcc_ccbcr_h
+
+
+#define  GEN_CTRL_ADDR  0x00000
+#define  MACC_A_B_0_ADDR  0x00004
+#define  MACC_A_B_1_ADDR  0x0000c
+#define  MACC_A_B_10_ADDR  0x00054
+#define  MACC_A_B_11_ADDR  0x0005c
+#define  MACC_A_B_12_ADDR  0x00064
+#define  MACC_A_B_13_ADDR  0x0006c
+#define  MACC_A_B_14_ADDR  0x00074
+#define  MACC_A_B_15_ADDR  0x0007c
+#define  MACC_A_B_2_ADDR  0x00014
+#define  MACC_A_B_3_ADDR  0x0001c
+#define  MACC_A_B_4_ADDR  0x00024
+#define  MACC_A_B_5_ADDR  0x0002c
+#define  MACC_A_B_6_ADDR  0x00034
+#define  MACC_A_B_7_ADDR  0x0003c
+#define  MACC_A_B_8_ADDR  0x00044
+#define  MACC_A_B_9_ADDR  0x0004c
+#define  MACC_C_D_0_ADDR  0x00008
+#define  MACC_C_D_1_ADDR  0x00010
+#define  MACC_C_D_10_ADDR  0x00058
+#define  MACC_C_D_11_ADDR  0x00060
+#define  MACC_C_D_12_ADDR  0x00068
+#define  MACC_C_D_13_ADDR  0x00070
+#define  MACC_C_D_14_ADDR  0x00078
+#define  MACC_C_D_15_ADDR  0x00080
+#define  MACC_C_D_2_ADDR  0x00018
+#define  MACC_C_D_3_ADDR  0x00020
+#define  MACC_C_D_4_ADDR  0x00028
+#define  MACC_C_D_5_ADDR  0x00030
+#define  MACC_C_D_6_ADDR  0x00038
+#define  MACC_C_D_7_ADDR  0x00040
+#define  MACC_C_D_8_ADDR  0x00048
+#define  MACC_C_D_9_ADDR  0x00050
+#define  YINV_LUT_0_ADDR  0x00084
+#define  YINV_LUT_1_ADDR  0x00088
+#define  YINV_LUT_2_ADDR  0x0008c
+#define  YINV_LUT_3_ADDR  0x00090
+#define  YINV_LUT_4_ADDR  0x00094
+#define  YINV_LUT_5_ADDR  0x00098
+#define  YINV_LUT_6_ADDR  0x0009c
+#define  FF_TCC_DFD_DATA_READ_CMD_ADDR  0x002ec
+#define  FF_TCC_DFD_DATA_READ_COMPLETION_ADDR  0x002e8
+#define  FF_TCC_DFD_EN_ADDR  0x002d8
+#define  FF_TCC_DFD_SINGLE_STEP_ADDR  0x002dc
+#define  FF_TCC_DFD_TRACED_DATA_ADDR  0x002e0
+#define  FF_TCC_DFD_TRACED_DATA_VALID_ADDR  0x002e4
+#define  GAIN_LUT_128_ADDR  0x002a0
+#define  FF_TCC_HW_ASSR_CLEAR_ADDR  0x002f0
+#define  FF_TCC_HW_ASSR_MASK_ADDR  0x002f4
+#define  FF_TCC_HW_ASSR_RAW_STAT_ADDR  0x002fc
+#define  FF_TCC_HW_ASSR_STAT_ADDR  0x002f8
+#define  FF_TCC_PWR_FEATURE_ADDR  0x002d4
+#define  SQRT_LUT_0_ADDR  0x002a4
+#define  SQRT_LUT_1_ADDR  0x002a8
+#define  SQRT_LUT_10_ADDR  0x002cc
+#define  SQRT_LUT_11_ADDR  0x002d0
+#define  SQRT_LUT_2_ADDR  0x002ac
+#define  SQRT_LUT_3_ADDR  0x002b0
+#define  SQRT_LUT_4_ADDR  0x002b4
+#define  SQRT_LUT_5_ADDR  0x002b8
+#define  SQRT_LUT_6_ADDR  0x002bc
+#define  SQRT_LUT_7_ADDR  0x002c0
+#define  SQRT_LUT_8_ADDR  0x002c4
+#define  SQRT_LUT_9_ADDR  0x002c8
+
+
+
+#define  MEM_BANK_FF_TCC_GAIN_LUT_BASE_REG_ID    40
+#define  MEM_TCC_GAIN_LUT_BASE_REG_IDX  40
+#define  MEM_TCC_GAIN_LUT_LIMIT_REG_IDX  167
+#define  MEM_TCC_GAIN_LUT_BASE_ADDR   0x000a0
+#define  MEM_TCC_GAIN_LUT_LIMIT_ADDR   0x0029c
+
+
+
+#define FF_TCC_CCBCR_PARAM \
+CONSTANT  GEN_CTRL_REG_ID    : INTEGER := 0 ; \
+CONSTANT  MACC_A_B_0_REG_ID    : INTEGER := 1 ; \
+CONSTANT  MACC_C_D_0_REG_ID    : INTEGER := 2 ; \
+CONSTANT  MACC_A_B_1_REG_ID    : INTEGER := 3 ; \
+CONSTANT  MACC_C_D_1_REG_ID    : INTEGER := 4 ; \
+CONSTANT  MACC_A_B_2_REG_ID    : INTEGER := 5 ; \
+CONSTANT  MACC_C_D_2_REG_ID    : INTEGER := 6 ; \
+CONSTANT  MACC_A_B_3_REG_ID    : INTEGER := 7 ; \
+CONSTANT  MACC_C_D_3_REG_ID    : INTEGER := 8 ; \
+CONSTANT  MACC_A_B_4_REG_ID    : INTEGER := 9 ; \
+CONSTANT  MACC_C_D_4_REG_ID    : INTEGER := 10 ; \
+CONSTANT  MACC_A_B_5_REG_ID    : INTEGER := 11 ; \
+CONSTANT  MACC_C_D_5_REG_ID    : INTEGER := 12 ; \
+CONSTANT  MACC_A_B_6_REG_ID    : INTEGER := 13 ; \
+CONSTANT  MACC_C_D_6_REG_ID    : INTEGER := 14 ; \
+CONSTANT  MACC_A_B_7_REG_ID    : INTEGER := 15 ; \
+CONSTANT  MACC_C_D_7_REG_ID    : INTEGER := 16 ; \
+CONSTANT  MACC_A_B_8_REG_ID    : INTEGER := 17 ; \
+CONSTANT  MACC_C_D_8_REG_ID    : INTEGER := 18 ; \
+CONSTANT  MACC_A_B_9_REG_ID    : INTEGER := 19 ; \
+CONSTANT  MACC_C_D_9_REG_ID    : INTEGER := 20 ; \
+CONSTANT  MACC_A_B_10_REG_ID    : INTEGER := 21 ; \
+CONSTANT  MACC_C_D_10_REG_ID    : INTEGER := 22 ; \
+CONSTANT  MACC_A_B_11_REG_ID    : INTEGER := 23 ; \
+CONSTANT  MACC_C_D_11_REG_ID    : INTEGER := 24 ; \
+CONSTANT  MACC_A_B_12_REG_ID    : INTEGER := 25 ; \
+CONSTANT  MACC_C_D_12_REG_ID    : INTEGER := 26 ; \
+CONSTANT  MACC_A_B_13_REG_ID    : INTEGER := 27 ; \
+CONSTANT  MACC_C_D_13_REG_ID    : INTEGER := 28 ; \
+CONSTANT  MACC_A_B_14_REG_ID    : INTEGER := 29 ; \
+CONSTANT  MACC_C_D_14_REG_ID    : INTEGER := 30 ; \
+CONSTANT  MACC_A_B_15_REG_ID    : INTEGER := 31 ; \
+CONSTANT  MACC_C_D_15_REG_ID    : INTEGER := 32 ; \
+CONSTANT  YINV_LUT_0_REG_ID    : INTEGER := 33 ; \
+CONSTANT  YINV_LUT_1_REG_ID    : INTEGER := 34 ; \
+CONSTANT  YINV_LUT_2_REG_ID    : INTEGER := 35 ; \
+CONSTANT  YINV_LUT_3_REG_ID    : INTEGER := 36 ; \
+CONSTANT  YINV_LUT_4_REG_ID    : INTEGER := 37 ; \
+CONSTANT  YINV_LUT_5_REG_ID    : INTEGER := 38 ; \
+CONSTANT  YINV_LUT_6_REG_ID    : INTEGER := 39 ; \
+CONSTANT  GAIN_LUT_128_REG_ID    : INTEGER := 40 ; \
+CONSTANT  SQRT_LUT_0_REG_ID    : INTEGER := 41 ; \
+CONSTANT  SQRT_LUT_1_REG_ID    : INTEGER := 42 ; \
+CONSTANT  SQRT_LUT_2_REG_ID    : INTEGER := 43 ; \
+CONSTANT  SQRT_LUT_3_REG_ID    : INTEGER := 44 ; \
+CONSTANT  SQRT_LUT_4_REG_ID    : INTEGER := 45 ; \
+CONSTANT  SQRT_LUT_5_REG_ID    : INTEGER := 46 ; \
+CONSTANT  SQRT_LUT_6_REG_ID    : INTEGER := 47 ; \
+CONSTANT  SQRT_LUT_7_REG_ID    : INTEGER := 48 ; \
+CONSTANT  SQRT_LUT_8_REG_ID    : INTEGER := 49 ; \
+CONSTANT  SQRT_LUT_9_REG_ID    : INTEGER := 50 ; \
+CONSTANT  SQRT_LUT_10_REG_ID    : INTEGER := 51 ; \
+CONSTANT  SQRT_LUT_11_REG_ID    : INTEGER := 52 ; \
+CONSTANT  PWR_FEATURE_REG_ID    : INTEGER := 53 ; \
+CONSTANT  DFD_EN_REG_ID    : INTEGER := 54 ; \
+CONSTANT  DFD_SINGLE_STEP_REG_ID    : INTEGER := 55 ; \
+CONSTANT  DFD_TRACED_DATA_REG_ID    : INTEGER := 56 ; \
+CONSTANT  DFD_TRACED_DATA_VALID_REG_ID    : INTEGER := 57 ; \
+CONSTANT  DFD_DATA_READ_COMPLETION_REG_ID    : INTEGER := 58 ; \
+CONSTANT  DFD_DATA_READ_CMD_REG_ID    : INTEGER := 59 ; \
+CONSTANT  HW_ASSR_CLEAR_REG_ID    : INTEGER := 60 ; \
+CONSTANT  HW_ASSR_MASK_REG_ID    : INTEGER := 61 ; \
+CONSTANT  HW_ASSR_STAT_REG_ID    : INTEGER := 62 ; \
+CONSTANT  HW_ASSR_RAW_STAT_REG_ID    : INTEGER := 63 ; \
+\
+CONSTANT  GEN_CTRL_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_0_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_1_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_10_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_11_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_12_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_13_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_14_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_15_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_2_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_3_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_4_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_5_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_6_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_7_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_8_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_A_B_9_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_0_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_1_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_10_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_11_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_12_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_13_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_14_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_15_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_2_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_3_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_4_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_5_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_6_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_7_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_8_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  MACC_C_D_9_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  YINV_LUT_0_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  YINV_LUT_1_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  YINV_LUT_2_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  YINV_LUT_3_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  YINV_LUT_4_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  YINV_LUT_5_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  YINV_LUT_6_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  DFD_DATA_READ_CMD_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  DFD_DATA_READ_COMPLETION_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  DFD_EN_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  DFD_SINGLE_STEP_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  DFD_TRACED_DATA_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  DFD_TRACED_DATA_VALID_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  GAIN_LUT_128_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  HW_ASSR_CLEAR_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  HW_ASSR_MASK_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  HW_ASSR_RAW_STAT_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  HW_ASSR_STAT_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  PWR_FEATURE_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_0_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_1_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_10_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_11_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_2_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_3_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_4_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_5_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_6_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_7_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_8_REG_WIDTH    : INTEGER := 32 ; \
+CONSTANT  SQRT_LUT_9_REG_WIDTH    : INTEGER := 32 ; \
+\
+CONSTANT  GEN_CTRL_REG_RSTVAL    : NATURAL := 25 ; \
+CONSTANT  MACC_A_B_0_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_1_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_10_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_11_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_12_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_13_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_14_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_15_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_2_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_3_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_4_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_5_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_6_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_7_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_8_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_A_B_9_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_0_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_1_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_10_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_11_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_12_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_13_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_14_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_15_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_2_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_3_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_4_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_5_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_6_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_7_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_8_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  MACC_C_D_9_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  YINV_LUT_0_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  YINV_LUT_1_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  YINV_LUT_2_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  YINV_LUT_3_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  YINV_LUT_4_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  YINV_LUT_5_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  YINV_LUT_6_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  DFD_DATA_READ_CMD_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  DFD_DATA_READ_COMPLETION_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  DFD_EN_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  DFD_SINGLE_STEP_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  DFD_TRACED_DATA_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  DFD_TRACED_DATA_VALID_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  GAIN_LUT_128_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  HW_ASSR_CLEAR_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  HW_ASSR_MASK_REG_RSTVAL    : NATURAL := 15 ; \
+CONSTANT  HW_ASSR_RAW_STAT_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  HW_ASSR_STAT_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  PWR_FEATURE_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_0_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_1_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_10_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_11_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_2_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_3_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_4_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_5_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_6_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_7_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_8_REG_RSTVAL    : NATURAL := 0 ; \
+CONSTANT  SQRT_LUT_9_REG_RSTVAL    : NATURAL := 0 ; \
+\
+CONSTANT  FF_TCC_NOF_REGS : NATURAL := 192 ; \
+CONSTANT  FF_TCC_NOF_REGS_BANK : NATURAL := 64 ; \
+CONSTANT  c_num_of_regs : NATURAL := 192 ; \
+CONSTANT  c_num_of_regs_bank : NATURAL :=  64; \
+\
+\
+CONSTANT p_data_width                             : D1<INTEGER>; \
+p_data_width{GEN_CTRL_REG_ID} := GEN_CTRL_REG_WIDTH   ; \
+p_data_width{MACC_A_B_0_REG_ID} := MACC_A_B_0_REG_WIDTH   ; \
+p_data_width{MACC_A_B_1_REG_ID} := MACC_A_B_1_REG_WIDTH   ; \
+p_data_width{MACC_A_B_10_REG_ID} := MACC_A_B_10_REG_WIDTH   ; \
+p_data_width{MACC_A_B_11_REG_ID} := MACC_A_B_11_REG_WIDTH   ; \
+p_data_width{MACC_A_B_12_REG_ID} := MACC_A_B_12_REG_WIDTH   ; \
+p_data_width{MACC_A_B_13_REG_ID} := MACC_A_B_13_REG_WIDTH   ; \
+p_data_width{MACC_A_B_14_REG_ID} := MACC_A_B_14_REG_WIDTH   ; \
+p_data_width{MACC_A_B_15_REG_ID} := MACC_A_B_15_REG_WIDTH   ; \
+p_data_width{MACC_A_B_2_REG_ID} := MACC_A_B_2_REG_WIDTH   ; \
+p_data_width{MACC_A_B_3_REG_ID} := MACC_A_B_3_REG_WIDTH   ; \
+p_data_width{MACC_A_B_4_REG_ID} := MACC_A_B_4_REG_WIDTH   ; \
+p_data_width{MACC_A_B_5_REG_ID} := MACC_A_B_5_REG_WIDTH   ; \
+p_data_width{MACC_A_B_6_REG_ID} := MACC_A_B_6_REG_WIDTH   ; \
+p_data_width{MACC_A_B_7_REG_ID} := MACC_A_B_7_REG_WIDTH   ; \
+p_data_width{MACC_A_B_8_REG_ID} := MACC_A_B_8_REG_WIDTH   ; \
+p_data_width{MACC_A_B_9_REG_ID} := MACC_A_B_9_REG_WIDTH   ; \
+p_data_width{MACC_C_D_0_REG_ID} := MACC_C_D_0_REG_WIDTH   ; \
+p_data_width{MACC_C_D_1_REG_ID} := MACC_C_D_1_REG_WIDTH   ; \
+p_data_width{MACC_C_D_10_REG_ID} := MACC_C_D_10_REG_WIDTH   ; \
+p_data_width{MACC_C_D_11_REG_ID} := MACC_C_D_11_REG_WIDTH   ; \
+p_data_width{MACC_C_D_12_REG_ID} := MACC_C_D_12_REG_WIDTH   ; \
+p_data_width{MACC_C_D_13_REG_ID} := MACC_C_D_13_REG_WIDTH   ; \
+p_data_width{MACC_C_D_14_REG_ID} := MACC_C_D_14_REG_WIDTH   ; \
+p_data_width{MACC_C_D_15_REG_ID} := MACC_C_D_15_REG_WIDTH   ; \
+p_data_width{MACC_C_D_2_REG_ID} := MACC_C_D_2_REG_WIDTH   ; \
+p_data_width{MACC_C_D_3_REG_ID} := MACC_C_D_3_REG_WIDTH   ; \
+p_data_width{MACC_C_D_4_REG_ID} := MACC_C_D_4_REG_WIDTH   ; \
+p_data_width{MACC_C_D_5_REG_ID} := MACC_C_D_5_REG_WIDTH   ; \
+p_data_width{MACC_C_D_6_REG_ID} := MACC_C_D_6_REG_WIDTH   ; \
+p_data_width{MACC_C_D_7_REG_ID} := MACC_C_D_7_REG_WIDTH   ; \
+p_data_width{MACC_C_D_8_REG_ID} := MACC_C_D_8_REG_WIDTH   ; \
+p_data_width{MACC_C_D_9_REG_ID} := MACC_C_D_9_REG_WIDTH   ; \
+p_data_width{YINV_LUT_0_REG_ID} := YINV_LUT_0_REG_WIDTH   ; \
+p_data_width{YINV_LUT_1_REG_ID} := YINV_LUT_1_REG_WIDTH   ; \
+p_data_width{YINV_LUT_2_REG_ID} := YINV_LUT_2_REG_WIDTH   ; \
+p_data_width{YINV_LUT_3_REG_ID} := YINV_LUT_3_REG_WIDTH   ; \
+p_data_width{YINV_LUT_4_REG_ID} := YINV_LUT_4_REG_WIDTH   ; \
+p_data_width{YINV_LUT_5_REG_ID} := YINV_LUT_5_REG_WIDTH   ; \
+p_data_width{YINV_LUT_6_REG_ID} := YINV_LUT_6_REG_WIDTH   ; \
+p_data_width{DFD_DATA_READ_CMD_REG_ID} := DFD_DATA_READ_CMD_REG_WIDTH   ; \
+p_data_width{DFD_DATA_READ_COMPLETION_REG_ID} := DFD_DATA_READ_COMPLETION_REG_WIDTH   ; \
+p_data_width{DFD_EN_REG_ID} := DFD_EN_REG_WIDTH   ; \
+p_data_width{DFD_SINGLE_STEP_REG_ID} := DFD_SINGLE_STEP_REG_WIDTH   ; \
+p_data_width{DFD_TRACED_DATA_REG_ID} := DFD_TRACED_DATA_REG_WIDTH   ; \
+p_data_width{DFD_TRACED_DATA_VALID_REG_ID} := DFD_TRACED_DATA_VALID_REG_WIDTH   ; \
+p_data_width{GAIN_LUT_128_REG_ID} := GAIN_LUT_128_REG_WIDTH   ; \
+p_data_width{HW_ASSR_CLEAR_REG_ID} := HW_ASSR_CLEAR_REG_WIDTH   ; \
+p_data_width{HW_ASSR_MASK_REG_ID} := HW_ASSR_MASK_REG_WIDTH   ; \
+p_data_width{HW_ASSR_RAW_STAT_REG_ID} := HW_ASSR_RAW_STAT_REG_WIDTH   ; \
+p_data_width{HW_ASSR_STAT_REG_ID} := HW_ASSR_STAT_REG_WIDTH   ; \
+p_data_width{PWR_FEATURE_REG_ID} := PWR_FEATURE_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_0_REG_ID} := SQRT_LUT_0_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_1_REG_ID} := SQRT_LUT_1_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_10_REG_ID} := SQRT_LUT_10_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_11_REG_ID} := SQRT_LUT_11_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_2_REG_ID} := SQRT_LUT_2_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_3_REG_ID} := SQRT_LUT_3_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_4_REG_ID} := SQRT_LUT_4_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_5_REG_ID} := SQRT_LUT_5_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_6_REG_ID} := SQRT_LUT_6_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_7_REG_ID} := SQRT_LUT_7_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_8_REG_ID} := SQRT_LUT_8_REG_WIDTH   ; \
+p_data_width{SQRT_LUT_9_REG_ID} := SQRT_LUT_9_REG_WIDTH   ; \
+\
+FEATURE c_reg_rst_val                             : D1<BITVECTOR>; \
+c_reg_rst_val{GEN_CTRL_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(GEN_CTRL_REG_RSTVAL), p_data_width{GEN_CTRL_REG_ID})); \
+c_reg_rst_val{MACC_A_B_0_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_0_REG_RSTVAL), p_data_width{MACC_A_B_0_REG_ID})); \
+c_reg_rst_val{MACC_A_B_1_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_1_REG_RSTVAL), p_data_width{MACC_A_B_1_REG_ID})); \
+c_reg_rst_val{MACC_A_B_10_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_10_REG_RSTVAL), p_data_width{MACC_A_B_10_REG_ID})); \
+c_reg_rst_val{MACC_A_B_11_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_11_REG_RSTVAL), p_data_width{MACC_A_B_11_REG_ID})); \
+c_reg_rst_val{MACC_A_B_12_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_12_REG_RSTVAL), p_data_width{MACC_A_B_12_REG_ID})); \
+c_reg_rst_val{MACC_A_B_13_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_13_REG_RSTVAL), p_data_width{MACC_A_B_13_REG_ID})); \
+c_reg_rst_val{MACC_A_B_14_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_14_REG_RSTVAL), p_data_width{MACC_A_B_14_REG_ID})); \
+c_reg_rst_val{MACC_A_B_15_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_15_REG_RSTVAL), p_data_width{MACC_A_B_15_REG_ID})); \
+c_reg_rst_val{MACC_A_B_2_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_2_REG_RSTVAL), p_data_width{MACC_A_B_2_REG_ID})); \
+c_reg_rst_val{MACC_A_B_3_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_3_REG_RSTVAL), p_data_width{MACC_A_B_3_REG_ID})); \
+c_reg_rst_val{MACC_A_B_4_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_4_REG_RSTVAL), p_data_width{MACC_A_B_4_REG_ID})); \
+c_reg_rst_val{MACC_A_B_5_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_5_REG_RSTVAL), p_data_width{MACC_A_B_5_REG_ID})); \
+c_reg_rst_val{MACC_A_B_6_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_6_REG_RSTVAL), p_data_width{MACC_A_B_6_REG_ID})); \
+c_reg_rst_val{MACC_A_B_7_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_7_REG_RSTVAL), p_data_width{MACC_A_B_7_REG_ID})); \
+c_reg_rst_val{MACC_A_B_8_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_8_REG_RSTVAL), p_data_width{MACC_A_B_8_REG_ID})); \
+c_reg_rst_val{MACC_A_B_9_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_A_B_9_REG_RSTVAL), p_data_width{MACC_A_B_9_REG_ID})); \
+c_reg_rst_val{MACC_C_D_0_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_0_REG_RSTVAL), p_data_width{MACC_C_D_0_REG_ID})); \
+c_reg_rst_val{MACC_C_D_1_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_1_REG_RSTVAL), p_data_width{MACC_C_D_1_REG_ID})); \
+c_reg_rst_val{MACC_C_D_10_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_10_REG_RSTVAL), p_data_width{MACC_C_D_10_REG_ID})); \
+c_reg_rst_val{MACC_C_D_11_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_11_REG_RSTVAL), p_data_width{MACC_C_D_11_REG_ID})); \
+c_reg_rst_val{MACC_C_D_12_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_12_REG_RSTVAL), p_data_width{MACC_C_D_12_REG_ID})); \
+c_reg_rst_val{MACC_C_D_13_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_13_REG_RSTVAL), p_data_width{MACC_C_D_13_REG_ID})); \
+c_reg_rst_val{MACC_C_D_14_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_14_REG_RSTVAL), p_data_width{MACC_C_D_14_REG_ID})); \
+c_reg_rst_val{MACC_C_D_15_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_15_REG_RSTVAL), p_data_width{MACC_C_D_15_REG_ID})); \
+c_reg_rst_val{MACC_C_D_2_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_2_REG_RSTVAL), p_data_width{MACC_C_D_2_REG_ID})); \
+c_reg_rst_val{MACC_C_D_3_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_3_REG_RSTVAL), p_data_width{MACC_C_D_3_REG_ID})); \
+c_reg_rst_val{MACC_C_D_4_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_4_REG_RSTVAL), p_data_width{MACC_C_D_4_REG_ID})); \
+c_reg_rst_val{MACC_C_D_5_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_5_REG_RSTVAL), p_data_width{MACC_C_D_5_REG_ID})); \
+c_reg_rst_val{MACC_C_D_6_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_6_REG_RSTVAL), p_data_width{MACC_C_D_6_REG_ID})); \
+c_reg_rst_val{MACC_C_D_7_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_7_REG_RSTVAL), p_data_width{MACC_C_D_7_REG_ID})); \
+c_reg_rst_val{MACC_C_D_8_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_8_REG_RSTVAL), p_data_width{MACC_C_D_8_REG_ID})); \
+c_reg_rst_val{MACC_C_D_9_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(MACC_C_D_9_REG_RSTVAL), p_data_width{MACC_C_D_9_REG_ID})); \
+c_reg_rst_val{YINV_LUT_0_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(YINV_LUT_0_REG_RSTVAL), p_data_width{YINV_LUT_0_REG_ID})); \
+c_reg_rst_val{YINV_LUT_1_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(YINV_LUT_1_REG_RSTVAL), p_data_width{YINV_LUT_1_REG_ID})); \
+c_reg_rst_val{YINV_LUT_2_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(YINV_LUT_2_REG_RSTVAL), p_data_width{YINV_LUT_2_REG_ID})); \
+c_reg_rst_val{YINV_LUT_3_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(YINV_LUT_3_REG_RSTVAL), p_data_width{YINV_LUT_3_REG_ID})); \
+c_reg_rst_val{YINV_LUT_4_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(YINV_LUT_4_REG_RSTVAL), p_data_width{YINV_LUT_4_REG_ID})); \
+c_reg_rst_val{YINV_LUT_5_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(YINV_LUT_5_REG_RSTVAL), p_data_width{YINV_LUT_5_REG_ID})); \
+c_reg_rst_val{YINV_LUT_6_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(YINV_LUT_6_REG_RSTVAL), p_data_width{YINV_LUT_6_REG_ID})); \
+c_reg_rst_val{DFD_DATA_READ_CMD_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(DFD_DATA_READ_CMD_REG_RSTVAL), p_data_width{DFD_DATA_READ_CMD_REG_ID})); \
+c_reg_rst_val{DFD_DATA_READ_COMPLETION_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(DFD_DATA_READ_COMPLETION_REG_RSTVAL), p_data_width{DFD_DATA_READ_COMPLETION_REG_ID})); \
+c_reg_rst_val{DFD_EN_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(DFD_EN_REG_RSTVAL), p_data_width{DFD_EN_REG_ID})); \
+c_reg_rst_val{DFD_SINGLE_STEP_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(DFD_SINGLE_STEP_REG_RSTVAL), p_data_width{DFD_SINGLE_STEP_REG_ID})); \
+c_reg_rst_val{DFD_TRACED_DATA_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(DFD_TRACED_DATA_REG_RSTVAL), p_data_width{DFD_TRACED_DATA_REG_ID})); \
+c_reg_rst_val{DFD_TRACED_DATA_VALID_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(DFD_TRACED_DATA_VALID_REG_RSTVAL), p_data_width{DFD_TRACED_DATA_VALID_REG_ID})); \
+c_reg_rst_val{GAIN_LUT_128_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(GAIN_LUT_128_REG_RSTVAL), p_data_width{GAIN_LUT_128_REG_ID})); \
+c_reg_rst_val{HW_ASSR_CLEAR_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(HW_ASSR_CLEAR_REG_RSTVAL), p_data_width{HW_ASSR_CLEAR_REG_ID})); \
+c_reg_rst_val{HW_ASSR_MASK_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(HW_ASSR_MASK_REG_RSTVAL), p_data_width{HW_ASSR_MASK_REG_ID})); \
+c_reg_rst_val{HW_ASSR_RAW_STAT_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(HW_ASSR_RAW_STAT_REG_RSTVAL), p_data_width{HW_ASSR_RAW_STAT_REG_ID})); \
+c_reg_rst_val{HW_ASSR_STAT_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(HW_ASSR_STAT_REG_RSTVAL), p_data_width{HW_ASSR_STAT_REG_ID})); \
+c_reg_rst_val{PWR_FEATURE_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(PWR_FEATURE_REG_RSTVAL), p_data_width{PWR_FEATURE_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_0_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_0_REG_RSTVAL), p_data_width{SQRT_LUT_0_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_1_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_1_REG_RSTVAL), p_data_width{SQRT_LUT_1_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_10_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_10_REG_RSTVAL), p_data_width{SQRT_LUT_10_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_11_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_11_REG_RSTVAL), p_data_width{SQRT_LUT_11_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_2_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_2_REG_RSTVAL), p_data_width{SQRT_LUT_2_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_3_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_3_REG_RSTVAL), p_data_width{SQRT_LUT_3_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_4_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_4_REG_RSTVAL), p_data_width{SQRT_LUT_4_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_5_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_5_REG_RSTVAL), p_data_width{SQRT_LUT_5_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_6_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_6_REG_RSTVAL), p_data_width{SQRT_LUT_6_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_7_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_7_REG_RSTVAL), p_data_width{SQRT_LUT_7_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_8_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_8_REG_RSTVAL), p_data_width{SQRT_LUT_8_REG_ID})); \
+c_reg_rst_val{SQRT_LUT_9_REG_ID} := BITVECTOR(TO_UNSIGNED(NATURAL(SQRT_LUT_9_REG_RSTVAL), p_data_width{SQRT_LUT_9_REG_ID})); \
+\
+FEATURE p_reg_wmask                             : D1<BITVECTOR>;  \
+ p_reg_wmask{GEN_CTRL_REG_ID}  := X"1F1F001F";\
+ p_reg_wmask{MACC_A_B_0_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_1_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_10_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_11_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_12_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_13_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_14_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_15_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_2_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_3_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_4_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_5_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_6_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_7_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_8_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_A_B_9_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_0_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_1_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_10_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_11_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_12_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_13_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_14_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_15_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_2_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_3_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_4_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_5_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_6_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_7_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_8_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{MACC_C_D_9_REG_ID}  := X"1FFF1FFF";\
+ p_reg_wmask{YINV_LUT_0_REG_ID}  := X"03FF03FF";\
+ p_reg_wmask{YINV_LUT_1_REG_ID}  := X"03FF03FF";\
+ p_reg_wmask{YINV_LUT_2_REG_ID}  := X"03FF03FF";\
+ p_reg_wmask{YINV_LUT_3_REG_ID}  := X"03FF03FF";\
+ p_reg_wmask{YINV_LUT_4_REG_ID}  := X"03FF03FF";\
+ p_reg_wmask{YINV_LUT_5_REG_ID}  := X"03FF03FF";\
+ p_reg_wmask{YINV_LUT_6_REG_ID}  := X"03FF03FF";\
+ p_reg_wmask{DFD_DATA_READ_CMD_REG_ID}  := X"00000001";\
+ p_reg_wmask{DFD_DATA_READ_COMPLETION_REG_ID}  := X"00000000";\
+ p_reg_wmask{DFD_EN_REG_ID}  := X"00000111";\
+ p_reg_wmask{DFD_SINGLE_STEP_REG_ID}  := X"00000001";\
+ p_reg_wmask{DFD_TRACED_DATA_REG_ID}  := X"00000000";\
+ p_reg_wmask{DFD_TRACED_DATA_VALID_REG_ID}  := X"00000000";\
+ p_reg_wmask{GAIN_LUT_128_REG_ID}  := X"00000FFF";\
+ p_reg_wmask{HW_ASSR_CLEAR_REG_ID}  := X"0000000F";\
+ p_reg_wmask{HW_ASSR_MASK_REG_ID}  := X"0000000F";\
+ p_reg_wmask{HW_ASSR_RAW_STAT_REG_ID}  := X"00000000";\
+ p_reg_wmask{HW_ASSR_STAT_REG_ID}  := X"00000000";\
+ p_reg_wmask{PWR_FEATURE_REG_ID}  := X"00000003";\
+ p_reg_wmask{SQRT_LUT_0_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_1_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_10_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_11_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_2_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_3_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_4_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_5_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_6_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_7_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_8_REG_ID}  := X"07FF07FF";\
+ p_reg_wmask{SQRT_LUT_9_REG_ID}  := X"07FF07FF";\
+\
+FEATURE p_reg_rmask                             : D1<BITVECTOR>;  \
+ p_reg_rmask{GEN_CTRL_REG_ID}  := X"1F1F001F";\
+ p_reg_rmask{MACC_A_B_0_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_1_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_10_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_11_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_12_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_13_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_14_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_15_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_2_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_3_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_4_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_5_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_6_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_7_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_8_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_A_B_9_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_0_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_1_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_10_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_11_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_12_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_13_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_14_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_15_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_2_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_3_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_4_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_5_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_6_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_7_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_8_REG_ID}  := X"00000000";\
+ p_reg_rmask{MACC_C_D_9_REG_ID}  := X"00000000";\
+ p_reg_rmask{YINV_LUT_0_REG_ID}  := X"00000000";\
+ p_reg_rmask{YINV_LUT_1_REG_ID}  := X"00000000";\
+ p_reg_rmask{YINV_LUT_2_REG_ID}  := X"00000000";\
+ p_reg_rmask{YINV_LUT_3_REG_ID}  := X"00000000";\
+ p_reg_rmask{YINV_LUT_4_REG_ID}  := X"00000000";\
+ p_reg_rmask{YINV_LUT_5_REG_ID}  := X"00000000";\
+ p_reg_rmask{YINV_LUT_6_REG_ID}  := X"00000000";\
+ p_reg_rmask{DFD_DATA_READ_CMD_REG_ID}  := X"00000001";\
+ p_reg_rmask{DFD_DATA_READ_COMPLETION_REG_ID}  := X"00000001";\
+ p_reg_rmask{DFD_EN_REG_ID}  := X"00000111";\
+ p_reg_rmask{DFD_SINGLE_STEP_REG_ID}  := X"00000001";\
+ p_reg_rmask{DFD_TRACED_DATA_REG_ID}  := X"FFFFFFFF";\
+ p_reg_rmask{DFD_TRACED_DATA_VALID_REG_ID}  := X"00000001";\
+ p_reg_rmask{GAIN_LUT_128_REG_ID}  := X"00000000";\
+ p_reg_rmask{HW_ASSR_CLEAR_REG_ID}  := X"0000000F";\
+ p_reg_rmask{HW_ASSR_MASK_REG_ID}  := X"0000000F";\
+ p_reg_rmask{HW_ASSR_RAW_STAT_REG_ID}  := X"0000000F";\
+ p_reg_rmask{HW_ASSR_STAT_REG_ID}  := X"0000000F";\
+ p_reg_rmask{PWR_FEATURE_REG_ID}  := X"00000003";\
+ p_reg_rmask{SQRT_LUT_0_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_1_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_10_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_11_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_2_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_3_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_4_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_5_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_6_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_7_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_8_REG_ID}  := X"00000000";\
+ p_reg_rmask{SQRT_LUT_9_REG_ID}  := X"00000000";\
+\
+FEATURE p_reg_womask                             : D1<BITVECTOR>;  \
+ p_reg_womask{GEN_CTRL_REG_ID}  := X"00000000";\
+ p_reg_womask{MACC_A_B_0_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_1_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_10_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_11_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_12_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_13_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_14_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_15_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_2_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_3_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_4_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_5_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_6_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_7_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_8_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_A_B_9_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_0_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_1_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_10_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_11_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_12_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_13_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_14_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_15_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_2_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_3_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_4_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_5_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_6_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_7_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_8_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{MACC_C_D_9_REG_ID}  := X"1FFF1FFF";\
+ p_reg_womask{YINV_LUT_0_REG_ID}  := X"03FF03FF";\
+ p_reg_womask{YINV_LUT_1_REG_ID}  := X"03FF03FF";\
+ p_reg_womask{YINV_LUT_2_REG_ID}  := X"03FF03FF";\
+ p_reg_womask{YINV_LUT_3_REG_ID}  := X"03FF03FF";\
+ p_reg_womask{YINV_LUT_4_REG_ID}  := X"03FF03FF";\
+ p_reg_womask{YINV_LUT_5_REG_ID}  := X"03FF03FF";\
+ p_reg_womask{YINV_LUT_6_REG_ID}  := X"03FF03FF";\
+ p_reg_womask{DFD_DATA_READ_CMD_REG_ID}  := X"00000000";\
+ p_reg_womask{DFD_DATA_READ_COMPLETION_REG_ID}  := X"00000000";\
+ p_reg_womask{DFD_EN_REG_ID}  := X"00000000";\
+ p_reg_womask{DFD_SINGLE_STEP_REG_ID}  := X"00000000";\
+ p_reg_womask{DFD_TRACED_DATA_REG_ID}  := X"00000000";\
+ p_reg_womask{DFD_TRACED_DATA_VALID_REG_ID}  := X"00000000";\
+ p_reg_womask{GAIN_LUT_128_REG_ID}  := X"00000FFF";\
+ p_reg_womask{HW_ASSR_CLEAR_REG_ID}  := X"00000000";\
+ p_reg_womask{HW_ASSR_MASK_REG_ID}  := X"00000000";\
+ p_reg_womask{HW_ASSR_RAW_STAT_REG_ID}  := X"00000000";\
+ p_reg_womask{HW_ASSR_STAT_REG_ID}  := X"00000000";\
+ p_reg_womask{PWR_FEATURE_REG_ID}  := X"00000000";\
+ p_reg_womask{SQRT_LUT_0_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_1_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_10_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_11_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_2_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_3_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_4_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_5_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_6_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_7_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_8_REG_ID}  := X"07FF07FF";\
+ p_reg_womask{SQRT_LUT_9_REG_ID}  := X"07FF07FF";\
+\
+FEATURE p_reg_romask                             : D1<BITVECTOR>;  \
+ p_reg_romask{GEN_CTRL_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_0_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_1_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_10_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_11_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_12_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_13_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_14_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_15_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_2_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_3_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_4_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_5_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_6_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_7_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_8_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_A_B_9_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_0_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_1_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_10_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_11_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_12_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_13_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_14_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_15_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_2_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_3_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_4_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_5_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_6_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_7_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_8_REG_ID}  := X"00000000";\
+ p_reg_romask{MACC_C_D_9_REG_ID}  := X"00000000";\
+ p_reg_romask{YINV_LUT_0_REG_ID}  := X"00000000";\
+ p_reg_romask{YINV_LUT_1_REG_ID}  := X"00000000";\
+ p_reg_romask{YINV_LUT_2_REG_ID}  := X"00000000";\
+ p_reg_romask{YINV_LUT_3_REG_ID}  := X"00000000";\
+ p_reg_romask{YINV_LUT_4_REG_ID}  := X"00000000";\
+ p_reg_romask{YINV_LUT_5_REG_ID}  := X"00000000";\
+ p_reg_romask{YINV_LUT_6_REG_ID}  := X"00000000";\
+ p_reg_romask{DFD_DATA_READ_CMD_REG_ID}  := X"00000000";\
+ p_reg_romask{DFD_DATA_READ_COMPLETION_REG_ID}  := X"00000001";\
+ p_reg_romask{DFD_EN_REG_ID}  := X"00000000";\
+ p_reg_romask{DFD_SINGLE_STEP_REG_ID}  := X"00000000";\
+ p_reg_romask{DFD_TRACED_DATA_REG_ID}  := X"FFFFFFFF";\
+ p_reg_romask{DFD_TRACED_DATA_VALID_REG_ID}  := X"00000001";\
+ p_reg_romask{GAIN_LUT_128_REG_ID}  := X"00000000";\
+ p_reg_romask{HW_ASSR_CLEAR_REG_ID}  := X"00000000";\
+ p_reg_romask{HW_ASSR_MASK_REG_ID}  := X"00000000";\
+ p_reg_romask{HW_ASSR_RAW_STAT_REG_ID}  := X"0000000F";\
+ p_reg_romask{HW_ASSR_STAT_REG_ID}  := X"0000000F";\
+ p_reg_romask{PWR_FEATURE_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_0_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_1_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_10_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_11_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_2_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_3_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_4_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_5_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_6_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_7_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_8_REG_ID}  := X"00000000";\
+ p_reg_romask{SQRT_LUT_9_REG_ID}  := X"00000000";\
+\
+FEATURE p_func_en                             : D1<BOOLEAN>;  \
+ p_func_en{GEN_CTRL_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_0_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_1_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_10_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_11_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_12_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_13_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_14_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_15_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_2_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_3_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_4_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_5_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_6_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_7_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_8_REG_ID}  := FALSE; \
+ p_func_en{MACC_A_B_9_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_0_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_1_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_10_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_11_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_12_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_13_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_14_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_15_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_2_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_3_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_4_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_5_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_6_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_7_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_8_REG_ID}  := FALSE; \
+ p_func_en{MACC_C_D_9_REG_ID}  := FALSE; \
+ p_func_en{YINV_LUT_0_REG_ID}  := FALSE; \
+ p_func_en{YINV_LUT_1_REG_ID}  := FALSE; \
+ p_func_en{YINV_LUT_2_REG_ID}  := FALSE; \
+ p_func_en{YINV_LUT_3_REG_ID}  := FALSE; \
+ p_func_en{YINV_LUT_4_REG_ID}  := FALSE; \
+ p_func_en{YINV_LUT_5_REG_ID}  := FALSE; \
+ p_func_en{YINV_LUT_6_REG_ID}  := FALSE; \
+ p_func_en{DFD_DATA_READ_CMD_REG_ID}  := FALSE; \
+ p_func_en{DFD_DATA_READ_COMPLETION_REG_ID}  := TRUE; \
+ p_func_en{DFD_EN_REG_ID}  := FALSE; \
+ p_func_en{DFD_SINGLE_STEP_REG_ID}  := FALSE; \
+ p_func_en{DFD_TRACED_DATA_REG_ID}  := TRUE; \
+ p_func_en{DFD_TRACED_DATA_VALID_REG_ID}  := TRUE; \
+ p_func_en{GAIN_LUT_128_REG_ID}  := FALSE; \
+ p_func_en{HW_ASSR_CLEAR_REG_ID}  := FALSE; \
+ p_func_en{HW_ASSR_MASK_REG_ID}  := FALSE; \
+ p_func_en{HW_ASSR_RAW_STAT_REG_ID}  := TRUE; \
+ p_func_en{HW_ASSR_STAT_REG_ID}  := TRUE; \
+ p_func_en{PWR_FEATURE_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_0_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_1_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_10_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_11_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_2_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_3_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_4_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_5_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_6_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_7_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_8_REG_ID}  := FALSE; \
+ p_func_en{SQRT_LUT_9_REG_ID}  := FALSE; \
+
+
+#define FF_TCC_CCBCR_SIGNALS \
+SIGNAL func_en                                : D1<BIT>(FF_TCC_NOF_REGS_BANK); \
+SIGNAL wire_reg_we                            : D1<BIT>(FF_TCC_NOF_REGS_BANK); \
+SIGNAL wire_reg_outputs                       : D1<BITVECTOR>(p_data_width); \
+SIGNAL func_data                              : D1<BITVECTOR>(p_data_width);
+
+#define GEN_CTRL_BLENDSHIFT_RANGE   3 DOWNTO 1
+#define GEN_CTRL_DELTA_RANGE   28 DOWNTO 24
+#define GEN_CTRL_EN_RANGE   0
+#define GEN_CTRL_GAINACCORDINGTOYONLY_RANGE   4
+#define GEN_CTRL_GAMMA_RANGE   20 DOWNTO 16
+#define MACC_A_B_0_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_0_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_1_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_1_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_10_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_10_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_11_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_11_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_12_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_12_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_13_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_13_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_14_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_14_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_15_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_15_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_2_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_2_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_3_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_3_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_4_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_4_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_5_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_5_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_6_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_6_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_7_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_7_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_8_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_8_B_RANGE   28 DOWNTO 16
+#define MACC_A_B_9_A_RANGE   12 DOWNTO 0
+#define MACC_A_B_9_B_RANGE   28 DOWNTO 16
+#define MACC_C_D_0_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_0_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_1_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_1_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_10_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_10_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_11_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_11_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_12_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_12_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_13_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_13_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_14_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_14_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_15_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_15_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_2_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_2_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_3_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_3_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_4_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_4_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_5_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_5_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_6_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_6_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_7_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_7_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_8_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_8_D_RANGE   28 DOWNTO 16
+#define MACC_C_D_9_C_RANGE   12 DOWNTO 0
+#define MACC_C_D_9_D_RANGE   28 DOWNTO 16
+#define YINV_LUT_0_ENTRY1_RANGE   9 DOWNTO 0
+#define YINV_LUT_0_ENTRY2_RANGE   25 DOWNTO 16
+#define YINV_LUT_1_ENTRY1_RANGE   9 DOWNTO 0
+#define YINV_LUT_1_ENTRY2_RANGE   25 DOWNTO 16
+#define YINV_LUT_2_ENTRY1_RANGE   9 DOWNTO 0
+#define YINV_LUT_2_ENTRY2_RANGE   25 DOWNTO 16
+#define YINV_LUT_3_ENTRY1_RANGE   9 DOWNTO 0
+#define YINV_LUT_3_ENTRY2_RANGE   25 DOWNTO 16
+#define YINV_LUT_4_ENTRY1_RANGE   9 DOWNTO 0
+#define YINV_LUT_4_ENTRY2_RANGE   25 DOWNTO 16
+#define YINV_LUT_5_ENTRY1_RANGE   9 DOWNTO 0
+#define YINV_LUT_5_ENTRY2_RANGE   25 DOWNTO 16
+#define YINV_LUT_6_ENTRY1_RANGE   9 DOWNTO 0
+#define YINV_LUT_6_ENTRY2_RANGE   25 DOWNTO 16
+#define DFD_DATA_READ_CMD_FETCH_RANGE   0
+#define DFD_DATA_READ_COMPLETION_RD_COMP_RANGE   0
+#define DFD_EN_DFD_EN_RANGE   0
+#define DFD_EN_USE_PREV_TRACE_CHAIN_RANGE   8
+#define DFD_EN_USE_PREV_TRIG_CHAIN_RANGE   4
+#define DFD_SINGLE_STEP_SINGLE_STEP_RANGE   0
+#define DFD_TRACED_DATA_DFD_TRACED_DATA_RANGE   31 DOWNTO 0
+#define DFD_TRACED_DATA_VALID_DATA_VALID_RANGE   0
+#define GAIN_LUT_128_GAIN0_RANGE   11 DOWNTO 0
+#define HW_ASSR_CLEAR_CLEAR_RANGE   3 DOWNTO 0
+#define HW_ASSR_MASK_MASK_RANGE   3 DOWNTO 0
+#define HW_ASSR_RAW_STAT_STAT_RANGE   3 DOWNTO 0
+#define HW_ASSR_STAT_STAT_RANGE   3 DOWNTO 0
+#define PWR_FEATURE_EMPTY_EN_RANGE   0
+#define PWR_FEATURE_MOL_EN_RANGE   1
+#define SQRT_LUT_0_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_0_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_1_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_1_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_10_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_10_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_11_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_11_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_2_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_2_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_3_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_3_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_4_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_4_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_5_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_5_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_6_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_6_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_7_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_7_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_8_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_8_SQRT1_RANGE   26 DOWNTO 16
+#define SQRT_LUT_9_SQRT0_RANGE   10 DOWNTO 0
+#define SQRT_LUT_9_SQRT1_RANGE   26 DOWNTO 16
+
+#define DFD_DATA_READ_CMD_FETCH_WIDTH  1
+#define DFD_DATA_READ_COMPLETION_RD_COMP_WIDTH  1
+#define DFD_EN_DFD_EN_WIDTH  1
+#define DFD_EN_USE_PREV_TRACE_CHAIN_WIDTH  1
+#define DFD_EN_USE_PREV_TRIG_CHAIN_WIDTH  1
+#define DFD_SINGLE_STEP_SINGLE_STEP_WIDTH  1
+#define DFD_TRACED_DATA_DFD_TRACED_DATA_WIDTH  32
+#define DFD_TRACED_DATA_VALID_DATA_VALID_WIDTH  1
+#define GAIN_LUT_128_GAIN0_WIDTH  12
+#define GEN_CTRL_BLENDSHIFT_WIDTH  3
+#define GEN_CTRL_DELTA_WIDTH  5
+#define GEN_CTRL_EN_WIDTH  1
+#define GEN_CTRL_GAINACCORDINGTOYONLY_WIDTH  1
+#define GEN_CTRL_GAMMA_WIDTH  5
+#define HW_ASSR_CLEAR_CLEAR_WIDTH  4
+#define HW_ASSR_MASK_MASK_WIDTH  4
+#define HW_ASSR_RAW_STAT_STAT_WIDTH  4
+#define HW_ASSR_STAT_STAT_WIDTH  4
+#define MACC_A_B_0_A_WIDTH  13
+#define MACC_A_B_0_B_WIDTH  13
+#define MACC_A_B_10_A_WIDTH  13
+#define MACC_A_B_10_B_WIDTH  13
+#define MACC_A_B_11_A_WIDTH  13
+#define MACC_A_B_11_B_WIDTH  13
+#define MACC_A_B_12_A_WIDTH  13
+#define MACC_A_B_12_B_WIDTH  13
+#define MACC_A_B_13_A_WIDTH  13
+#define MACC_A_B_13_B_WIDTH  13
+#define MACC_A_B_14_A_WIDTH  13
+#define MACC_A_B_14_B_WIDTH  13
+#define MACC_A_B_15_A_WIDTH  13
+#define MACC_A_B_15_B_WIDTH  13
+#define MACC_A_B_1_A_WIDTH  13
+#define MACC_A_B_1_B_WIDTH  13
+#define MACC_A_B_2_A_WIDTH  13
+#define MACC_A_B_2_B_WIDTH  13
+#define MACC_A_B_3_A_WIDTH  13
+#define MACC_A_B_3_B_WIDTH  13
+#define MACC_A_B_4_A_WIDTH  13
+#define MACC_A_B_4_B_WIDTH  13
+#define MACC_A_B_5_A_WIDTH  13
+#define MACC_A_B_5_B_WIDTH  13
+#define MACC_A_B_6_A_WIDTH  13
+#define MACC_A_B_6_B_WIDTH  13
+#define MACC_A_B_7_A_WIDTH  13
+#define MACC_A_B_7_B_WIDTH  13
+#define MACC_A_B_8_A_WIDTH  13
+#define MACC_A_B_8_B_WIDTH  13
+#define MACC_A_B_9_A_WIDTH  13
+#define MACC_A_B_9_B_WIDTH  13
+#define MACC_C_D_0_C_WIDTH  13
+#define MACC_C_D_0_D_WIDTH  13
+#define MACC_C_D_10_C_WIDTH  13
+#define MACC_C_D_10_D_WIDTH  13
+#define MACC_C_D_11_C_WIDTH  13
+#define MACC_C_D_11_D_WIDTH  13
+#define MACC_C_D_12_C_WIDTH  13
+#define MACC_C_D_12_D_WIDTH  13
+#define MACC_C_D_13_C_WIDTH  13
+#define MACC_C_D_13_D_WIDTH  13
+#define MACC_C_D_14_C_WIDTH  13
+#define MACC_C_D_14_D_WIDTH  13
+#define MACC_C_D_15_C_WIDTH  13
+#define MACC_C_D_15_D_WIDTH  13
+#define MACC_C_D_1_C_WIDTH  13
+#define MACC_C_D_1_D_WIDTH  13
+#define MACC_C_D_2_C_WIDTH  13
+#define MACC_C_D_2_D_WIDTH  13
+#define MACC_C_D_3_C_WIDTH  13
+#define MACC_C_D_3_D_WIDTH  13
+#define MACC_C_D_4_C_WIDTH  13
+#define MACC_C_D_4_D_WIDTH  13
+#define MACC_C_D_5_C_WIDTH  13
+#define MACC_C_D_5_D_WIDTH  13
+#define MACC_C_D_6_C_WIDTH  13
+#define MACC_C_D_6_D_WIDTH  13
+#define MACC_C_D_7_C_WIDTH  13
+#define MACC_C_D_7_D_WIDTH  13
+#define MACC_C_D_8_C_WIDTH  13
+#define MACC_C_D_8_D_WIDTH  13
+#define MACC_C_D_9_C_WIDTH  13
+#define MACC_C_D_9_D_WIDTH  13
+#define PWR_FEATURE_EMPTY_EN_WIDTH  1
+#define PWR_FEATURE_MOL_EN_WIDTH  1
+#define SQRT_LUT_0_SQRT0_WIDTH  11
+#define SQRT_LUT_0_SQRT1_WIDTH  11
+#define SQRT_LUT_10_SQRT0_WIDTH  11
+#define SQRT_LUT_10_SQRT1_WIDTH  11
+#define SQRT_LUT_11_SQRT0_WIDTH  11
+#define SQRT_LUT_11_SQRT1_WIDTH  11
+#define SQRT_LUT_1_SQRT0_WIDTH  11
+#define SQRT_LUT_1_SQRT1_WIDTH  11
+#define SQRT_LUT_2_SQRT0_WIDTH  11
+#define SQRT_LUT_2_SQRT1_WIDTH  11
+#define SQRT_LUT_3_SQRT0_WIDTH  11
+#define SQRT_LUT_3_SQRT1_WIDTH  11
+#define SQRT_LUT_4_SQRT0_WIDTH  11
+#define SQRT_LUT_4_SQRT1_WIDTH  11
+#define SQRT_LUT_5_SQRT0_WIDTH  11
+#define SQRT_LUT_5_SQRT1_WIDTH  11
+#define SQRT_LUT_6_SQRT0_WIDTH  11
+#define SQRT_LUT_6_SQRT1_WIDTH  11
+#define SQRT_LUT_7_SQRT0_WIDTH  11
+#define SQRT_LUT_7_SQRT1_WIDTH  11
+#define SQRT_LUT_8_SQRT0_WIDTH  11
+#define SQRT_LUT_8_SQRT1_WIDTH  11
+#define SQRT_LUT_9_SQRT0_WIDTH  11
+#define SQRT_LUT_9_SQRT1_WIDTH  11
+#define YINV_LUT_0_ENTRY1_WIDTH  10
+#define YINV_LUT_0_ENTRY2_WIDTH  10
+#define YINV_LUT_1_ENTRY1_WIDTH  10
+#define YINV_LUT_1_ENTRY2_WIDTH  10
+#define YINV_LUT_2_ENTRY1_WIDTH  10
+#define YINV_LUT_2_ENTRY2_WIDTH  10
+#define YINV_LUT_3_ENTRY1_WIDTH  10
+#define YINV_LUT_3_ENTRY2_WIDTH  10
+#define YINV_LUT_4_ENTRY1_WIDTH  10
+#define YINV_LUT_4_ENTRY2_WIDTH  10
+#define YINV_LUT_5_ENTRY1_WIDTH  10
+#define YINV_LUT_5_ENTRY2_WIDTH  10
+#define YINV_LUT_6_ENTRY1_WIDTH  10
+#define YINV_LUT_6_ENTRY2_WIDTH  10
+
+
+#endif

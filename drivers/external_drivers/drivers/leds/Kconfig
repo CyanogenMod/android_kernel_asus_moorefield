@@ -1,0 +1,10 @@
+config LEDS_INTEL_KPD
+        tristate "LED driver for Intel Keypad LED"
+        depends on INTEL_SCU_IPC && MID_PWM
+        help
+          This option enables to support for Intel Keypad LED on Medfield Platform
+          LED brightness can be controlled via sysfs.
+
+          For detail information of sysfs control, Please refer to kernel document
+          Documentation/ABI/testing/sysfs-class-led.
+

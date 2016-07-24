@@ -1,0 +1,12 @@
+config REGULATOR_PMIC_AVP
+        tristate "PMIC Avondale Cove voltage regulator"
+        help
+          This driver controls a intel pmic avatele voltage output regulator
+
+config REGULATOR_DOLLAR_COVE
+        bool "Voltage regulator driver for DOLLAR COVE PMIC"
+        ---help---
+           Select for the voltage regulator driver on DOLLAR_COVE PMIC.
+           DOLLAR COVE pmic is used in some variation of CHT/BYT/BTNS platforms.
+           Choose this if platform has DOLLAR COVE pmic and you need
+           voltage regulator driver.

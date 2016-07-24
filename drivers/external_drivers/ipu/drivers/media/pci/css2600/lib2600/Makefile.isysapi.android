@@ -1,0 +1,130 @@
+#############################################################################
+## This Makefile is prepared to build isysapi_test/mipi_capture_test        #
+## Default version is isysapi_test.                                         #
+## In order to build MIPI_CAPTURE test please set the flag below to "1".    #
+MIPI_CAPTURE_TEST ?= 1
+#############################################################################
+MODULES_DIR = $(PWD)
+PROGRAMS = isys_fw
+SYSTEM = input_system_system
+
+include $(MODULES_DIR)/gencfg.mk
+#############################################################################
+## Directories of each module that is used in ISYSAPI        ################
+#############################################################################
+#############################################################################
+#####   REGMEM MODULE  ######################################################
+REGMEM_DIR=$(MODULES_DIR)/regmem
+
+REGMEM_SOURCES1=$(REGMEM_DIR)/src/dmem
+
+REGMEM_HOST_FILES += $(REGMEM_SOURCES1)/regmem_alloc_host.c
+REGMEM_HOST_FILES += $(REGMEM_SOURCES1)/regmem_access_host.c
+
+REGMEM_HOST_CPPFLAGS += -I$(REGMEM_SOURCES1)/src/dmem
+REGMEM_HOST_CPPFLAGS += -I$(REGMEM_DIR)/interface
+REGMEM_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/shared_memory
+REGMEM_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/system_defs
+REGMEM_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/system_defs/input_system_system
+REGMEM_HOST_CPPFLAGS += -I$(MODULES_DIR)/support
+REGMEM_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/temp
+#############################################################################
+#####   PORT MODULE  ########################################################
+PORT_DIR=$(MODULES_DIR)/port
+
+PORT_HOST_FILES += $(PORT_DIR)/src/send_port.c
+PORT_HOST_FILES += $(PORT_DIR)/src/recv_port.c
+PORT_HOST_FILES += $(PORT_DIR)/src/queue.c
+
+PORT_HOST_CPPFLAGS += -I$(PORT_DIR)/interface
+PORT_HOST_CPPFLAGS += -I$(PORT_DIR)/src
+#############################################################################
+#####   SYSCOM MODULE  ######################################################
+SYSCOM_DIR=$(MODULES_DIR)/syscom
+
+SYSCOM_HOST_FILES += $(SYSCOM_DIR)/src/ia_css_syscom.c
+SYSCOM_HOST_FILES += $(SYSCOM_DIR)/src/syscom_sp.c
+
+SYSCOM_HOST_CPPFLAGS += -I$(SYSCOM_DIR)/interface
+SYSCOM_HOST_CPPFLAGS += -I$(SYSCOM_DIR)/src
+SYSCOM_HOST_CPPFLAGS += -I$(MODULES_DIR)/port/interface
+#############################################################################
+#####   ISYSAPI MODULE  #####################################################
+ISYSAPI_DIR=$(MODULES_DIR)/isysapi
+
+ISYSAPI_HOST_FILES += $(ISYSAPI_DIR)/src/ia_css_isys_public.c
+ISYSAPI_HOST_FILES += $(ISYSAPI_DIR)/src/ia_css_isys_private.c
+
+ISYSAPI_HOST_CPPFLAGS += -I$(ISYSAPI_DIR)/interface
+ISYSAPI_HOST_CPPFLAGS += -I$(ISYSAPI_DIR)/src
+ISYSAPI_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/mm
+#############################################################################
+#####   BUFFER MODULE  ######################################################
+BUFFER_DIR=$(MODULES_DIR)/buffer
+
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_output_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_input_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_shared_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_private_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/buffer_access.c
+
+BUFFER_HOST_CPPFLAGS += -I$(BUFFER_DIR)/interface
+
+#############################################################################
+#####   VIED MODULE (Shared memory and subsystems access layer) #############
+VIED_HOST_CPPFLAGS += -I$(MODULES_DIR)/vied
+###########################################################################
+### Gathering all the host source files  ##################################
+###########################################################################
+SRC_LIST += $(REGMEM_HOST_FILES)
+SRC_LIST += $(PORT_HOST_FILES)
+SRC_LIST += $(SYSCOM_HOST_FILES)
+SRC_LIST += $(ISYSAPI_HOST_FILES)
+SRC_LIST += $(STREAMDEVICEAPI_HOST_FILES)
+SRC_LIST += $(BUFFER_HOST_FILES)
+###########################################################################
+### Gathering all the CPP Flags from modules   ############################
+###########################################################################
+CPPFLAGS += $(REGMEM_HOST_CPPFLAGS)
+CPPFLAGS += $(PORT_HOST_CPPFLAGS)
+CPPFLAGS += $(SYSCOM_HOST_CPPFLAGS)
+CPPFLAGS += $(ISYSAPI_HOST_CPPFLAGS)
+CPPFLAGS += $(STREAMDEVICEAPI_HOST_CPPFLAGS)
+CPPFLAGS += $(BUFFER_HOST_CPPFLAGS)
+CPPFLAGS += $(VIED_HOST_CPPFLAGS)
+###########################################################################
+### Include binaries for sp side  #########################################
+###########################################################################
+ifeq ($(MIPI_CAPTURE_TEST),1)
+	CPPFLAGS += -I$(MODULES_DIR)/isysapi/test/mipi_capture/target
+	CPPFLAGS += -I$(MODULES_DIR)/isysapi/test/mipi_capture/hivecc_intermediates/isys_fw_files
+else
+	CPPFLAGS += -I$(MODULES_DIR)/isysapi/test/target
+	CPPFLAGS += -I$(MODULES_DIR)/isysapi/test/hivecc_intermediates/isys_fw_files
+endif
+###########################################################################
+### Gathering all the C Flags  ##########################################
+###########################################################################
+CFLAGS = -W -Wall -Wstrict-prototypes -Wmissing-prototypes -O2 -fomit-frame-pointer -Wno-unused-variable
+###########################################################################
+### Program specific
+CPPFLAGS += -DPROGNAME=$(PROGRAMS)
+CPPFLAGS += -DPROGMAP=\"$(PROGRAMS).map.h\"
+CPPFLAGS += -DSUBSYSTEM_INCLUDE=$(SUBSYSTEM_INCLUDE_STRING)
+CPPFLAGS += -DCELL=$(CELL_STRING)
+CPPFLAGS += -DSPMAIN=isys_fw
+ifeq ($(MIPI_CAPTURE_TEST),1)
+	CPPFLAGS += -DRUN_INTEGRATION
+	CPPFLAGS += -DDEBUG_SP_NCI
+endif
+
+CPPFLAGS += -DCFG_VIED_SUBSYSTEM_ACCESS_LIB_IMPL=1
+
+###########################################################################
+### Platform specific (should be set always)
+CPPFLAGS += -DHRT_ON_VIED_SUBSYSTEM_ACCESS=0
+CPPFLAGS += -DHRT_USE_VIR_ADDRS
+CPPFLAGS += -DHRT_HW
+
+

@@ -1,0 +1,197 @@
+#
+# HSI clients configuration
+#
+
+comment "HSI clients"
+
+config HSI_FFL_TTY
+	tristate "Fixed frame length protocol on HSI"
+	default n
+	depends on HSI
+	help
+	  If you say Y here, you will enable the fixed frame length protocol
+	  driver over an HSI physical link.
+	  This driver implements a TTY interface for transferring data over
+	  HSI between two devices using a fixed frame length protocol.
+
+	  If unsure, say N.
+
+if HSI_FFL_TTY
+
+config HSI_FFL_TTY_NAME
+	string "Base name for the TTY"
+	default "IFX"
+	help
+	  Sets the base name for the TTY associated to this fixed frame length
+	  protocol.
+	  The base name will be appended to the tty interface used by the HSI
+	  fixed frame length protocol.
+
+	  If unsure, use the default value.
+
+
+config HSI_FFL_TTY_FRAME_LENGTH
+	int "Fixed frame length"
+	default "4096"
+	range 4 131072
+	help
+	  Sets the fixed frame length in bytes to be used in this protocol
+	  driver. This frame length must be a multiple of 4 bytes, set between
+	  4 bytes and 128 kiB (131072 bytes).
+
+	  Set to 4096 bytes by default.
+
+config HSI_FFL_TTY_HEADER_LENGTH
+	int "Fixed frame header length"
+	default "4"
+	range 0 4
+	help
+	  Sets the fixed frame header length in bytes to be used in this
+	  protocol driver. This header length must be set to 4 in normal usage
+	  or to 0 in raw protocol debug mode.
+
+	  Set to 4 bytes by default.
+
+config HSI_FFL_ENSURE_LAST_WORD_NULL
+	bool "Ensuring that all TX FFL frames end with zeros"
+	default y
+	help
+	  If you say Y here, the FFL maximal payload will be reduced by 4 bytes
+	  to ensure that the last HSI word is filled with zeros. This feature
+	  is ensuring that both the CADATA and CAFLAG signals are low at the
+	  end of a FFL frame so that no simultaneous DATA and FLAG transitions
+	  can be spotted when the IP is being power-cut.
+
+	  If the attached modem is robust with respect to simultanous DATA and
+	  FLAG transition, say N. Otherwise, it is always safer to say Y.
+
+
+config HSI_FFL_TTY_CHANNEL
+	int "HSI channel"
+	default "0"
+	range 0 15
+	help
+	  Sets the default single channel index to be used for the FFL protocol.
+	  You may need to change this value depending of the implementation of the
+	  fixed length frame (FFL) protocol.
+	  Set to 0 by default.
+	  If unsure, use the default value.
+
+
+config HSI_FFL_TTY_STATS
+	bool "Statistics to assess the performance of the protocol"
+	default n
+	help
+	  If you say Y here, you will instanciate performance related counters
+	  for measuring the number of sent and received frames as well as their
+	  total actual length in bytes.
+
+	  If not fine-tuning the HSI FFL driver, say N.
+
+endif
+
+config HSI_DLP
+	tristate "Data Link Protocol protocol on HSI for LTE IMC modems"
+	default n
+	depends on HSI
+	help
+	  If you say Y here, you will enable the DLP protocol for LTE IMC modem
+	  over an HSI physical link.
+	  This driver implements network interfaces and a TTY interface for
+	  transferring data over HSI between an APE and an IMC modem.
+
+	  If unsure, say N.
+
+if HSI_DLP
+
+config HSI_DLP_IPC_TTY_NAME
+	string "Base name for the IPC TTY"
+	default "IFX"
+	help
+	  Sets the base name for the TTY associated to this IMC modem protocol
+	  for LTE.
+	  The base name will be appended to the tty interface used by the HSI
+	  eDLP protocol.
+
+	  If unsure, use the default value.
+
+config HSI_FLASHING_DEV_NAME
+	string "Base name for the Boot/Flashing driver"
+	default "IFX"
+	help
+	  Sets the base name for the char device associated to this IMC
+	  Boot/Flashing protocol. The base name will be appended to the char
+	  device interface used by the HSI flashing protocol
+
+	  If unsure, use the default value.
+
+config HSI_TRACE_DEV_NAME
+	string "The name for the Modem trace driver"
+	default "mdmTrace"
+	help
+	  Sets the name for the char device associated to this IMC trace protocol
+
+	  If unsure, use the default value.
+
+config HSI_DLP_NET_NAME
+	string "Base name for the network interfaces"
+	default "rmnet"
+	help
+	  The base name will be exported by the network interface used by the
+	  HSI eDLP protocol
+
+	  If unsure, use the default value.
+
+config HSI_DLP_PDU_LENGTH
+	int "Fixed frame length"
+	default "4096"
+	range 4 131072
+	help
+	  Sets the fixed frame length in bytes to be used in this protocol
+	  driver. This frame length must be a multiple of 4 bytes, set between
+	  4 bytes and 128 kiB (131072 bytes).
+
+	  Set to 4096 bytes by default.
+
+config HSI_DLP_TTY_STATS
+	bool "Statistics to assess the performance of the protocol (TTY)"
+	default n
+	help
+	  If you say Y here, you will instanciate performance related counters
+	  for measuring the number of sent and received frames as well as their
+	  total actual length in bytes.
+
+	  If not fine-tuning the HSI IMC LTE driver, say N.
+
+config HSI_DLP_HEADER_LENGTH
+	int "Fixed frame header length"
+	default "4"
+	range 0 4
+	help
+	  Sets the fixed frame header length in bytes to be used in this
+	  protocol driver. This header length must be set to 4 in normal usage
+	  or to 0 in raw protocol debug mode.
+
+	  Set to 4 bytes by default.
+
+endif
+
+config HSI_LOGICAL
+	tristate "Data Link Protocol protocol on HSI for RMC modems"
+	default n
+	depends on HSI
+	help
+	  If you say Y here, you will enable the DLP protocol for RMC modem
+	  over an HSI physical link.
+
+	  If unsure, say N.
+
+config HSI_RMC_VERSION
+	int "HSI version (2 or 3 supported)"
+
+	depends on HSI_LOGICAL
+	default "3"
+	help
+	  Specifies the HSI version used to communicate with the RMC
+	  modem. Version 3 supports 3bits of channel and the Management
+	  of HSI_POWER_OFF message.

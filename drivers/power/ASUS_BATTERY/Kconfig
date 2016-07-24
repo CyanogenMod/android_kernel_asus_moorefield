@@ -1,0 +1,62 @@
+#
+#  Copyright (c) 2013, ASUSTek, Inc. All Rights Reserved.
+#  Written by chih-hsuan chang chih-hsuan_chang@asus.com
+#
+#  Battery driver configuration
+#
+menuconfig ASUS_BATTERY
+	bool "ASUS Battery support"
+        default y
+	help
+	  Say Y here. This option doesn't affect the kernel.
+	  If unsure, say Y.
+
+menuconfig ASUS_ENGINEER_MODE
+	bool "A500CG Battery Engineer Mode"
+	default y
+	help
+	  Say Y here. This option doesn't affect the kernel.
+	  If unsure, say Y.
+
+menuconfig ASUS_BATTERY_POWER
+        bool "ASUS_BATTERY_POWER support"
+        default y
+        help
+          Say Y here. This option doesn't affect the kernel.
+          If unsure, say Y.
+
+if ASUS_BATTERY
+
+config SMB1357_CHARGER
+	tristate "SMB1357 battery charger driver"
+	help
+	  Say Y to enable support for the SMB1357 switching mode based charger
+	  and sysfs. The driver supports controlling charger-enable and
+	  current limiting capabilities. The driver also lets the
+	  SMB1357 be operated as a slave device via the power supply
+	  framework.
+
+config A500CG_BATTERY_SMB347
+	tristate "SMB347 battery charger driver"
+	help
+	  Say Y to enable support for the SMB347 switching mode based charger
+	  and sysfs. The driver supports controlling charger-enable and
+	  current limiting capabilities. The driver also lets the
+	  SMB347 be operated as a slave device via the power supply
+	  framework.
+
+config BATTERY_MM8033
+	tristate "MM8033 battery driver"
+	depends on I2C
+	help
+	  Say Y here to enable support for batteries with MM8033 chips.
+
+config BATTERY_MAX17058
+	tristate "Maxim MAX17058 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17058 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17058 is configured
+	  to operate with a single lithium cell.
+endif
+

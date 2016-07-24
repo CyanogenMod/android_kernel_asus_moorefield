@@ -1,0 +1,9 @@
+config VIDEO_T4K37
+	tristate "Toshiba t4k37 13Mp raw sensor"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Toshiba
+	  RAW sensor.
+
+	  It currently depends on internal V4L2 extensions defined in
+	  atomisp driver.

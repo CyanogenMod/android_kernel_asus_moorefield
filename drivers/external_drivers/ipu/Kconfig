@@ -1,0 +1,2 @@
+source "drivers/external_drivers/ipu/drivers/media/pci/css2600/Kconfig"
+source "drivers/external_drivers/ipu/drivers/media/platform/css2600/Kconfig"

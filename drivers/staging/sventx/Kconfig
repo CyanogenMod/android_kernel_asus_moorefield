@@ -1,0 +1,13 @@
+config SVENTX
+	tristate "SVENTX adaptation layer for the kernel"
+	default n
+	help
+	  SVENTX adaptation layer for the kernel does the binding
+	  between SVENTX API and NPK PCI driver
+
+config SVENTX_TEST
+	tristate "Test module for SVENTX kernel adaptation layer"
+	depends on SVENTX
+	default n
+	help
+	  Test module for the SVENTX adaptation layer

@@ -1,0 +1,4 @@
+config CSS2600_STUB
+	tristate "Intel css2600 processing system stubs"
+	---help---
+	Why not? :-)

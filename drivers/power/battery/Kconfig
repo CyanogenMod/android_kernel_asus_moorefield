@@ -1,0 +1,20 @@
+#
+#  Copyright (c) 2013, ASUSTek, Inc. All Rights Reserved.
+#  Written by chris chang chris1_chang@asus.com
+#
+#  Battery driver configuration
+#
+
+config ME372CG_BATTERY_SMB345
+	tristate "SMB345 battery charger driver"
+	depends on I2C && PF450CL
+	help
+	  Say Y to enable support for the SMB345 switching mode based charger
+	  and sysfs. The driver supports controlling charger-enable and
+	  current limiting capabilities.
+
+config ME372CG_BATTERY_BQ27520
+	tristate "BQ27520 battery driver"
+	depends on I2C && PF450CL
+	help
+	  Say Y here to enable support for batteries with BQ27520(I2C) chips.

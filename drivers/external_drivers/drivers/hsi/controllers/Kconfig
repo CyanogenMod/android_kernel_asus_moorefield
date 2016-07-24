@@ -1,0 +1,33 @@
+#
+# HSI controllers configuration
+#
+comment "HSI controllers"
+
+config HSI_ARASAN
+	tristate "intel_mid_hsi HSI hardware driver"
+	depends on HSI
+	default n
+	help
+	  If you say Y here, you will enable the intel_mid_hsi HSI hardware
+	  driver.
+
+	  If unsure, say N.
+
+if HSI_ARASAN
+
+config HSI_ARASAN_CONFIG
+	boolean
+	default y
+
+config HSI_WAKEUP_PACKET_DUMP_LEN
+	int "HSI Wakeup packet dump length"
+	depends on HSI_ARASAN
+	range 4 8192
+	default "20"
+	help
+		Setting value greater than zero Will enable the dump of the first packet
+		received after the HSI controller wakeup
+
+		If unsure, keep default value (20)
+
+endif # HSI_ARASAN

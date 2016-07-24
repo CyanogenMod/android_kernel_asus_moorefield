@@ -1,0 +1,8 @@
+#
+# PINCTRL infrastructure and drivers
+#
+
+config PINCTRL_INTEL_MID
+	tristate "Intel MID pin controller driver"
+	depends on X86_INTEL_MID && INTEL_SCU_FLIS
+	select GENERIC_PINCONF

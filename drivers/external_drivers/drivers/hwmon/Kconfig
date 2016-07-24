@@ -1,0 +1,149 @@
+config MID_PWM
+	tristate "MID PWM driver for Intel Medfield platform"
+        depends on INTEL_SCU_IPC
+        help
+	  Say Y here to enable MID PWM driver on Intel Medfield Platform.
+	  This driver provides an interface to control the duty cycle of
+	  an output signal. For more information, please refer to the driver
+	  source code.
+
+config SENSORS_L3G4200D_POLL
+	tristate "Polling based STMicroeletronics L3G4200D three-axis angular rate sensor"
+	depends on I2C && INPUT
+	default y
+	help
+	   A polling based L3G4200D gyroscope sensor driver. Support retrieving
+	   gyro data with specified polling intervals in milliseconds. Suitable
+	   for low precision but easy use requirements such as for Android integration.
+           Say Yes here to enable it.
+
+	   This driver can also be built as a module. If so, the module
+	   will be called l3g4200d_poll.
+
+config SENSORS_LIS3DH_ACC
+	tristate "ST Accel Sensor Driver"
+	depends on I2C
+	select INPUT_POLLDEV
+	default y
+	help
+	  Say Yes here to enable the ST LIS3DH accelerometer support
+	  conected through I2C.
+
+	  ST LIS3DH is a 3-axis linear accelerometer with digital output.
+
+          This driver can also be built as a module. If so, the module
+          will be called lis3dh_acc.
+
+config SENSORS_LPS331AP
+	tristate "LPS331AP pressure sensor Driver"
+	depends on I2C && INPUT
+	default y
+	help
+	   Say yes here to enable LPS331AP pressure sensor driver
+
+	   Pressure sensor LPS331AP from STMicroelectronics
+	   please search on
+	   http://www.st.com/ for more details.
+
+	   This driver can also be built as a module. If so, the module
+	   will be called lps331ap.
+
+config SENSORS_LSM303_MAG
+	tristate "ST LSM303DLHC Magnetometer Driver"
+	depends on I2C
+	select INPUT_POLLDEV
+	default y
+	help
+	  Say Yes here to enable the ST LSM303DLHC Magnetometer Driver
+
+	  This driver will enable ST LSM303DLHC Magnetometer device.
+	  LSM303DLHC Magnetometer device is ultra compact high performance
+	  e-compass.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lsm303dlhc_compass.
+
+config SENSORS_MID_VDD
+	tristate "Voltage drop detection driver for Intel Clovertrail plus platform"
+        depends on INTEL_SCU_IPC || CRYSTAL_COVE
+        help
+	  Say Y here to enable Voltage drop detection driver on Intel
+	  Clovertrail plus Platform and Baytrail platform.
+
+	  This driver will enable BCU unit for baytrail or clovertrail.
+	  BCU unit will prevent any extreme drops appearing in
+	  system voltage.
+
+config SENSORS_MRFL_OCD
+	tristate "Basincove BCU driver for Merrifield"
+	depends on INTEL_SCU_IPC
+	help
+	  Say yes here to enable current monitoring driver for
+	  merrifield platform.
+
+	  This driver is specific to basin cove PMIC used in the
+          Merrifield platform.
+
+choice
+	prompt "Select PSH driver"
+	default n
+
+config SENSORS_PSH_MRLD
+        tristate "Intel PSH driver for Merrifield"
+        depends on INTEL_PSH_IPC && INTEL_SCU_IPC_UTIL
+        help
+          Say Y here to enable PSH driver on Intel Merrifield Platform, and
+          this driver depends on PSH IPC and SCU IPC driver.
+
+          This driver can also be built as a module. If so, the module
+          will be called psh.
+
+config SENSORS_PSH_BYT
+        tristate "Intel PSH driver for Baytrail platform"
+        help
+          Say Y here to enable PSH driver for Baytrail platform,
+          this driver depends on !SENSORS_PSH_MRLD.
+          For more information, please refer to the driver
+          source code.
+
+endchoice
+
+config GENERAL_SENSOR
+       tristate  "General Sensor Driver"
+       depends on I2C && INPUT
+       default n
+       help
+          A general sensor driver, support most of sensors which
+          based on i2c and input interface. it will instantiate
+          i2c drivers accroding to user config.
+          Say y here to enable.
+
+config GENERAL_SENSOR_DEBUG
+       bool "Debug option for General Sensor Driver"
+       depends on GENERAL_SENSOR
+       default y
+       help
+          debug option for general sensor driver.
+          Say y here to enable.
+
+config PS_STM8T143
+       bool "STM8T143 proxmity sensor Driver"
+       default n
+       help
+          STM8T143 proxmity sensor Driver
+          Say y here to enable.
+
+config PS_SX9500
+       bool "SX9500 proxmity sensor Driver"
+       default n
+       help
+          SX9500 proxmity sensor Driver
+          Say y here to enable.
+
+config ALSPS_JSA1212
+       bool "JSA ALS and PS sensor Driver"
+       default n
+       help
+          JSA ALS and PS sensor Driver
+          Say y here to enable.
+

@@ -1,0 +1,43 @@
+#ifndef _IA_CSS_TPROXY_LOCAL_H_
+#define _IA_CSS_TPROXY_LOCAL_H_
+
+#include "ia_css_tproxy_debug.h"
+#include "ia_css_tproxy_global.h"
+
+#ifndef IA_CSS_TPROXY_CLIENT_DMEM_BASE
+#define IA_CSS_TPROXY_CLIENT_DMEM_BASE  0x08000  // SPC DMEM
+#endif
+
+#ifndef IA_CSS_TPROXY_CLIENT_EQ_ID
+#define IA_CSS_TPROXY_CLIENT_EQ_ID      EVENT_QUEUE_SPC_ID  // SPC  EQ
+#endif
+
+#ifndef IA_CSS_TPROXY_SERVER_DMEM_BASE
+#define IA_CSS_TPROXY_SERVER_DMEM_BASE  0x38000  // SPP1  DMEM
+#endif
+
+#ifndef IA_CSS_TPROXY_SERVER_EQ_BASE
+#define IA_CSS_TPROXY_SERVER_EQ_BASE    0x31000  // SPP1  EQ
+#endif
+
+#ifndef IA_CSS_TPROXY_SERVER_EQ_ID
+#define IA_CSS_TPROXY_SERVER_EQ_ID      EVENT_QUEUE_SPP1_ID  // SPP1  EQ
+#endif
+
+#ifndef IA_CSS_TPROXY_SYNC_LABEL0
+#define IA_CSS_TPROXY_SYNC_LABEL0	0
+#endif
+
+#ifndef IA_CSS_TPROXY_SYNC_LABEL1
+#define IA_CSS_TPROXY_SYNC_LABEL1	1
+#endif
+
+/* Event queue mailbox */
+#define IA_CSS_TPROXY_CHAN_DMEM_ADDR 0x100   /* channel list SP DMEM addr */
+#define IA_CSS_TPROXY_CHAN_CMEM_ADDR (IA_CSS_TPROXY_SERVER_DMEM_BASE + IA_CSS_TPROXY_CHAN_DMEM_ADDR)
+
+/* Cache memory */
+#define IA_CSS_TPROXY_CACHE_MEMORY_SIZE  0x2040   // 100 Chan
+#define IA_CSS_N_TPROXY_CMEM_GROUPS      20
+
+#endif /*_IA_CSS_TPROXY_LOCAL_H_*/

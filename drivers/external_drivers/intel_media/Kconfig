@@ -1,0 +1,450 @@
+#
+# Drm device configuration
+#
+# This driver provides support for the
+# Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
+#
+
+config DRM_INTEL_MID
+	tristate "Intel Moorestown/Medfield (load along with IMG driver)"
+	depends on DRM && PCI
+	select FB_CFB_COPYAREA
+        select FB_CFB_FILLRECT
+        select FB_CFB_IMAGEBLIT
+        select DRM_KMS_HELPER
+        select GENERIC_ALLOCATOR
+        select DRM_TTM
+	help
+	  xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+choice
+	prompt "Build IMG kernel service as "
+	depends on DRM_INTEL_MID
+	default DRM_MID_RELEASE
+
+config DRM_MID_RELEASE
+	bool "Release"
+	depends on DRM_INTEL_MID
+	help
+	  Build IMG kernel services as release
+
+config DRM_MID_DEBUG
+	bool "Debug"
+	depends on DRM_INTEL_MID
+	help
+	 Build IMG kernel services as debug
+
+endchoice
+
+config DRM_MDFLD
+	tristate "Intel Medfield"
+        depends on DRM_INTEL_MID && PCI
+        select FB_CFB_COPYAREA
+        select FB_CFB_FILLRECT
+        select FB_CFB_IMAGEBLIT
+        select DRM_KMS_HELPER
+        help
+          Choose this option if you have a Medfield platform.
+          If M is selected the module will be called mid_gfx.
+
+config DRM_CTP
+	tristate "Intel Clover Trail Phone"
+        depends on DRM_INTEL_MID && PCI
+        select FB_CFB_COPYAREA
+        select FB_CFB_FILLRECT
+        select FB_CFB_IMAGEBLIT
+        select DRM_KMS_HELPER
+        help
+          Choose this option if you have a Clover Trail Phone
+          platform. If M is selected the module will be called
+          mid_gfx.
+
+config DRM_CTP_PR1
+	tristate "Intel Clover Trail Phone for SGX544MP2(CTP)"
+        depends on DRM_CTP
+        help
+          Choose this option if you have a Clover Trail Phone
+          platform. If M is selected the module will be called
+          mid_gfx.
+
+config GPU_BURST
+	tristate "GPU Burst support"
+	depends on DRM_CTP
+	help
+	  Choose this option to support Intel system-on-a-chip GPU Burst,
+	  wherein the GPU clock frequency may be increased when meaasurement of
+	  the graphics load indicates that additional performance is needed,
+	  subject to thermal conditions.
+
+config MDFLD_DSI_DSR
+	bool "Support DSI Fullscreen Display Self Refreshment "
+	depends on (DRM_MDFLD || DRM_CTP) && !MDFLD_DSI_DPU
+	default y
+	help
+	  Choose this option if you have a Type1 MIPI panel.
+
+config MDFLD_DSI_DPU
+	bool "Support DSI Display Partial Update"
+	depends on DRM_MDFLD || DRM_CTP
+	default n
+	help
+	  xxxxxx
+
+config MDFD_DUAL_MIPI
+        bool "SUPPORT_DUAL_MIPI_DISPLAYS"
+        depends on DRM_MDFLD || DRM_CTP
+        default n
+        help
+          xxxxxx
+
+config SUPPORT_HDMI
+        bool "SUPPORT_HDMI"
+        depends on DRM_MDFLD || DRM_CTP || DRM_I915 || DRM_MRFLD
+        default n
+        help
+          Choose this option to support HDMI.
+
+config SUPPORT_HDMI_NO_DISPLAY
+        bool "SUPPORT_HDMI_NO_DISPLAY"
+        depends on SUPPORT_HDMI
+        default n
+        help
+          Choose this option to support HDMI without DISPLAY.
+	  Brighon Shores platform does not have display but use
+	  HDMI port only on CDB HW.
+
+config CTP_DPST
+        bool "CTP_DPST"
+        depends on DRM_MDFLD || DRM_CTP
+        default n
+        help
+          Choose this option to support DPST.
+
+config PVR_PROC
+        bool "PVR_PROC"
+        depends on DRM_MDFLD || DRM_CTP || DRM_MRFLD
+        default y
+        help
+          Choose this option to support PVR proc debug interface.
+
+config MDFD_GL3
+	bool "Enable GL3 Cache for GUNIT"
+	depends on DRM_MDFLD
+	default n
+	help
+	  xxxxxx
+
+config GFX_RTPM
+	bool "Enable GFX runtime_pm"
+	depends on DRM_MDFLD || DRM_CTP
+	default n
+	help
+	  xxxxxx
+
+config R63311_MIPI_VIDEO_MODE
+	bool "support jdi 1920x1080 MIPI panel"
+	default n
+
+config SUPPORT_DDS_MIPI_SWITCH
+        bool "Support DDS MIPI switch"
+        depends on DRM_MDFLD || DRM_CTP
+        default n
+        help
+          xxxxxx
+
+config SUPPORT_P73L_TWO_LANE
+       bool "Support pf450cl pad with two lane"
+       depends on DRM_MDFLD || DRM_CTP
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_TOSHIBA_MIPI_DISPLAY
+	bool "Support Toshiba TC358762 MIPI Bridge and Toshiba JBT6K84 Panel"
+	depends on DRM_MDFLD
+	default y
+	help
+	  xxxxxx
+
+config SUPPORT_TMD_MIPI_600X1024_DISPLAY
+       bool "Support Toshiba 600x1024 MIPI interface Panel"
+       depends on DRM_MDFLD || DRM_CTP
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_YB_MIPI_DISPLAY
+       bool "Support YB CMI MIPI interface Panel"
+       depends on DRM_MDFLD || DRM_CTP
+       default n
+       help
+         this is to support YB CMI MIPI interface Panel which is a
+         1024x600 panel.
+         say n if the panel is not in use.
+
+config SUPPORT_VB_MIPI_DISPLAY
+       bool "Support VB MIPI interface Panel"
+       depends on DRM_CTP
+       default n
+       help
+         this is to support VB MIPI interface
+         panel. (Sharp LS04XK3SX01 display with
+         Sharp IR2E69E6 DCDC driver)
+         say n if the panel is not in use.
+
+config SUPPORT_TOSHIBA_MIPI_LVDS_BRIDGE
+       bool "Support Toshiba LVDS MIPI Bridge interface Panel"
+       depends on DRM_MDFLD || DRM_CTP
+       default n
+       help
+         xxxxxx
+
+config MDFD_VIDEO_DECODE
+	bool "Support for Medfield Video Decode"
+	depends on DRM_MDFLD || DRM_CTP
+	default n
+	help
+	  xxxxxx
+
+config SUPPORT_MIPI_H8C7_DISPLAY
+       bool "Support CMI h8c7 720x1280 MIPI interface Panel"
+       depends on DRM_MDFLD || DRM_CTP
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_MIPI_H8C7_CMD_DISPLAY
+       bool "Support CMI h8c7 720x1280 MIPI interface Panel"
+       depends on DRM_MDFLD || DRM_CTP
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_MIPI_OTM1284A_DISPLAY
+       bool "Support Orise OTM1284A 720x1280 4-lanes MIPI interface Panel"
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_MIPI_OTM1901A_DISPLAY
+       bool "Support Orise OTM1901A 1080x1920 4-lanes MIPI interface Panel"
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_MIPI_NT35596_DISPLAY
+       bool "Support Novatek NT35596 1080x1920 4-lanes MIPI interface Panel"
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_MIPI_SAMSUNG_FHD_DISPLAY
+       bool "Support Samsung 1080x1920 4-lanes MIPI interface Panel"
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_MIPI_SAMSUNG_WQHD_DISPLAY
+       bool "Support Samsung 1440x2560 4-lanes MIPI interface Panel"
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_MIPI_TD4300_DISPLAY
+       bool "Support Synaptics TD4300 1080x1920 4-lanes MIPI interface Panel"
+       default n
+       help
+         xxxxxx
+
+config MDFD_VIDEO_ENCODE
+	bool "Support for Medfield Video Encode"
+	depends on DRM_MDFLD || DRM_CTP
+	default n
+	help
+	  xxxxxx
+
+config SUPPORT_AUO_MIPI_SC1_DISPLAY
+	tristate "Support Enzo 540 x 960 MIPI interface Panel in video mode"
+	depends on DRM_MDFLD
+	default n
+	help
+	  Choose this option if
+	  you have a SC1 video
+	  mode MIPI panel, with
+	  540 x 960 resolution
+	  in portrait mode.
+
+config SUPPORT_AUO_MIPI_SC1_COMMAND_MODE_DISPLAY
+	tristate "Support Enzo 540 x 960 MIPI interface Panel in command mode"
+	depends on DRM_MDFLD
+	default n
+	help
+	  Choose this option if
+	  you have a SC1 command
+	  mode MIPI panel, with
+	  540 x 960 resolution
+	  in portrait mode.
+
+config SUPPORT_GI_MIPI_SONY_DISPLAY
+	tristate "Support GI 320 x 480 MIPI interface Panel in video mode"
+	depends on DRM_MDFLD
+	default n
+	help
+	  Choose this option if
+	  you have a GI video
+	  mode MIPI panel, with
+	  320 x 480 resolution
+	  in portrait mode.
+
+config SUPPORT_GI_MIPI_SONY_COMMAND_MODE_DISPLAY
+	tristate "Support GI 320 x 480 MIPI interface Panel in command mode"
+	depends on DRM_MDFLD
+	default n
+	help
+	  Choose this option if
+	  you have a GI command
+	  mode MIPI panel, with
+	  320 x 480 resolution
+	  in portrait mode.
+
+config GFX_ON_GI
+	tristate "Differentiate platform for specific GFX setting"
+	depends on DRM_MDFLD
+	default n
+	help
+	  xxxxxx
+
+config DRM_INTEL_HANDSET
+	tristate "Intel Merrifield Graphics Driver Support (load along with IMG driver)"
+	depends on DRM && PCI
+	select FB_CFB_COPYAREA
+        select FB_CFB_FILLRECT
+        select FB_CFB_IMAGEBLIT
+        select DRM_KMS_HELPER
+        select DRM_TTM
+	help
+	  xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+choice
+	prompt "Build IMG kernel service as "
+	depends on DRM_INTEL_HANDSET
+	default DRM_HANDSET_RELEASE
+
+config DRM_HANDSET_RELEASE
+	bool "Release"
+	depends on DRM_INTEL_HANDSET
+	help
+	  Build IMG kernel services as release
+
+config DRM_HANDSET_DEBUG
+	bool "Debug"
+	depends on DRM_INTEL_HANDSET
+	help
+	  Build IMG kernel services as debug
+
+endchoice
+
+config GFX_RGX_BVNC
+	string
+	depends on DRM_INTEL_HANDSET
+	prompt "IMG graphics driver BNVC specification"
+	help
+	    A build configuration parameter which must have the same value
+	    for the IMG kernel mode driver and the IMG user mode driver.
+	    The BVNC value will differ depending upon target (e.g.,
+	    Merrifield vs. Moorefield) and desired build configuration.
+	    Normally a value recommended by IMG is used.
+	    Examples as of 2013-12-06:
+	    - Merrifield - 1.14.4.4 - DDK1.2
+	    - Merrifield - 1.76.4.6 - DDK1.3
+	    - Moorefield - 1.72.4.12 - either DDK
+
+config MRFL_DISPLAY
+	tristate "Intel Merrifield Generic Framebuffer Driver"
+	depends on PCI && X86_MRFLD && !DRM_MDFLD && FB
+	default n
+	select FB_CFB_COPYAREA
+        select FB_CFB_FILLRECT
+        select FB_CFB_IMAGEBLIT
+	help
+	   Basic support for Generic Framebuffer Driver for Merrifield.
+
+config DRM_MRFLD
+        tristate "Intel Merrifield Graphics Driver Support with IMG"
+        depends on DRM_INTEL_HANDSET && PCI
+        select FB_CFB_COPYAREA
+        select FB_CFB_FILLRECT
+        select FB_CFB_IMAGEBLIT
+        select DRM_KMS_HELPER
+        select GENERIC_ALLOCATOR
+        help
+          Choose this option if you have a Merrifield platform.
+          If M is selected the module will be called mid_gfx.
+
+config PDUMP
+        bool "Enable pdump in Merrifield graphics driver"
+        depends on DRM_MRFLD
+        default n
+        help
+          Choose this option to enable pdump on Merrifield.
+
+config MID_DSI_DSR
+	bool "Support DSI Fullscreen Display Self Refreshment "
+	depends on DRM_INTEL_HANDSET && !MID_DSI_DPU
+	default y
+	help
+	  Choose this option if you have a Type1 MIPI panel.
+
+config MID_DSI_DPU
+	bool "Support DSI Display Partial Update"
+	depends on DRM_INTEL_HANDSET
+	default n
+	help
+	  xxxxxx
+
+config GFX_RTPM
+	bool "Enable GFX runtime_pm"
+	depends on DRM_INTEL_HANDSET
+	default n
+	help
+          xxxxxx
+
+config SUPPORT_VSP
+        bool "SUPPORT_VIDEO_VSP"
+        depends on DRM_MRFLD
+        default n
+        help
+          xxxxxx
+
+config GFX_RGX_DEVFREQ
+	tristate "IMG Rogue Graphics DEVFREQ Driver"
+	default y
+	depends on PM_DEVFREQ && DRM_INTEL_HANDSET
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select DEVFREQ_GOV_PERFORMANCE
+	select DEVFREQ_GOV_POWERSAVE
+	help
+	  This adds the DEVFREQ driver for Imagination Technologies (IMG)
+	  Rogue/Hood graphics (RGX).  This driver helps control GPU clock
+	  speed in order to provide high performance on demand and power
+	  savings when not busy or when thermal conditions suggest.
+
+config DRM_VXD_BYT
+       bool "Enable vxd on intel by default"
+       depends on DRM_I915
+       default n
+       select DRM_TTM
+       help
+         Choose this option if you want to enable VXD decoding for Baylake platform
+
+config MOOREFIELD
+	bool "Build option for the Moorefield platform"
+	depends on DRM_INTEL_HANDSET
+	default n
+	help
+	  For the GFX block of TNG/ANN, its power islands' power on/off sequences are:
+	  1. Power on:  SLC_LDO -> SLC -> Sidekick -> Rascal/Dust;
+	  2. Power off: Rascal/Dust -> Sidekick -> SLC -> SLC_LDO;
+	  So we should follow the sequence, and VED/VEC/VSP power islands just depend
+	  on the SLC power island.
+	  And it would distinguish the Display Class implementation.

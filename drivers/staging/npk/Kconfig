@@ -1,0 +1,72 @@
+config INTEL_NORTHPEAK
+	tristate "North Peak PCI driver"
+	depends on PCI
+	default n
+	---help---
+	 North Peak PCI driver for North Peak device configuration
+	 and trace access.
+
+config INTEL_NORTHPEAK_UTIL
+	tristate "North Peak Utility driver"
+	depends on INTEL_NORTHPEAK
+	default n
+	---help---
+	 North Peak utility driver provides register access through
+	 ioctl commands to configure the North Peak device.
+
+config INTEL_NORTHPEAK_TRACE
+	tristate "North Peak Trace driver"
+	depends on INTEL_NORTHPEAK
+	default n
+	---help---
+	 North Peak trace driver provides access to Noth Peak trace
+	 buffer through ioctl commands.
+
+config INTEL_NORTHPEAK_EARLY_PRINTK
+	tristate "North Peak early printk console"
+	depends on INTEL_NORTHPEAK
+	default n
+	---help---
+	 Allows to write early printk messages to North Peak device
+
+config NPK_SW_BAR
+	hex "Physical address of the NPK device's SW_BAR "
+	depends on INTEL_NORTHPEAK_EARLY_PRINTK
+	default 0xb3400000
+	---help---
+	 This is the physical base address of the NPK device's SW_BAR.
+	 This corresponds to the Software Trace Memory Region, i.e. an
+	 MMIO space used by software/firmware to send debug messages to
+	 North Peak
+
+config NPK_CHANNEL_COUNT
+	int "Number of software channels per master"
+	depends on INTEL_NORTHPEAK_EARLY_PRINTK
+	default 128
+	---help---
+	 This is the number of software channels per master for the
+	 NPK device's software trace hub
+
+config NPK_FIRST_CHANNEL_FOR_EARLY_PRINTK
+	int "ID of the first software channel reserved for early printk"
+	depends on INTEL_NORTHPEAK_EARLY_PRINTK
+	default 23
+	---help---
+	 This is the ID of the first software channel that is reserved
+	 for early printk messages for each logical processor
+
+config NPK_NUM_CHANNELS_FOR_EARLY_PRINTK
+	int "Number of software channels reserved for early printk"
+	depends on INTEL_NORTHPEAK_EARLY_PRINTK
+	default 4
+	---help---
+	 This is the number of software channels that are reserved
+	 for early printk messages for each logical processor
+
+config INTEL_NORTHPEAK_DVC_IO
+	tristate "DvC.Trace over NorthPeak"
+	depends on USB_G_ANDROID && INTEL_NORTHPEAK_TRACE
+	default n
+	---help---
+	  DvC.Trace will use NorthPeak multi-window buffer
+	  and PCI device.

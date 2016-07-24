@@ -1,0 +1,12 @@
+#
+# TI's wl128x GPS driver based on TI's ST driver.
+#
+menu "Texas Instruments WL128x GPS driver (ST based)"
+config ST_GPS
+	tristate "Texas Instruments WL128x GPS driver"
+	select TI_ST
+	help
+	  This enables the GPS driver for TI WL128x BT/FM/GPS combo devices.
+	  It will provide a character device for the TI GPS host software to
+	  access the GPS core on the WL128x.
+endmenu

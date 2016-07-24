@@ -1,0 +1,69 @@
+lib2600-mod-objs := lib2600/isysapi/src/ia_css_isys_private.o \
+			lib2600/isysapi/src/ia_css_isys_public.o \
+			lib2600/buffer/src/cpu/ia_css_shared_buffer.o \
+			lib2600/buffer/src/cpu/ia_css_input_buffer.o \
+			lib2600/buffer/src/cpu/ia_css_output_buffer.o \
+			lib2600/buffer/src/cpu/ia_css_buffer.o \
+			lib2600/buffer/src/cpu/buffer_access.o \
+			lib2600/syscom/src/ia_css_syscom.o \
+			lib2600/syscom/src/syscom_sp.o \
+			lib2600/regmem/src/dmem/regmem_alloc_host.o \
+			lib2600/regmem/src/dmem/regmem_access_host.o \
+			lib2600/port/src/send_port.o \
+			lib2600/port/src/recv_port.o \
+			lib2600/port/src/queue.o \
+			libcss2600.o
+
+obj-$(CONFIG_VIDEO_CSS2600)	+= lib2600-mod.o
+
+INCLUDES := -I$(srctree)/$(src)/lib2600 \
+	    -I$(srctree)/$(src)/ \
+	    -I$(srctree)/$(src)/lib2600/isysapi/src \
+	    -I$(srctree)/$(src)/lib2600/isysapi/interface \
+	    -I$(srctree)/$(src)/lib2600/syscom/interface \
+	    -I$(srctree)/$(src)/lib2600/buffer/interface \
+	    -I$(srctree)/$(src)/lib2600/buffer/src/cpu \
+	    -I$(srctree)/$(src)/lib2600/regmem/src/dmem \
+	    -I$(srctree)/$(src)/lib2600/utils/system_defs \
+	    -I$(srctree)/$(src)/lib2600/utils/shared_memory \
+	    -I$(srctree)/$(src)/lib2600/utils/info_bits \
+	    -I$(srctree)/$(src)/lib2600/port/interface \
+	    -I$(srctree)/$(src)/lib2600/port/src \
+	    -I$(srctree)/$(src)/lib2600/support \
+	    -I$(srctree)/$(src)/lib2600/streamdeviceapi/src \
+	    -I$(srctree)/$(src)/lib2600/streamdeviceapi/interface \
+	    -I$(srctree)/$(src)/lib2600/utils/system_defs/processing_system_system \
+	    -I$(srctree)/$(src)/lib2600/utils/system_defs/input_system_system \
+	    -I$(srctree)/$(src)/lib2600/utils/system_defs/ \
+	    -I$(srctree)/$(src)/lib2600/utils/system_defs/ \
+	    -I$(srctree)/$(src)/lib2600/utils/temp \
+	    -I$(srctree)/$(src)/lib2600/utils/support \
+	    -I$(srctree)/$(src)/lib2600/regmem/src/dmem \
+	    -I$(srctree)/$(src)/lib2600/regmem/src/gpreg \
+	    -I$(srctree)/$(src)/lib2600/regmem/interface \
+	    -I$(srctree)/$(src)/lib2600/vied \
+	    -I$(srctree)/$(src)/lib2600/vied/vied \
+	    -I$(srctree)/$(src)/lib2600/vied/host \
+	    -I$(srctree)/$(src)/lib2600/isysapi/test/mipi_capture/target/ \
+	    -I$(srctree)/$(src)/lib2600/isysapi/test/target/
+
+PROGRAMS = isys_fw
+SYSTEM = input_system_system
+include $(srctree)/$(src)/gencfg.mk
+
+DEFINES := -D__HOST__ -D__KERNEL__ -DISYS_FPGA -DPSYS_FPGA
+DEFINES += -DCFG_VIED_SUBSYSTEM_ACCESS_LIB_IMPL
+DEFINES += -DHRT_HW
+DEFINES += -DHRT_USE_VIR_ADDRS
+DEFINES += -DHRT_ON_VIED_SUBSYSTEM_ACCESS=0
+DEFINES += -DHRT_KERNEL
+DEFINES += -DPROGNAME=$(PROGRAMS)
+DEFINES += -DPROGMAP=\"$(PROGRAMS).map.h\"
+DEFINES += -DSUBSYSTEM_INCLUDE=$(SUBSYSTEM_INCLUDE_STRING)
+DEFINES += -DCELL=$(CELL_STRING)
+DEFINES += -DSPMAIN=isys_fw
+DEFINES += -DSTR2MMIO_HOST
+
+
+
+ccflags-y += $(INCLUDES) $(DEFINES) -fno-common

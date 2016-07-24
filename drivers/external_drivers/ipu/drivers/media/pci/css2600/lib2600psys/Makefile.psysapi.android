@@ -1,0 +1,226 @@
+################################################################
+### The purpose of this Makefile is to build 4k60 use case #####
+### Please switch the below flag to 1 for building 4k60    #####
+################################################################
+
+TEST_PSYS_4K60 ?= 1
+
+################################################################
+
+MODULES_DIR = $(PWD)
+PROGRAMS    = devproxy isp_main test_infra_spc_main ia_css_tproxy
+SYSTEM      = processing_system_system
+
+include $(MODULES_DIR)/gencfg.mk
+
+################################################################
+#### Reassemble the 4k60 use case with the proper modules   ####
+################################################################
+
+#######################  BUFFER MODULE  ########################
+
+BUFFER_DIR = $(MODULES_DIR)/buffer
+
+BUFFER_HOST_FILES = $(BUFFER_DIR)/src/cpu/buffer_access.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_input_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_output_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_private_buffer.c
+BUFFER_HOST_FILES += $(BUFFER_DIR)/src/cpu/ia_css_shared_buffer.c
+
+BUFFER_HOST_CPPFLAGS += -I$(BUFFER_DIR)/interface
+BUFFER_HOST_CPPFLAGS += -I$(MODULES_DIR)/support
+
+#####################  DEVPROXY MODULE  ########################
+
+DEVPROXY_DIR = $(MODULES_DIR)/devproxy
+
+DEVPROXY_HOST_FILES = $(DEVPROXY_DIR)/src/devproxy.host.c
+DEVPROXY_HOST_FILES += $(DEVPROXY_DIR)/src/devproxy_ctrl.c
+DEVPROXY_HOST_FILES += $(DEVPROXY_DIR)/src/devproxy_test_service_comm.c
+DEVPROXY_HOST_FILES += $(DEVPROXY_DIR)/src/devproxy_service_ipf_comm.c
+DEVPROXY_HOST_FILES += $(DEVPROXY_DIR)/src/devproxy_service_wba_comm.c
+DEVPROXY_HOST_FILES += $(DEVPROXY_DIR)/src/devproxy_service_anr_comm.c
+DEVPROXY_HOST_FILES += $(DEVPROXY_DIR)/src/devproxy_service_dm_comm.c
+DEVPROXY_HOST_FILES += $(DEVPROXY_DIR)/src/devproxy_service_ccm_comm.c
+DEVPROXY_HOST_FILES += $(DEVPROXY_DIR)/src/devproxy_service_gtc_comm.c
+
+DEVPROXY_HOST_CPPFLAGS += -I$(DEVPROXY_DIR)/interface
+DEVPROXY_HOST_CPPFLAGS += -I$(DEVPROXY_DIR)/src
+DEVPROXY_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/system_defs
+DEVPROXY_HOST_CPPFLAGS += -save-temps
+
+#####################  EVENT_QUEUE MODULE  #####################
+
+EVENT_QUEUE_DIR = $(MODULES_DIR)/eq
+
+EVENT_QUEUE_HOST_FILES = $(EVENT_QUEUE_DIR)/src/vied_nci_eq.c
+EVENT_QUEUE_HOST_FILES += $(EVENT_QUEUE_DIR)/src/device_access/vied_nci_eq_host_reg_access.c
+
+EVENT_QUEUE_HOST_CPPFLAGS += -I$(EVENT_QUEUE_DIR)/interface
+EVENT_QUEUE_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/system_defs/$(SYSTEM)
+
+##############  EVENT QUEUE SPACE CHECKER MODULE ################
+
+EQ_SPACE_CHECKER_DIR = $(MODULES_DIR)/eqc
+
+EQC_HOST_FILES = $(EQ_SPACE_CHECKER_DIR)/src/vied_nci_eqc.c
+
+EQC_HOST_CPPFLAGS += -I$(EQ_SPACE_CHECKER_DIR)/interface
+
+#####################  PSYSAPI MODULE  #########################
+
+PSYSAPI_DIR = $(MODULES_DIR)/psysapi
+
+PSYSAPI_HOST_FILES    = $(PSYSAPI_DIR)/dynamic/src/ia_css_psys_terminal.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/dynamic/src/ia_css_psys_process.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/dynamic/src/ia_css_psys_process_group.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/static/src/ia_css_psys_parameter_manifest.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/static/src/ia_css_psys_terminal_manifest.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/static/src/ia_css_psys_program_manifest.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/static/src/ia_css_psys_program_group_manifest.c
+#PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/static/src/ia_css_psys_terminal_manifest.sim.c
+#PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/static/src/ia_css_psys_program_manifest.sim.c
+#PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/static/src/ia_css_psys_program_group_manifest.sim.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/data/src/ia_css_program_group_data.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/param/src/ia_css_program_group_param.c
+#PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/param/src/ia_css_program_group_param.sim.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/kernel/src/ia_css_kernel_bitmap.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/sim/src/ia_css_psys_sim_data.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/sim/src/vied_nci_psys_system.c
+PSYSAPI_HOST_FILES    += $(PSYSAPI_DIR)/sim/src/ia_css_process_group_cmd_impl.c
+
+
+PSYSAPI_HOST_CPPFLAGS = \
+	-I$(MODULES_DIR)/psysapi/data/interface \
+	-I$(MODULES_DIR)/psysapi/param/interface \
+	-I$(MODULES_DIR)/psysapi/param/src \
+	-I$(MODULES_DIR)/psysapi/kernel/interface \
+	-I$(MODULES_DIR)/psysapi/dynamic/interface \
+	-I$(MODULES_DIR)/psysapi/static/interface \
+	-I$(MODULES_DIR)/psysapi/sim/interface \
+	-I$(MODULES_DIR)/psysapi/interface \
+
+PSYSAPI_HOST_CPPFLAGS += -DHRT_ON_VIED_SUBSYSTEM_ACCESS=0
+PSYSAPI_HOST_CPPFLAGS += -DSUBSYSTEM_INCLUDE=$(SUBSYSTEM_INCLUDE_STRING)
+PSYSAPI_HOST_CPPFLAGS += -DMAIN
+
+#####################  TRANSFER PROXY MODULE  ##################
+
+TPROXY_DIR = $(MODULES_DIR)/tproxy
+
+TPROXY_HOST_CPPFLAGS = -I$(TPROXY_DIR)/interface
+TPROXY_HOST_CPPFLAGS += -I$(TPROXY_DIR)/src
+TPROXY_HOST_CPPFLAGS += -I$(TPROXY_DIR)/src/device_access/host
+TPROXY_HOST_CPPFLAGS += -I$(TPROXY_DIR)/../vied_nci_dma/src/tools
+TPROXY_HOST_CPPFLAGS += -I$(TPROXY_DIR)/../vied_nci_dma/interface
+
+#####################  VIED_NCI_ACC MODULE  ####################
+
+VIED_NCI_ACC_DIR = $(MODULES_DIR)/vied_nci_acc
+
+VIED_NCI_ACC_HOST_FILES = $(VIED_NCI_ACC_DIR)/src/vied_nci_acc.c
+VIED_NCI_ACC_HOST_FILES += $(VIED_NCI_ACC_DIR)/src/vied_nci_acc_host_reg_access.c
+
+VIED_NCI_ACC_HOST_CPPFLAGS += -I$(VIED_NCI_ACC_DIR)/src
+VIED_NCI_ACC_HOST_CPPFLAGS += -I$(VIED_NCI_ACC_DIR)/interface
+VIED_NCI_ACC_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/info_bits
+VIED_NCI_ACC_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/temp
+VIED_NCI_ACC_HOST_CPPFLAGS += -I$(MODULES_DIR)/utils/shared_memory
+
+#####################  VIED_NCI_DMA MODULE  ####################
+
+############### Used by transfer proxy only ####################
+
+#####################  VIED_NCI_INPUT_FEEDER MODULE  ###########
+
+IPFD_DIR = $(MODULES_DIR)/vied_nci_input_feeder
+IPFD_DMA_DIR = $(IPFD_DIR)/src/dma_utils
+
+VIED_IPFD_HOST_FILES = $(IPFD_DIR)/src/vied_nci_input_feeder_dmfs.c \
+                 $(IPFD_DIR)/src/vied_nci_input_feeder_dmf.c \
+                 $(IPFD_DIR)/src/vied_nci_input_feeder_ibuff_ctrl.c \
+                 $(IPFD_DMA_DIR)/base_api.c \
+                 $(IPFD_DMA_DIR)/unit_api.c \
+                 $(IPFD_DMA_DIR)/span_api.c \
+                 $(IPFD_DMA_DIR)/terminal_api.c \
+                 $(IPFD_DMA_DIR)/channel_api.c \
+                 $(IPFD_DMA_DIR)/master_api.c \
+                 $(IPFD_DMA_DIR)/request_api.c \
+                 $(IPFD_DMA_DIR)/global_api.c \
+                 $(IPFD_DIR)/src/vied_nci_input_feeder_dma.c \
+                 $(IPFD_DIR)/src/vied_nci_input_feeder.c \
+
+VIED_IPFD_HOST_CPPFLAGS += \
+                -I$(IPFD_DIR)/interface/ \
+                -I$(IPFD_DIR) \
+                -I$(IPFD_DMA_DIR) \
+                -I$(IPFD_DIR)/test/psa
+
+#####################  VIED_NCI_S2V MODULE  ####################
+
+VIED_NCI_S2V_DIR = $(MODULES_DIR)/vied_nci_s2v
+
+VIED_NCI_S2V_HOST_FILES = $(VIED_NCI_S2V_DIR)/src/vied_nci_s2v.c
+VIED_NCI_S2V_HOST_FILES += $(VIED_NCI_S2V_DIR)/src/vied_nci_s2v_host_reg_access.c
+
+VIED_NCI_S2V_HOST_CPPFLAGS = -I$(VIED_NCI_S2V_DIR)/src
+VIED_NCI_S2V_HOST_CPPFLAGS += -I$(VIED_NCI_S2V_DIR)/interface
+
+######################  IBUF_CNTRL_2600  #######################
+
+HOST_IBUF_CNTRL_2600_FILES += $(MODULES_DIR)/hrt/ibuf_cntrl_2600_config.c
+
+########################  VIED MODULE  #########################
+
+VIED_HOST_CPPFLAGS += -I$(MODULES_DIR)/vied
+HRT_HOST_CPPFLAGS  += -I$(MODULES_DIR)/hrt
+
+################################################################
+#################  Bundle the host files #######################
+################################################################
+
+SRC_LIST += $(BUFFER_HOST_FILES)
+SRC_LIST += $(DEVPROXY_HOST_FILES)
+SRC_LIST += $(EVENT_QUEUE_HOST_FILES)
+SRC_LIST += $(EQC_HOST_FILES)
+SRC_LIST += $(PSYSAPI_HOST_FILES)
+SRC_LIST += $(TPROXY_HOST_FILES)
+SRC_LIST += $(VIED_NCI_ACC_HOST_FILES)
+SRC_LIST += $(VIED_IPFD_HOST_FILES)
+SRC_LIST += $(VIED_NCI_S2V_HOST_FILES)
+SRC_LIST += $(HOST_IBUF_CNTRL_2600_FILES)
+
+################################################################
+######################  Add CPPFLAGS ###########################
+################################################################
+
+CPPFLAGS += $(BUFFER_HOST_CPPFLAGS)
+CPPFLAGS += $(DEVPROXY_HOST_CPPFLAGS)
+CPPFLAGS += $(EVENT_QUEUE_HOST_CPPFLAGS)
+CPPFLAGS += $(EQC_HOST_CPPFLAGS)
+CPPFLAGS += $(PSYSAPI_HOST_CPPFLAGS)
+CPPFLAGS += $(TPROXY_HOST_CPPFLAGS)
+CPPFLAGS += $(VIED_NCI_ACC_HOST_CPPFLAGS)
+CPPFLAGS += $(VIED_IPFD_HOST_CPPFLAGS)
+CPPFLAGS += $(VIED_NCI_S2V_HOST_CPPFLAGS)
+CPPFLAGS += $(VIED_HOST_CPPFLAGS)
+CPPFLAGS += $(HRT_HOST_CPPFLAGS)
+
+######## Include SP and ISP binaries and header files ##########
+CPPFLAGS += -I$(MODULES_DIR)/test_psys_4k60/target
+CPPFLAGS += -I$(MODULES_DIR)/test_psys_4k60/hivecc_intermediates
+
+######### Platform specific (should be always set) #############
+
+CPPFLAGS += -DPSYS
+CPPFLAGS += -DHRT_ON_VIED_SUBSYSTEM_ACCESS=0
+CPPFLAGS += -DCFG_VIED_SUBSYSTEM_ACCESS_INLINE_IMPL
+CPPFLAGS += -DHRT_USE_VIR_ADDRS
+CPPFLAGS += -DHRT_HW
+
+######### Internal package testing ############
+
+ifeq ($(TEST_PSYS_4K60),1)
+include android_test_pkg.mk
+endif
