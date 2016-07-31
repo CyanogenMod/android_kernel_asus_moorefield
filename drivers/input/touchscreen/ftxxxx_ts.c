@@ -43,7 +43,7 @@
 #include <asm/intel-mid.h>
 #include "ftxxxx_ts.h"
 #include "ftxxxx_ex_fun.h"
-#include "../../modules/drivers/i2c/busses/i2c-designware-core.h"
+#include "../../external_drivers/drivers/i2c/busses/i2c-designware-core.h"
 
 //#include <mach/gpio.h>
 //#include <mach/map.h>

@@ -48,7 +48,7 @@
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 #include <linux/iio/consumer.h>
 #else
-#include "../../../kernel/drivers/staging/iio/consumer.h"
+#include "../../../staging/iio/consumer.h"
 #endif
 #include <asm/intel_scu_pmic.h>
 #include <asm/intel_mid_rpmsg.h>
@@ -66,7 +66,7 @@
 #include <linux/HWVersion.h>
 #include "pmic_ccsm.h"
 #if defined(CONFIG_SMB1357_CHARGER)
-#include "../../../kernel/drivers/power/ASUS_BATTERY/smb_external_include.h"
+#include "../../../power/ASUS_BATTERY/smb_external_include.h"
 extern int dcp_mode;
 extern int invalid_charger;
 #endif
