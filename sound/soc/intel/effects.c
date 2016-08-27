@@ -224,7 +224,7 @@ static int sst_get_pipe_id(struct sst_dev_stream_map *map, int map_size,
 static int sst_effects_create(struct snd_card *card, struct snd_effect *effect)
 {
 	int ret = 0;
-	u8 pipe_id;
+	u8 pipe_id=pipe_id;
 	struct ipc_effect_payload dsp_payload;
 	struct ipc_dsp_effects_info effects_info;
 	struct sst_data *sst;
@@ -257,7 +257,7 @@ static int sst_effects_create(struct snd_card *card, struct snd_effect *effect)
 static int sst_effects_destroy(struct snd_card *card, struct snd_effect *effect)
 {
 	int ret = 0;
-	u8 pipe_id;
+	u8 pipe_id=pipe_id;
 	struct ipc_effect_payload dsp_payload;
 	struct ipc_dsp_effects_info effects_info;
 	struct sst_data *sst;
