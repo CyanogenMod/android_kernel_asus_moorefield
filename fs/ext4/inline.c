@@ -1126,7 +1126,8 @@ static int ext4_finish_convert_inline_dir(handle_t *handle,
 	memcpy((void *)de, buf + EXT4_INLINE_DOTDOT_SIZE,
 		inline_size - EXT4_INLINE_DOTDOT_SIZE);
 
-	if (ext4_has_metadata_csum(inode->i_sb))
+	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
+				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	inode->i_size = inode->i_sb->s_blocksize;
@@ -1956,11 +1957,9 @@ void ext4_inline_data_truncate(struct inode *inode, int *has_inline)
 		}
 
 		/* Clear the content within i_blocks. */
-		if (i_size < EXT4_MIN_INLINE_DATA_SIZE) {
-			void *p = (void *) ext4_raw_inode(&is.iloc)->i_block;
-			memset(p + i_size, 0,
-			       EXT4_MIN_INLINE_DATA_SIZE - i_size);
-		}
+		if (i_size < EXT4_MIN_INLINE_DATA_SIZE)
+			memset(ext4_raw_inode(&is.iloc)->i_block + i_size, 0,
+					EXT4_MIN_INLINE_DATA_SIZE - i_size);
 
 		EXT4_I(inode)->i_inline_size = i_size <
 					EXT4_MIN_INLINE_DATA_SIZE ?

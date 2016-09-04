@@ -145,7 +145,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	handle = ext4_journal_start(inode_bl, EXT4_HT_MOVE_EXTENTS, 2);
 	if (IS_ERR(handle)) {
 		err = -EINVAL;
-		goto journal_err_out;
+		goto swap_boot_out;
 	}
 
 	/* Protect extent tree against block allocations via delalloc */
@@ -203,7 +203,6 @@ static long swap_inode_boot_loader(struct super_block *sb,
 
 	ext4_double_up_write_data_sem(inode, inode_bl);
 
-journal_err_out:
 	ext4_inode_resume_unlocked_dio(inode);
 	ext4_inode_resume_unlocked_dio(inode_bl);
 
@@ -348,7 +347,8 @@ flags_out:
 		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 
-		if (ext4_has_metadata_csum(inode->i_sb)) {
+		if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
+				EXT4_FEATURE_RO_COMPAT_METADATA_CSUM)) {
 			ext4_warning(sb, "Setting inode version is not "
 				     "supported with metadata_csum enabled.");
 			return -ENOTTY;
@@ -548,17 +548,9 @@ group_add_out:
 	}
 
 	case EXT4_IOC_SWAP_BOOT:
-	{
-		int err;
 		if (!(filp->f_mode & FMODE_WRITE))
 			return -EBADF;
-		err = mnt_want_write_file(filp);
-		if (err)
-			return err;
-		err = swap_inode_boot_loader(sb, inode);
-		mnt_drop_write_file(filp);
-		return err;
-	}
+		return swap_inode_boot_loader(sb, inode);
 
 	case EXT4_IOC_RESIZE_FS: {
 		ext4_fsblk_t n_blocks_count;

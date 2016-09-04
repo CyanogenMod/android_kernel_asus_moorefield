@@ -1396,8 +1396,6 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 	int last = first + count - 1;
 	struct super_block *sb = e4b->bd_sb;
 
-	if (WARN_ON(count == 0))
-		return;
 	BUG_ON(last >= (sb->s_blocksize << 3));
 	assert_spin_locked(ext4_group_lock_ptr(sb, e4b->bd_group));
 	mb_check_buddy(e4b);
@@ -3119,7 +3117,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	}
 	BUG_ON(start + size <= ac->ac_o_ex.fe_logical &&
 			start > ac->ac_o_ex.fe_logical);
-	BUG_ON(size <= 0 || size > EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
+	BUG_ON(size <= 0 || size > EXT4_CLUSTERS_PER_GROUP(ac->ac_sb));
 
 	/* now prepare goal request */
 
@@ -3180,30 +3178,8 @@ static void ext4_mb_collect_stats(struct ext4_allocation_context *ac)
 static void ext4_discard_allocated_blocks(struct ext4_allocation_context *ac)
 {
 	struct ext4_prealloc_space *pa = ac->ac_pa;
-	struct ext4_buddy e4b;
-	int err;
 
-	if (pa == NULL) {
-		if (ac->ac_f_ex.fe_len == 0)
-			return;
-		err = ext4_mb_load_buddy(ac->ac_sb, ac->ac_f_ex.fe_group, &e4b);
-		if (err) {
-			/*
-			 * This should never happen since we pin the
-			 * pages in the ext4_allocation_context so
-			 * ext4_mb_load_buddy() should never fail.
-			 */
-			WARN(1, "mb_load_buddy failed (%d)", err);
-			return;
-		}
-		ext4_lock_group(ac->ac_sb, ac->ac_f_ex.fe_group);
-		mb_free_blocks(ac->ac_inode, &e4b, ac->ac_f_ex.fe_start,
-			       ac->ac_f_ex.fe_len);
-		ext4_unlock_group(ac->ac_sb, ac->ac_f_ex.fe_group);
-		ext4_mb_unload_buddy(&e4b);
-		return;
-	}
-	if (pa->pa_type == MB_INODE_PA)
+	if (pa && pa->pa_type == MB_INODE_PA)
 		pa->pa_free += ac->ac_b_ex.fe_len;
 }
 
@@ -3448,9 +3424,6 @@ static void ext4_mb_pa_callback(struct rcu_head *head)
 {
 	struct ext4_prealloc_space *pa;
 	pa = container_of(head, struct ext4_prealloc_space, u.pa_rcu);
-
-	BUG_ON(atomic_read(&pa->pa_count));
-	BUG_ON(pa->pa_deleted == 0);
 	kmem_cache_free(ext4_pspace_cachep, pa);
 }
 
@@ -3464,13 +3437,11 @@ static void ext4_mb_put_pa(struct ext4_allocation_context *ac,
 	ext4_group_t grp;
 	ext4_fsblk_t grp_blk;
 
+	if (!atomic_dec_and_test(&pa->pa_count) || pa->pa_free != 0)
+		return;
+
 	/* in this short window concurrent discard can set pa_deleted */
 	spin_lock(&pa->pa_lock);
-	if (!atomic_dec_and_test(&pa->pa_count) || pa->pa_free != 0) {
-		spin_unlock(&pa->pa_lock);
-		return;
-	}
-
 	if (pa->pa_deleted == 1) {
 		spin_unlock(&pa->pa_lock);
 		return;
@@ -4132,7 +4103,7 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ext4_get_group_no_and_offset(sb, goal, &group, &block);
 
 	/* set up allocation goals */
-	ac->ac_b_ex.fe_logical = EXT4_LBLK_CMASK(sbi, ar->logical);
+	ac->ac_b_ex.fe_logical = ar->logical & ~(sbi->s_cluster_ratio - 1);
 	ac->ac_status = AC_STATUS_CONTINUE;
 	ac->ac_sb = sb;
 	ac->ac_inode = ar->inode;
@@ -4611,7 +4582,6 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	struct buffer_head *gd_bh;
 	ext4_group_t block_group;
 	struct ext4_sb_info *sbi;
-	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_buddy e4b;
 	unsigned int count_clusters;
 	int err = 0;
@@ -4670,7 +4640,7 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	 * blocks at the beginning or the end unless we are explicitly
 	 * requested to avoid doing so.
 	 */
-	overflow = EXT4_PBLK_COFF(sbi, block);
+	overflow = block & (sbi->s_cluster_ratio - 1);
 	if (overflow) {
 		if (flags & EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER) {
 			overflow = sbi->s_cluster_ratio - overflow;
@@ -4684,7 +4654,7 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			count += overflow;
 		}
 	}
-	overflow = EXT4_LBLK_COFF(sbi, count);
+	overflow = count & (sbi->s_cluster_ratio - 1);
 	if (overflow) {
 		if (flags & EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER) {
 			if (count > overflow)
@@ -4798,8 +4768,8 @@ do_more:
 					 " group:%d block:%d count:%lu failed"
 					 " with %d", block_group, bit, count,
 					 err);
-		} else
-			EXT4_MB_GRP_CLEAR_TRIMMED(e4b.bd_info);
+		}
+
 
 		ext4_lock_group(sb, block_group);
 		mb_clear_bits(bitmap_bh->b_data, bit, count_clusters);
@@ -4811,6 +4781,7 @@ do_more:
 	ext4_block_bitmap_csum_set(sb, block_group, gdp, bitmap_bh);
 	ext4_group_desc_csum_set(sb, block_group, gdp);
 	ext4_unlock_group(sb, block_group);
+	percpu_counter_add(&sbi->s_freeclusters_counter, count_clusters);
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
@@ -4818,23 +4789,10 @@ do_more:
 			     &sbi->s_flex_groups[flex_group].free_clusters);
 	}
 
-	if (flags & EXT4_FREE_BLOCKS_RESERVE && ei->i_reserved_data_blocks) {
-		percpu_counter_add(&sbi->s_dirtyclusters_counter,
-				   count_clusters);
-		spin_lock(&ei->i_block_reservation_lock);
-		if (flags & EXT4_FREE_BLOCKS_METADATA)
-			ei->i_reserved_meta_blocks += count_clusters;
-		else
-			ei->i_reserved_data_blocks += count_clusters;
-		spin_unlock(&ei->i_block_reservation_lock);
-		if (!(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
-			dquot_reclaim_block(inode,
-					EXT4_C2B(sbi, count_clusters));
-	} else if (!(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
-		dquot_free_block(inode, EXT4_C2B(sbi, count_clusters));
-	percpu_counter_add(&sbi->s_freeclusters_counter, count_clusters);
-
 	ext4_mb_unload_buddy(&e4b);
+
+	if (!(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
+		dquot_free_block(inode, EXT4_C2B(sbi, count_clusters));
 
 	/* We dirtied the bitmap block */
 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
