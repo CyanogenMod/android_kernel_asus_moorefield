@@ -3487,7 +3487,7 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 	 * CSS/FW requires set parameter and enqueue buffer happen after ISP
 	 * is streamon.
 	 */
-	if (!asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED)
+	if ((!asd->streaming) == ATOMISP_DEVICE_STREAMING_ENABLED)
 		return;
 
 	if (list_empty(&pipe->per_frame_params) ||
