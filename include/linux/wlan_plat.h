@@ -29,7 +29,6 @@ struct wifi_platform_data {
 	char *nvram_id;
 	bool use_fast_irq;
 	int (*get_wake_irq)(void);
-	void *(*get_country_code)(char *ccode, u32 flags);
 #ifdef CONFIG_PARTIALRESUME
 #define WIFI_PR_INIT			0
 #define WIFI_PR_NOTIFY_RESUME		1
