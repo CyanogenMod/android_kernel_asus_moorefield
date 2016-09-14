@@ -122,17 +122,6 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVTLCloseStream(PVRSRV_CONNECTION* psConnection,
 		PVRSRVTL_SD hSD);
 
 
-
-/****************************************************************************
- * Stream Buffer Data retrieval API(s)
- * 
- * The client must ensure their use of this acquire/release API for a single 
- * connection/stream must not be shared with multiple execution contexts e.g.
- * between a kernel thread and an ISR handler. It is the client’s
- * responsibility to ensure this API is not interrupted by a high priority
- * thread/ISR
- ****************************************************************************/
-
 /**************************************************************************/ /*!
  @Function		PVRSRVTLAcquireData
  @Description	When there is data available in the stream buffer this call
@@ -180,6 +169,23 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVTLAcquireData(PVRSRV_CONNECTION* psConnection,
 IMG_EXPORT
 PVRSRV_ERROR IMG_CALLCONV PVRSRVTLReleaseData(PVRSRV_CONNECTION* psConnection,
 		PVRSRVTL_SD hSD);
+
+
+
+
+
+
+/**************************************************************************/ /*!
+ @Function		PVRSRVTLTestIoctl
+ @Description	INTERNAL USE: DEBUG builds only
+*/ /***************************************************************************/
+IMG_EXPORT PVRSRV_ERROR IMG_CALLCONV PVRSRVTLTestIoctl(
+		PVRSRV_CONNECTION* psConnection,
+		IMG_UINT32	uiCmd, IMG_BYTE* pbIn1, IMG_UINT32	uiIn2,
+		IMG_UINT32*	puiOut1, IMG_UINT32* puiOut2);
+
+
+
 
 #if defined (__cplusplus)
 }

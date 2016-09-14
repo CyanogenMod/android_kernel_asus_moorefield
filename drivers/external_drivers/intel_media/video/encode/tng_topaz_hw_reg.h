@@ -2219,8 +2219,6 @@ static inline char *cmd_to_string(int cmd_id)
 		return "MTX_CMDID_SHUTDOWN";
 	case MTX_CMDID_SW_LEAVE_LOWPOWER:
 		return "MTX_CMDID_SW_LEAVE_LOWPOWER";
-	case MTX_CMDID_SW_ENTER_LOWPOWER:
-		return "MTX_CMDID_SW_ENTER_LOWPOWER";
 	case MTX_CMDID_START_FRAME:
 		return "MTX_CMDID_START_FRAME";
 	case MTX_CMDID_ENCODE_SLICE:
@@ -2378,6 +2376,13 @@ static inline void mtx_set_target(struct drm_psb_private *dev_priv)
 	MULTICORE_WRITE32(TOPAZHP_TOP_CR_MULTICORE_CORE_SEL_0, reg_val);
 }
 
+int tng_topaz_power_up(
+	struct drm_device *dev,
+	enum drm_tng_topaz_codec codec);
+
+int tng_topaz_power_off(struct drm_device *dev);
+
+int Is_Secure_Fw(void);
 
 #define SHIFT_WB_PRODUCER       (0)
 #define MASK_WB_PRODUCER	\

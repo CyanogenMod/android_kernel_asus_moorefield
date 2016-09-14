@@ -22,11 +22,6 @@
 /*
  */
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-#include <linux/uaccess.h>
-#include <linux/jiffies.h>
-#include <linux/time.h>
-#endif
 #include <drm/drmP.h>
 #include "psb_drv.h"
 #include "psb_reg.h"
@@ -901,68 +896,13 @@ static int psb_vblank_do_wait(struct drm_device *dev,
 }
 #endif
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-static ktime_t ktime_period_ns;
-static struct hrtimer vblank_timer;
-struct drm_device *dev_vblank;
-
-static enum hrtimer_restart generate_vblank(struct hrtimer *timer)
-{
-	unsigned long tjnow;
-	ktime_t kt_now;
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *)dev_vblank->dev_private;
-
-	/*
-	 * Two patches added into R6_legacy changed the method of calculating VSYNC time.
-	 * So this requires VSYNC workaround needs to be changed accordingly.
-	 *	3d0376f get vsync time in irq and not in work queue
-	 *	39ffe14 gfx: fix vblank irq not handle issue
-	 * Above are the two commits added into R6_legacy.
-	 */
-
-	getrawmonotonic(&time_vsync_irq);
-	dev_priv->vsync_pipe |= 1;
-	drm_handle_vblank(dev_vblank, 0);
-	queue_work(dev_priv->vsync_wq, &dev_priv->vsync_event_work);
-
-	getrawmonotonic(&time_vsync_irq);
-	dev_priv->te_pipe = 0;
-	drm_handle_vblank(dev_vblank, 0);
-	queue_work(dev_priv->vsync_wq, &dev_priv->te_work);
-
-	tjnow = jiffies;
-	kt_now = hrtimer_cb_get_time(&vblank_timer);
-	hrtimer_forward(&vblank_timer, kt_now, ktime_period_ns);
-	return HRTIMER_RESTART;
-}
-
-static void generate_vblank_start(void)
-{
-	struct timespec tp_hr_res;
-
-	if (!hrtimer_active(&vblank_timer)) {
-		hrtimer_get_res(CLOCK_MONOTONIC, &tp_hr_res);
-		hrtimer_init(&vblank_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		vblank_timer.function = &generate_vblank;
-		ktime_period_ns = ktime_set(0, 1000000000 / 60);
-		hrtimer_start(&vblank_timer, ktime_period_ns, HRTIMER_MODE_REL);
-	}
-}
-
-static void generate_vblank_stop(void)
-{
-	hrtimer_cancel(&vblank_timer);
-}
-#endif
-
 /*
  * It is used to enable VBLANK interrupt
  */
 int psb_enable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_psb_private *dev_priv =
-		(struct drm_psb_private *)dev->dev_private;
+	    (struct drm_psb_private *)dev->dev_private;
 	unsigned long irqflags;
 	uint32_t reg_val = 0;
 	uint32_t pipeconf_reg = mid_pipeconf(pipe);
@@ -970,12 +910,6 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 
 	PSB_DEBUG_ENTRY("\n");
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (pipe != 1) {
-		dev_vblank = dev;
-		generate_vblank_start();
-	} else {
-#endif
 	encoder_type = is_panel_vid_or_cmd(dev);
 	if (IS_MRFLD(dev) && (encoder_type == MDFLD_DSI_ENCODER_DBI) &&
 			(pipe != 1))
@@ -996,9 +930,6 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 	PSB_DEBUG_ENTRY("%s: Enabled VBlank for pipe %d\n", __func__, pipe);
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	}
-#endif
 
 	return 0;
 }
@@ -1009,17 +940,12 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 void psb_disable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_psb_private *dev_priv =
-		(struct drm_psb_private *)dev->dev_private;
+	    (struct drm_psb_private *)dev->dev_private;
 	unsigned long irqflags;
 	mdfld_dsi_encoder_t encoder_type;
 
 	PSB_DEBUG_ENTRY("\n");
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (pipe != 1) {
-		generate_vblank_stop();
-	} else {
-#endif
 	encoder_type = is_panel_vid_or_cmd(dev);
 	if (IS_MRFLD(dev) && (encoder_type == MDFLD_DSI_ENCODER_DBI) &&
 			(pipe != 1)) {
@@ -1034,9 +960,6 @@ void psb_disable_vblank(struct drm_device *dev, int pipe)
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 	PSB_DEBUG_ENTRY("%s: Disabled VBlank for pipe %d\n", __func__, pipe);
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	}
-#endif
 }
 
 /* Called from drm generic code, passed a 'crtc', which
@@ -1221,12 +1144,6 @@ int mdfld_enable_te(struct drm_device *dev, int pipe)
 	uint32_t pipeconf_reg = mid_pipeconf(pipe);
 	uint32_t retry = 0;
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (pipe != 1) {
-		dev_vblank = dev;
-		generate_vblank_start();
-	} else {
-#endif
 	while ((REG_READ(pipeconf_reg) & PIPEACONF_ENABLE) == 0) {
 		retry++;
 		if (retry > 10) {
@@ -1246,10 +1163,6 @@ int mdfld_enable_te(struct drm_device *dev, int pipe)
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 	PSB_DEBUG_ENTRY("%s: Enabled TE for pipe %d\n", __func__, pipe);
-
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	}
-#endif
 
 	return 0;
 }
@@ -1290,11 +1203,6 @@ void mdfld_disable_te(struct drm_device *dev, int pipe)
 	struct mdfld_dsi_config *dsi_config = dev_priv->dsi_configs[0];
 	struct mdfld_dsi_pkg_sender *sender;
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (pipe != 1) {
-		generate_vblank_stop();
-	} else {
-#endif
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	mid_disable_pipe_event(dev_priv, pipe);
@@ -1317,9 +1225,6 @@ void mdfld_disable_te(struct drm_device *dev, int pipe)
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 	PSB_DEBUG_ENTRY("%s: Disabled TE for pipe %d\n", __func__, pipe);
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	}
-#endif
 }
 
 int mid_irq_enable_hdmi_audio(struct drm_device *dev)

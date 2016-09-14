@@ -63,30 +63,10 @@ IMG_VOID HostUnMapKrnBufFromUser(IMG_VOID * pvUserAddr, IMG_VOID * pvMdl, IMG_VO
 
 IMG_VOID HostCreateRegDeclStreams(IMG_VOID);
 
-/* Direct macros for Linux to avoid LockDep false-positives from occurring */
-#if defined(LINUX) && defined(__KERNEL__)
-
-#include <linux/mutex.h>
-#include <linux/slab.h>
-
-#define HostCreateMutex(IMG_VOID) ({ \
-	struct mutex* pMutex = NULL; \
-	pMutex = kmalloc(sizeof(struct mutex), GFP_KERNEL); \
-	if (pMutex) { mutex_init(pMutex); }; \
-	pMutex;})
-#define HostDestroyMutex(hLock) ({mutex_destroy((hLock)); kfree((hLock)); PVRSRV_OK;})
-
-#define HostAquireMutex(hLock) ({mutex_lock((hLock)); PVRSRV_OK;})
-#define HostReleaseMutex(hLock) ({mutex_unlock((hLock)); PVRSRV_OK;})
-
-#else /* defined(LINUX) && defined(__KERNEL__) */
-
 IMG_VOID * HostCreateMutex(IMG_VOID);
 IMG_VOID HostAquireMutex(IMG_VOID * pvMutex);
 IMG_VOID HostReleaseMutex(IMG_VOID * pvMutex);
 IMG_VOID HostDestroyMutex(IMG_VOID * pvMutex);
-
-#endif
 
 #if defined(SUPPORT_DBGDRV_EVENT_OBJECTS)
 IMG_INT32 HostCreateEventObjects(IMG_VOID);

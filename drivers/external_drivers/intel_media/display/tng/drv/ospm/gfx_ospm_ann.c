@@ -546,7 +546,7 @@ static bool ospm_sidekick_power_up(struct drm_device *dev,
 	}
 #endif
 
-	if (!ret && IS_TNG(dev)) {
+	if (!ret && IS_TNG_B0(dev)) {
 		uint32_t reg, data;
 		/* soc.gfx_wrapper.gclip_control.aes_bypass_disable = 1*/
 		reg = 0x160020 - GFX_WRAPPER_OFFSET;

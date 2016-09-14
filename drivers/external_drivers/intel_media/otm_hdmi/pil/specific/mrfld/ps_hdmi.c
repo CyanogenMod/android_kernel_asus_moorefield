@@ -96,13 +96,7 @@ static hdmi_context_t *g_context = NULL;
 #define PS_MSIC_PCI_DEVICE_ID 0x11A6
 
 #define PS_MSIC_HPD_GPIO_PIN 16
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-/* For Brighton Shores */
-#define PS_MSIC_LS_EN_GPIO_PIN 176
-#define PS_MSIC_LS_VR_EN_GPIO_PIN 0xAF
-#else
 #define PS_MSIC_LS_EN_GPIO_PIN 177
-#endif
 #define PS_MSIC_HPD_GPIO_PIN_NAME "HDMI_HPD"
 #define PS_MSIC_LS_EN_GPIO_PIN_NAME "HDMI_LS_EN"
 #define PS_MSIC_CPD_HPD_GPIO_PIN 0x7F
@@ -211,16 +205,6 @@ otm_hdmi_ret_t ps_hdmi_pci_dev_init(void *context, struct pci_dev *pdev)
 		goto exit;
 	}
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	/* For Brighton Shores, HDMI Companion IC Enable is controlled by SoC GPIO
-	* instead of going through PMIC GPIO */
-	if (gpio_request(PS_MSIC_LS_VR_EN_GPIO_PIN, "HDMI_LS_VR_EN")) {
-		pr_err("%s: Unable to request gpio %d\n", __func__,
-		       PS_MSIC_LS_VR_EN_GPIO_PIN);
-		rc = OTM_HDMI_ERR_FAILED;
-		goto exit;
-	}
-#endif
 	/* Set the GPIO based on cable status */
 	__ps_gpio_configure_edid_read();
 
@@ -278,17 +262,9 @@ bool ps_hdmi_enable_hpd(bool enable)
 	pr_debug("Entered %s: %s\n", __func__, enable ? "enable" : "disable");
 
 	if (enable)
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-		gpio_set_value(PS_MSIC_LS_VR_EN_GPIO_PIN, 1);
-#else
 		intel_scu_ipc_iowrite8(PS_MSIC_CPD_HPD_GPIO_PIN, 0x31);
-#endif
 	else
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-		gpio_set_value(PS_MSIC_LS_VR_EN_GPIO_PIN, 0);
-#else
 		intel_scu_ipc_iowrite8(PS_MSIC_CPD_HPD_GPIO_PIN, 0x30);
-#endif
 	return true;
 }
 

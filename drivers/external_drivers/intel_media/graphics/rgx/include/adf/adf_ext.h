@@ -73,12 +73,12 @@ struct adf_buffer_config_ext {
 	/* Plane alpha */
 	__u8			plane_alpha;
 	__u8			reserved[3];
-} __packed;
+} __attribute__((packed, aligned(8)));
 
 struct adf_post_ext {
 	__u32	post_id;
 	struct adf_buffer_config_ext bufs_ext[];
-} __packed;
+} __attribute__((packed, aligned(8)));
 
 struct adf_validate_config_ext {
 	__u32 n_interfaces;
@@ -88,11 +88,11 @@ struct adf_validate_config_ext {
 
 	struct adf_buffer_config __user *bufs;
 	struct adf_post_ext __user *post_ext;
-} __packed;
+} __attribute__((packed, aligned(8)));
 
 /* These shouldn't be stripped by the uapi process in the bionic headers,
  * but currently are being. Redefine them so the custom ioctl interface is
- * actually useful. Fixed in Lollipop.
+ * actually useful.
  */
 #ifndef ADF_IOCTL_TYPE
 #define ADF_IOCTL_TYPE 'D'
@@ -102,10 +102,7 @@ struct adf_validate_config_ext {
 #define ADF_IOCTL_NR_CUSTOM 128
 #endif
 
-#define ADF_IOCTL_NR_VALIDATE_IMG (ADF_IOCTL_NR_CUSTOM + 0)
-
 #define ADF_VALIDATE_CONFIG_EXT \
-	_IOW(ADF_IOCTL_TYPE, ADF_IOCTL_NR_VALIDATE_IMG, \
-		struct adf_validate_config_ext)
+ _IOW(ADF_IOCTL_TYPE, ADF_IOCTL_NR_CUSTOM + 0, struct adf_validate_config_ext)
 
 #endif /* __ADF_EXT_H__ */

@@ -445,7 +445,7 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 	}
 
 
-	if (PDumpIsDumpSuspended())
+	if (PDumpCtrlIsDumpSuspended())
 	{
 		eErr = PVRSRV_OK;
 		goto ErrOut;
@@ -917,7 +917,7 @@ PVRSRV_ERROR PDumpMMUActivateCatalog(const IMG_CHAR *pszPDumpRegSpaceName,
 	}
 
 
-	if (PDumpIsDumpSuspended())
+	if (PDumpCtrlIsDumpSuspended())
 	{
 		return PVRSRV_OK;
 	}
@@ -978,7 +978,7 @@ PDumpMMUSAB(const IMG_CHAR *pszPDumpMemNamespace,
 	}
 
 
-	if (PDumpIsDumpSuspended())
+	if (PDumpCtrlIsDumpSuspended())
 	{
 		eError = PVRSRV_OK;
 		goto ErrOut;

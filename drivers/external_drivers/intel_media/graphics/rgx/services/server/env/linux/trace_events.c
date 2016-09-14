@@ -50,7 +50,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* This is a helper that calls trace_rogue_fence_update for each fence in an
  * array.
  */
-void trace_rogue_fence_updates(const char *cmd, const char *dm, IMG_UINT32 ui32FWContext,
+void trace_rogue_fence_updates(const char *dm, IMG_UINT32 ui32FWContext,
 							   IMG_UINT32 ui32Offset,
 							   IMG_UINT uCount,
 							   PRGXFWIF_UFO_ADDR *pauiAddresses,
@@ -59,12 +59,12 @@ void trace_rogue_fence_updates(const char *cmd, const char *dm, IMG_UINT32 ui32F
 	IMG_UINT i;
 	for (i = 0; i < uCount; i++)
 	{
-		trace_rogue_fence_update(current->comm, cmd, dm, ui32FWContext, ui32Offset,
+		trace_rogue_fence_update(current->comm, dm, ui32FWContext, ui32Offset,
 								 pauiAddresses[i].ui32Addr, paui32Values[i]);
 	}
 }
 
-void trace_rogue_fence_checks(const char *cmd, const char *dm, IMG_UINT32 ui32FWContext,
+void trace_rogue_fence_checks(const char *dm, IMG_UINT32 ui32FWContext,
 							  IMG_UINT32 ui32Offset,
 							  IMG_UINT uCount,
 							  PRGXFWIF_UFO_ADDR *pauiAddresses,
@@ -73,7 +73,7 @@ void trace_rogue_fence_checks(const char *cmd, const char *dm, IMG_UINT32 ui32FW
 	IMG_UINT i;
 	for (i = 0; i < uCount; i++)
 	{
-		trace_rogue_fence_check(current->comm, cmd, dm, ui32FWContext, ui32Offset,
+		trace_rogue_fence_check(current->comm, dm, ui32FWContext, ui32Offset,
 							  pauiAddresses[i].ui32Addr, paui32Values[i]);
 	}
 }

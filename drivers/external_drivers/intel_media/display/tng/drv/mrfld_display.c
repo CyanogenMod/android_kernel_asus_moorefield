@@ -269,9 +269,6 @@ static void mrfld_crtc_dpms(struct drm_crtc *crtc, int mode)
 				(get_panel_type(dev, pipe) == OTM1284A_VID) ||
 				(get_panel_type(dev, pipe) == OTM1901A_VID) ||
 				(get_panel_type(dev, pipe) == NT35596_VID) ||
-				(get_panel_type(dev, pipe) == SAMSUNG_FHD_CMD) ||
-				(get_panel_type(dev, pipe) == SAMSUNG_WQHD_CMD) ||
-				(get_panel_type(dev, pipe) == TD4300_VID) ||
 				(get_panel_type(dev, pipe) == TMD_VID) ||
 				(get_panel_type(dev, pipe) == TMD_6X10_VID) ||
 				(get_panel_type(dev, pipe) == CMI_7x12_VID) ||

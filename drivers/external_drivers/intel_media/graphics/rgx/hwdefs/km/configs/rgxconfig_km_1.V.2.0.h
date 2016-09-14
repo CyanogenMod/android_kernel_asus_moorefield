@@ -42,8 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _RGXCONFIG_KM_1_V_2_0_H_
 #define _RGXCONFIG_KM_1_V_2_0_H_
 
-/***** Automatically generated file (3/25/2015 5:08:35 AM): Do not edit manually ********************/
-/***** Timestamp:  (3/25/2015 5:08:35 AM)************************************************************/
+/***** Automatically generated file (11/24/2014 2:08:59 PM): Do not edit manually ********************/
+/***** Timestamp:  (11/24/2014 2:08:59 PM)************************************************************/
 
 #define RGX_BNC_KM_B 1
 #define RGX_BNC_KM_N 2
@@ -58,12 +58,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_FEATURE_AXI_ACELITE 
 #define RGX_FEATURE_SLC_CACHE_LINE_SIZE_BITS (512)
 #define RGX_FEATURE_VIRTUAL_ADDRESS_SPACE_BITS (40)
-#define RGX_FEATURE_TLA 
 #define RGX_FEATURE_GS_RTA_SUPPORT 
 #define RGX_FEATURE_NUM_ISP_IPP_PIPES (3)
 #define RGX_FEATURE_META (MTP218)
 #define RGX_FEATURE_META_COREMEM_SIZE (0)
-#define RGX_FEATURE_COMPUTE 
 
 
 #endif /* _RGXCONFIG_1_V_2_0_H_ */

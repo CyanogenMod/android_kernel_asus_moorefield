@@ -2150,8 +2150,6 @@ static int tng_context_switch_secure(
 		codec_to_string(video_ctx->codec), \
 		video_ctx->status);
 
-	PSB_DEBUG_TOPAZ("current context is %p\n", topaz_priv->cur_context);
-
 	/* Handle JPEG burst mode, save current context only if it's not JPEG */
 	if (codec == IMG_CODEC_JPEG) {
 		if (topaz_priv->cur_context &&
@@ -2188,8 +2186,7 @@ static int tng_context_switch_secure(
 
 	if (is_island_on(OSPM_VIDEO_ENC_ISLAND)
 		&& (topaz_priv->cur_context != video_ctx)) {
-		if (topaz_priv->cur_context
-			&& TNG_IS_H264_ENC(topaz_priv->cur_context->codec)
+		if (TNG_IS_H264_ENC(topaz_priv->cur_context->codec)
 			&& TNG_IS_H264_ENC(video_ctx->codec)) {
 			PSB_DEBUG_TOPAZ("ctx switch without power up/off\n");
 			ret = tng_topaz_getvideo_setvideo(
@@ -3375,12 +3372,10 @@ tng_topaz_send(
 			cmd_to_string(cur_cmd_id & (~MTX_CMDID_PRIORITY)));
 		PSB_DEBUG_TOPAZ("remaining cmd size is(%d)\n",
 			cmd_size);
-		PSB_DEBUG_TOPAZ("TOPAZ: 0x%08x\n", cur_cmd_header->val);
-
 
 		switch (cur_cmd_id) {
 		case MTX_CMDID_SW_NEW_CODEC:
-			codec = (*((uint32_t *)command) & 0xFF00) >> 8;
+			codec = (*((uint32_t *) cmd) & 0xFF00) >> 8;
 			if (Is_Secure_Fw()) {
 				ret = tng_setup_new_context_secure(dev,file_priv,
 					(uint32_t *)command, codec);
@@ -3397,11 +3392,8 @@ tng_topaz_send(
 			break;
 		case MTX_CMDID_SW_ENTER_LOWPOWER:
 			PSB_DEBUG_TOPAZ("TOPAZ : Enter lowpower....\n");
+			PSB_DEBUG_TOPAZ("XXX : implement it\n");
 			cur_cmd_size = 1;
-			if ((cur_cmd_header->val >> 16) == 1) {
-				drm_topaz_pmpolicy = PSB_PMPOLICY_NOPM;
-				PSB_DEBUG_TOPAZ("TOPAZ : enable NOPM\n");
-			}
 			break;
 
 		case MTX_CMDID_SW_LEAVE_LOWPOWER:
@@ -3758,10 +3750,6 @@ int tng_topaz_remove_ctx(
 	}
 
 	mutex_unlock(&topaz_priv->ctx_mutex);
-
-	PSB_DEBUG_TOPAZ("TOPAZ : reset drm_topaz_pmpolicy" \
-		"to PSB_PMPOLICY_POWERDOWN\n");
-	drm_topaz_pmpolicy = PSB_PMPOLICY_POWERDOWN;
 
 	return 0;
 }

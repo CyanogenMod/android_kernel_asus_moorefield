@@ -122,6 +122,7 @@ IMG_INTERNAL extern IMG_UINT32  g_uiLog2PageSize;
 typedef IMG_UINT32 DEVMEM_HEAPCFGID;
 #define DEVMEM_HEAPCFG_FORCLIENTS 0
 #define DEVMEM_HEAPCFG_META 1
+#define DEVMEM_HEAPCFG_PMMIF 0
 
 /*
   In order to call the server side functions, we need a bridge handle.
@@ -150,12 +151,13 @@ typedef IMG_HANDLE DEVMEM_BRIDGE_HANDLE;
  * hDeviceNode and uiHeapBlueprintID shall together dictate which
  * heap-config to use.
  *
- * This will cause the server side counterpart to be created also.
+ * This will cause the server side counterpart to be created also
+ * (with appropriate resman stuff where applicable)
  *
  * If you call DevmemCreateContext() (and the call succeeds) you
  * are promising that you will later call Devmem_ContextDestroy(),
  * except for abnormal process termination in which case it is
- * expected it will be destroyed as part of handle clean up.
+ * expected that ResMan will do this on your behalf.
  *
  * Caller to provide storage for the pointer to the NEWDEVMEM_CONTEXT
  * object thusly created.
@@ -230,13 +232,10 @@ DevmemCreateHeap(DEVMEM_CONTEXT *psCtxPtr,
                     multiples of this.  We use a client-side RA to
                     make sub-allocations from this */
                  IMG_UINT32 ui32Log2Quantum,
-                 /* The minimum import alignment for this heap */
-                 IMG_UINT32 ui32Log2ImportAlignment,
                  /* Name of heap for debug */
                  /* N.B.  Okay to exist on caller's stack - this
                     func takes a copy if it needs it. */
                  const IMG_CHAR *pszName,
-                 DEVMEM_HEAPCFGID uiHeapBlueprintID,
                  DEVMEM_HEAP **ppsHeapPtr);
 /*
  * DevmemDestroyHeap()
@@ -492,8 +491,7 @@ DevmemHeapDetails(DEVMEM_BRIDGE_HANDLE hBridge,
                   IMG_UINT32 uiHeapNameBufSz,
                   IMG_DEV_VIRTADDR *psDevVAddrBaseOut,
                   IMG_DEVMEM_SIZE_T *puiHeapLengthOut,
-                  IMG_UINT32 *puiLog2DataPageSize,
-                  IMG_UINT32 *puiLog2ImportAlignmentOut);
+                  IMG_UINT32 *puiLog2DataPageSize);
 
 /*
  * Devmem_FindHeapByName()
@@ -517,9 +515,6 @@ PVRSRV_ERROR
 DevmemGetHeapBaseDevVAddr(DEVMEM_HEAP *psHeap,
 			  IMG_DEV_VIRTADDR *pDevVAddr);
 
-extern PVRSRV_ERROR
-DevmemLocalGetImportHandle(DEVMEM_MEMDESC *psMemDesc,
-			   IMG_HANDLE *phImport);
 
 extern PVRSRV_ERROR
 DevmemGetImportUID(DEVMEM_MEMDESC *psMemDesc,
@@ -544,16 +539,5 @@ DevmemLocalImport(IMG_HANDLE hBridge,
 				  DEVMEM_FLAGS_T uiFlags,
 				  DEVMEM_MEMDESC **ppsMemDescPtr,
 				  IMG_DEVMEM_SIZE_T *puiSizePtr);
-
-IMG_INTERNAL PVRSRV_ERROR
-DevmemIsDevVirtAddrValid(DEVMEM_CONTEXT *psContext,
-                         IMG_DEV_VIRTADDR sDevVAddr);
-
-/* DevmemGetHeapLog2ImportAlignment()
- *
- * Get the import alignment used for a certain heap.
- */
-IMG_UINT32
-DevmemGetHeapLog2ImportAlignment(DEVMEM_HEAP *psHeap);
 
 #endif /* #ifndef SRVCLIENT_DEVICEMEM_CLIENT_H */

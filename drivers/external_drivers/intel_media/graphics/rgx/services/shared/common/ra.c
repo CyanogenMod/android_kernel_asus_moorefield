@@ -194,11 +194,6 @@ struct _RA_ARENA_
 	/* LockClass of this arena. This is used within lockdep to decide if a
 	 * recursive call sequence with the same lock class is allowed or not. */
 	IMG_UINT32 ui32LockClass;
-
-	/* If TRUE, imports will not be split up. Allocations will always get their
-	 * own import
-	 */
-	IMG_BOOL bNoSplit;
 };
 
 /*************************************************************************/ /*!
@@ -517,7 +512,7 @@ _BuildBT (RA_BASE_T base,
 		return IMG_NULL;
 	}
 
-	OSCachedMemSet(pBT, 0, sizeof(BT));
+	OSMemSet(pBT, 0, sizeof(BT));
 
 	pBT->is_leftmost = 1;
 	pBT->is_rightmost = 1;
@@ -920,11 +915,6 @@ _AttemptAllocAligned (RA_ARENA *pArena,
 
 	_FreeListRemove (pArena, pBT);
 
-	if(pArena->bNoSplit)
-	{
-		goto nosplit;
-	}
-
 	/* with uAlignment we might need to discard the front of this segment */
 	if (aligned_base > pBT->base)
 	{
@@ -959,7 +949,7 @@ _AttemptAllocAligned (RA_ARENA *pArena,
 	
 		_FreeListInsert (pArena, pNeighbour);
 	}
-nosplit:
+
 	pBT->type = btt_live;
 	
 	if (!HASH_Insert_Extended (pArena->pSegmentHash, &pBT->base, (IMG_UINTPTR_T)pBT))
@@ -989,7 +979,6 @@ nosplit:
 @Input          imp_alloc     A resource allocation callback or 0.
 @Input          imp_free      A resource de-allocation callback or 0.
 @Input          pImportHandle Handle passed to alloc and free or 0.
-@Input          bNoSplit      Disable splitting up imports.
 @Return         arena handle, or IMG_NULL.
 */ /**************************************************************************/
 IMG_INTERNAL RA_ARENA *
@@ -1006,8 +995,7 @@ RA_Create (IMG_CHAR *name,
 		   IMG_VOID (*imp_free) (RA_PERARENA_HANDLE,
                                  RA_BASE_T,
                                  RA_PERISPAN_HANDLE),
-		   RA_PERARENA_HANDLE arena_handle,
-		   IMG_BOOL bNoSplit)
+		   RA_PERARENA_HANDLE arena_handle)
 {
 	RA_ARENA *pArena;
 	PVRSRV_ERROR eError;
@@ -1047,7 +1035,6 @@ RA_Create (IMG_CHAR *name,
 	pArena->uQuantum = (IMG_UINT64) (1 << uLog2Quantum);
 	pArena->per_flags_buckets = NULL;
 	pArena->ui32LockClass = ui32LockClass;
-	pArena->bNoSplit = bNoSplit;
 
 	PVR_ASSERT(is_arena_valid(pArena));
 	return pArena;
@@ -1093,8 +1080,8 @@ RA_Delete (RA_ARENA *pArena)
 		{
 			PVR_DPF ((PVR_DBG_ERROR, "RA_Delete: allocations still exist in the arena that is being destroyed"));
 			PVR_DPF ((PVR_DBG_ERROR, "Likely Cause: client drivers not freeing alocations before destroying devmemcontext"));
-			PVR_DPF ((PVR_DBG_ERROR, "RA_Delete: base = 0x%llx size=0x%llx",
-					  (unsigned long long)pBT->base, (unsigned long long)pBT->uSize));
+			PVR_DPF ((PVR_DBG_ERROR, "RA_Delete: base = " RA_BASE_FMTSPEC " "
+                      "size=" RA_LENGTH_FMTSPEC, pBT->base, pBT->uSize));
 		}
 		else
 		{
@@ -1154,8 +1141,8 @@ RA_Add (RA_ARENA *pArena,
 	OSLockAcquireNested(pArena->hLock, pArena->ui32LockClass);
 	PVR_ASSERT(is_arena_valid(pArena));
 	PVR_DPF ((PVR_DBG_MESSAGE, "RA_Add: name='%s', "
-              "base=0x%llx, size=0x%llx", pArena->name,
-			  (unsigned long long)base, (unsigned long long)uSize));
+              "base=" RA_BASE_FMTSPEC ", size=" RA_LENGTH_FMTSPEC,
+              pArena->name, base, uSize));
 
 	uSize = (uSize + pArena->uQuantum - 1) & ~(pArena->uQuantum - 1);
 	bt = _InsertResource(pArena, base, uSize, uFlags);
@@ -1219,10 +1206,8 @@ RA_Alloc (RA_ARENA *pArena,
 	PVR_ASSERT((uAlignment == 0) || (uAlignment & (uAlignment - 1)) == 0);
 
 	PVR_DPF ((PVR_DBG_MESSAGE,
-			  "RA_Alloc: arena='%s', size=0x%llx(0x%llx), "
-              "alignment=0x%llx", pArena->name,
-			  (unsigned long long)uSize, (unsigned long long)uRequestSize,
-			  (unsigned long long)uAlignment));
+			  "RA_Alloc: arena='%s', size=" RA_LENGTH_FMTSPEC "(" RA_LENGTH_FMTSPEC "), "
+              "alignment=" RA_ALIGN_FMTSPEC, pArena->name, uSize, uRequestSize, uAlignment));
 
 	/* if allocation failed then we might have an import source which
 	   can provide more resource, else we will have to fail the
@@ -1262,8 +1247,7 @@ RA_Alloc (RA_ARENA *pArena,
 				pArena->pImportFree(pArena->pImportHandle, import_base, hPriv);
 
 				PVR_DPF ((PVR_DBG_MESSAGE, "RA_Alloc: name='%s', "
-                          "size=0x%llx failed!", pArena->name,
-						  (unsigned long long)uSize));
+                          "size=" RA_LENGTH_FMTSPEC " failed!", pArena->name, uSize));
 				/* RA_Dump (arena); */
 				OSLockRelease(pArena->hLock);
 				return IMG_FALSE;
@@ -1305,9 +1289,8 @@ RA_Alloc (RA_ARENA *pArena,
 		}
 	}
 
-	PVR_DPF ((PVR_DBG_MESSAGE, "RA_Alloc: name='%s', size=0x%llx, "
-              "*base=0x%llx = %d",pArena->name, (unsigned long long)uSize,
-			  (unsigned long long)*base, bResult));
+	PVR_DPF ((PVR_DBG_MESSAGE, "RA_Alloc: name='%s', size=" RA_LENGTH_FMTSPEC ", "
+              "*base=" RA_BASE_FMTSPEC " = %d",pArena->name, uSize, *base, bResult));
 
 	PVR_ASSERT(is_arena_valid(pArena));
 
@@ -1340,8 +1323,7 @@ RA_Free (RA_ARENA *pArena, RA_BASE_T base)
 	OSLockAcquireNested(pArena->hLock, pArena->ui32LockClass);
 	PVR_ASSERT(is_arena_valid(pArena));
 
-	PVR_DPF ((PVR_DBG_MESSAGE, "RA_Free: name='%s', base=0x%llx", pArena->name,
-			  (unsigned long long)base));
+	PVR_DPF ((PVR_DBG_MESSAGE, "RA_Free: name='%s', base=" RA_BASE_FMTSPEC, pArena->name, base));
 
 	pBT = (BT *) HASH_Remove_Extended (pArena->pSegmentHash, &base);
 	PVR_ASSERT (pBT != IMG_NULL);

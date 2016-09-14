@@ -103,7 +103,7 @@ typedef struct _PVRSRV_DEVICE_IDENTIFIER_
 } PVRSRV_DEVICE_IDENTIFIER;
 
 
-#if defined(__KERNEL__) && defined(ANDROID) && !defined(__GENKSYMS__)
+#if defined(KERNEL) && defined(ANDROID)
 #define __pvrsrv_defined_struct_enum__
 #include <services_kernel_client.h>
 #endif

@@ -271,6 +271,60 @@ IMG_VOID HostCreateRegDeclStreams(IMG_VOID)
 {
     /* XXX Not yet implemented */
 }
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+typedef	struct mutex		MUTEX;
+#define	INIT_MUTEX(m)		mutex_init(m)
+#define	DOWN_TRYLOCK(m)		(!mutex_trylock(m))
+#define	DOWN(m)			mutex_lock(m)
+#define UP(m)			mutex_unlock(m)
+#else
+typedef	struct semaphore	MUTEX;
+#define	INIT_MUTEX(m)		init_MUTEX(m)
+#define	DOWN_TRYLOCK(m)		down_trylock(m)
+#define	DOWN(m)			down(m)
+#define UP(m)			up(m)
+#endif
+
+IMG_VOID *HostCreateMutex(IMG_VOID)
+{
+	MUTEX *psMutex;
+
+	psMutex = kmalloc(sizeof(*psMutex), GFP_KERNEL);
+	if (psMutex)
+	{
+		INIT_MUTEX(psMutex);
+	}
+
+	return psMutex;
+}
+
+IMG_VOID HostAquireMutex(IMG_VOID * pvMutex)
+{
+	BUG_ON(in_interrupt());
+
+#if defined(PVR_DEBUG_DBGDRV_DETECT_HOST_MUTEX_COLLISIONS)
+	if (DOWN_TRYLOCK((MUTEX *)pvMutex))
+	{
+		printk(KERN_INFO "HostAquireMutex: Waiting for mutex\n");
+		DOWN((MUTEX *)pvMutex);
+	}
+#else
+	DOWN((MUTEX *)pvMutex);
+#endif
+}
+ 
+IMG_VOID HostReleaseMutex(IMG_VOID * pvMutex)
+{
+	UP((MUTEX *)pvMutex);
+}
+
+IMG_VOID HostDestroyMutex(IMG_VOID * pvMutex)
+{
+	if (pvMutex)
+	{
+		kfree(pvMutex);
+	}
+}
 
 #if defined(SUPPORT_DBGDRV_EVENT_OBJECTS)
 

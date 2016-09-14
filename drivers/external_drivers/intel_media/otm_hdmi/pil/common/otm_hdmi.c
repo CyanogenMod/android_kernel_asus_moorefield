@@ -606,7 +606,7 @@ otm_hdmi_ret_t otm_hdmi_hpd_init(void)
 {
 	int result = 0;
 	result = ps_hdmi_hpd_register_driver();
-	return (result) ? OTM_HDMI_ERR_FAILED : OTM_HDMI_SUCCESS;
+	return (result) ? OTM_HDMI_SUCCESS : OTM_HDMI_ERR_FAILED;
 }
 
 /**

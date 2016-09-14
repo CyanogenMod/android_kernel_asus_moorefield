@@ -44,6 +44,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <adf/adf_ext.h>
 
 long
+adf_img_ioctl_validate(struct adf_device *dev,
+			 struct adf_validate_config_ext __user *arg);
+
+long
 adf_img_ioctl(struct adf_obj *obj, unsigned int cmd, unsigned long arg);
 
 /* This validates a post config with a set of assumptions for simple display

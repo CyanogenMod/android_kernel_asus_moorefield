@@ -680,12 +680,13 @@ int mdfld_intel_crtc_set_gamma(struct drm_device *dev,
 			j = j + 8;
 		}
 		/* save palette (gamma) */
-                for (i = 0; i < 256; i++)
-                        gamma_setting_save[i] = ctx->palette[i];
+		for (i = 0; i < 256; i++)
+			gamma_setting_save[i] = ctx->palette[i];
 
 		gamma_red_max_save = ctx->gamma_red_max;
 		gamma_green_max_save = ctx->gamma_green_max;
 		gamma_blue_max_save = ctx->gamma_blue_max;
+
 		drm_psb_set_gamma_success = 1;
 		drm_psb_set_gamma_pending = 1;
 	} else {
@@ -694,9 +695,10 @@ int mdfld_intel_crtc_set_gamma(struct drm_device *dev,
 		drm_psb_set_gamma_pending = 0;
 		drm_psb_set_gamma_pipe = MDFLD_PIPE_MAX;
 
-                /*reset gamma setting*/
-                for (i = 0; i < 256; i++)
-                        gamma_setting_save[i] = 0;
+		/*reset gamma setting*/
+		for (i = 0; i < 256; i++)
+			gamma_setting_save[i] = 0;
+
 		gamma_red_max_save = 0;
 		gamma_green_max_save = 0;
 		gamma_blue_max_save = 0;

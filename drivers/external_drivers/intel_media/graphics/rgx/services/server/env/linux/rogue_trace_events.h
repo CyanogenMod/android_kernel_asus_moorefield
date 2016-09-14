@@ -49,14 +49,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 TRACE_EVENT(rogue_fence_update,
 
-	TP_PROTO(const char *comm, const char *cmd, const char *dm, u32 fw_ctx, u32 offset,
+	TP_PROTO(const char *comm, const char *dm, u32 fw_ctx, u32 offset,
 		u32 sync_fwaddr, u32 sync_value),
 
-	TP_ARGS(comm, cmd, dm, fw_ctx, offset, sync_fwaddr, sync_value),
+	TP_ARGS(comm, dm, fw_ctx, offset, sync_fwaddr, sync_value),
 
 	TP_STRUCT__entry(
 		__string(       comm,           comm            )
-		__string(       cmd,            cmd             )
 		__string(       dm,             dm              )
 		__field(        u32,            fw_ctx          )
 		__field(        u32,            offset          )
@@ -66,7 +65,6 @@ TRACE_EVENT(rogue_fence_update,
 
 	TP_fast_assign(
 		__assign_str(comm, comm);
-		__assign_str(cmd, cmd);
 		__assign_str(dm, dm);
 		__entry->fw_ctx = fw_ctx;
 		__entry->offset = offset;
@@ -74,9 +72,8 @@ TRACE_EVENT(rogue_fence_update,
 		__entry->sync_value = sync_value;
 	),
 
-	TP_printk("comm=%s cmd=%s dm=%s fw_ctx=%lx offset=%lu sync_fwaddr=%lx sync_value=%lx",
+	TP_printk("comm=%s dm=%s fw_ctx=%lx offset=%lu sync_fwaddr=%lx sync_value=%lx",
 		__get_str(comm),
-		__get_str(cmd),
 		__get_str(dm),
 		(unsigned long)__entry->fw_ctx,
 		(unsigned long)__entry->offset,
@@ -86,14 +83,13 @@ TRACE_EVENT(rogue_fence_update,
 
 TRACE_EVENT(rogue_fence_check,
 
-	TP_PROTO(const char *comm, const char *cmd, const char *dm, u32 fw_ctx, u32 offset,
+	TP_PROTO(const char *comm, const char *dm, u32 fw_ctx, u32 offset,
 		u32 sync_fwaddr, u32 sync_value),
 
-	TP_ARGS(comm, cmd, dm, fw_ctx, offset, sync_fwaddr, sync_value),
+	TP_ARGS(comm, dm, fw_ctx, offset, sync_fwaddr, sync_value),
 
 	TP_STRUCT__entry(
 		__string(       comm,           comm            )
-		__string(       cmd,            cmd             )
 		__string(       dm,             dm              )
 		__field(        u32,            fw_ctx          )
 		__field(        u32,            offset          )
@@ -103,7 +99,6 @@ TRACE_EVENT(rogue_fence_check,
 
 	TP_fast_assign(
 		__assign_str(comm, comm);
-		__assign_str(cmd, cmd);
 		__assign_str(dm, dm);
 		__entry->fw_ctx = fw_ctx;
 		__entry->offset = offset;
@@ -111,9 +106,8 @@ TRACE_EVENT(rogue_fence_check,
 		__entry->sync_value = sync_value;
 	),
 
-	TP_printk("comm=%s cmd=%s dm=%s fw_ctx=%lx offset=%lu sync_fwaddr=%lx sync_value=%lx",
+	TP_printk("comm=%s dm=%s fw_ctx=%lx offset=%lu sync_fwaddr=%lx sync_value=%lx",
 		__get_str(comm),
-		__get_str(cmd),
 		__get_str(dm),
 		(unsigned long)__entry->fw_ctx,
 		(unsigned long)__entry->offset,

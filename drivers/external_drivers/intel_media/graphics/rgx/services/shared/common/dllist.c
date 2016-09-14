@@ -44,14 +44,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_types.h"
 #include "dllist.h"
 
-#if defined(RGX_FIRMWARE)
-#include "rgxfw_cr_defs.h"
-#include "rgxfw_ctl.h"
-#endif
 
 /* Walk through all the nodes on the list until the end or a callback returns FALSE */
 #if defined(RGX_FIRMWARE)
-RGXFW_COREMEM_CODE
+RGXFW_COREMEM_CODE_IRQ3
 #endif
 IMG_VOID dllist_foreach_node(PDLLIST_NODE psListHead,
 							  PFN_NODE_CALLBACK pfnCallBack,

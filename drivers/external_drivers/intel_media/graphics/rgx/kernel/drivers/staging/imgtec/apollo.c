@@ -64,14 +64,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrmodule.h"
 #include "rgxdefs_km.h"
 
-#if defined(SUPPORT_ION)
 #include "ion_lma_heap.h"
-#endif
 
 #define DRV_NAME "apollo"
 
-/* How much memory to give to the PDP heap (used for pdp buffers). */
+/* How much memory to allocate to ION (used for pdp buffers). */
 #define APOLLO_PDP_MEM_SIZE		(384*1024*1024)
+
+/* Apparently, the last 1mb of the apollo memory is broken somehow */
+#define APOLLO_MEM_PCI_BROKEN_BYTES	(64*1024*1024)
 
 #define PCI_VENDOR_ID_POWERVR		0x1010
 #define DEVICE_ID_PCI_APOLLO_FPGA	0x1CF1
@@ -120,23 +121,21 @@ struct apollo_device {
 	resource_size_t rogue_heap_mem_base;
 	resource_size_t rogue_heap_mem_size;
 
-#if defined(SUPPORT_ION)
 	struct ion_device *ion_device;
 	struct ion_heap *ion_heaps[APOLLO_ION_HEAP_COUNT];
 	int ion_heap_count;
-#endif
 };
 
-static int request_pci_io_addr(struct pci_dev *pdev, u32 index,
+static int request_pci_io_addr(struct pci_dev *dev, u32 index,
 	resource_size_t offset, resource_size_t length)
 {
 	resource_size_t start, end;
-	start = pci_resource_start(pdev, index);
-	end = pci_resource_end(pdev, index);
+	start = pci_resource_start(dev, index);
+	end = pci_resource_end(dev, index);
 
 	if ((start + offset + length - 1) > end)
 		return -EIO;
-	if (pci_resource_flags(pdev, index) & IORESOURCE_IO) {
+	if (pci_resource_flags(dev, index) & IORESOURCE_IO) {
 		if (request_region(start + offset, length, DRV_NAME) == NULL)
 			return -EIO;
 	} else {
@@ -147,10 +146,10 @@ static int request_pci_io_addr(struct pci_dev *pdev, u32 index,
 	return 0;
 }
 
-static void release_pci_io_addr(struct pci_dev *pdev, u32 index,
+static void release_pci_io_addr(struct pci_dev *dev, u32 index,
 	resource_size_t start, resource_size_t length)
 {
-	if (pci_resource_flags(pdev, index) & IORESOURCE_IO)
+	if (pci_resource_flags(dev, index) & IORESOURCE_IO)
 		release_region(start, length);
 	else
 		release_mem_region(start, length);
@@ -182,6 +181,10 @@ static int apollo_set_clocks(struct apollo_device *apollo)
 		goto err_release_registers;
 	}
 
+	dev_dbg(&apollo->pdev->dev, "Setting clocks to %uMHz/%uMHz\n",
+			 apollo_core_clock / 1000000,
+			 apollo_mem_clock / 1000000);
+
 #if !((RGX_BVNC_KM_B == 1) && (RGX_BVNC_KM_V == 82) && \
 	  (RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 5))
 	/* This is if 0 out since the current FPGA builds do not like their core
@@ -197,11 +200,6 @@ static int apollo_set_clocks(struct apollo_device *apollo)
 	val = 0x1 << PLL_MEM_DRP_GO_SHIFT;
 	iowrite32(val, pll_regs + TCF_PLL_PLL_MEM_DRP_GO);
 
-	dev_dbg(&apollo->pdev->dev, "Setting clocks to %uMHz/%uMHz\n",
-			 apollo_core_clock / 1000000,
-			 apollo_mem_clock / 1000000);
-	udelay(400);
-
 	iounmap(pll_regs);
 err_release_registers:
 	release_pci_io_addr(apollo->pdev, SYS_APOLLO_REG_PCI_BASENUM,
@@ -210,17 +208,21 @@ err_out:
 	return err;
 }
 
-static int mtrr_setup(struct pci_dev *pdev,
-		      resource_size_t mem_start,
-		      resource_size_t mem_size)
+static int apollo_init_mtrr(struct apollo_device *apollo)
 {
 	int err = 0;
 	int mtrr;
+	resource_size_t mem_start, mem_end, mem_size;
 
 	/* Reset MTRR */
+	mem_start = pci_resource_start(apollo->pdev, APOLLO_MEM_PCI_BASENUM);
+	mem_end = pci_resource_end(apollo->pdev, APOLLO_MEM_PCI_BASENUM);
+
+	mem_size = mem_end - mem_start + 1;
+
 	mtrr = mtrr_add(mem_start, mem_size, MTRR_TYPE_UNCACHABLE, 0);
 	if (mtrr < 0) {
-		dev_err(&pdev->dev, "%d - %s: mtrr_add failed (%d)\n",
+		dev_err(&apollo->pdev->dev, "%d - %s: mtrr_add failed (%d)\n",
 			__LINE__, __func__, mtrr);
 		err = mtrr;
 		goto err_out;
@@ -228,7 +230,7 @@ static int mtrr_setup(struct pci_dev *pdev,
 
 	err = mtrr_del(mtrr, mem_start, mem_size);
 	if (err < 0) {
-		dev_err(&pdev->dev, "%d - %s: mtrr_del failed (%d)\n",
+		dev_err(&apollo->pdev->dev, "%d - %s: mtrr_del failed (%d)\n",
 			__LINE__, __func__, err);
 		goto err_out;
 	}
@@ -236,7 +238,7 @@ static int mtrr_setup(struct pci_dev *pdev,
 	mtrr = mtrr_add(mem_start, mem_size, MTRR_TYPE_WRBACK, 0);
 	if (mtrr < 0) {
 		/* Stop, but not an error as this may be already be setup */
-		dev_dbg(&pdev->dev, "%d - %s: mtrr_del failed (%d) - probably means the mtrr is already setup\n",
+		dev_dbg(&apollo->pdev->dev, "%d - %s: mtrr_del failed (%d) - probably means the mtrr is already setup\n",
 			__LINE__, __func__, err);
 		err = 0;
 		goto err_out;
@@ -244,7 +246,7 @@ static int mtrr_setup(struct pci_dev *pdev,
 
 	err = mtrr_del(mtrr, mem_start, mem_size);
 	if (err < 0) {
-		dev_err(&pdev->dev, "%d - %s: mtrr_del failed (%d)\n",
+		dev_err(&apollo->pdev->dev, "%d - %s: mtrr_del failed (%d)\n",
 			__LINE__, __func__, err);
 		goto err_out;
 	}
@@ -253,7 +255,7 @@ static int mtrr_setup(struct pci_dev *pdev,
 		/* Replace 0 with a non-overlapping WRBACK mtrr */
 		err = mtrr_add(0, mem_start, MTRR_TYPE_WRBACK, 0);
 		if (err < 0) {
-			dev_err(&pdev->dev, "%d - %s: mtrr_add failed (%d)\n",
+			dev_err(&apollo->pdev->dev, "%d - %s: mtrr_add failed (%d)\n",
 				__LINE__, __func__, err);
 			goto err_out;
 		}
@@ -262,7 +264,7 @@ static int mtrr_setup(struct pci_dev *pdev,
 	mtrr = mtrr_add(mem_start, mem_size, MTRR_TYPE_WRCOMB, 0);
 
 	if (mtrr < 0)
-		dev_err(&pdev->dev, "%d - %s: mtrr_add failed (%d)\n",
+		dev_err(&apollo->pdev->dev, "%d - %s: mtrr_add failed (%d)\n",
 			__LINE__, __func__, mtrr);
 	err = 0;
 
@@ -270,15 +272,38 @@ err_out:
 	return err;
 }
 
-static void apollo_init_memory(struct apollo_device *apollo)
+static int apollo_init_memory(struct apollo_device *apollo)
 {
-	u32 val;
+	int err = 0;
+	u32 val = 0;
+
+	err = apollo_init_mtrr(apollo);
+	if (err)
+		goto err_out;
 
 	val = ioread32(apollo->tcf_registers + TCF_CLK_CTRL_TEST_CTRL);
 	val &= ~(ADDRESS_FORCE_MASK | PCI_TEST_MODE_MASK | HOST_ONLY_MODE_MASK
 		| HOST_PHY_MODE_MASK);
 	val |= (0x1 << ADDRESS_FORCE_SHIFT);
 	iowrite32(val, apollo->tcf_registers + TCF_CLK_CTRL_TEST_CTRL);
+
+	apollo->apollo_mem_base =
+		pci_resource_start(apollo->pdev, APOLLO_MEM_PCI_BASENUM);
+	apollo->apollo_mem_size =
+		pci_resource_len(apollo->pdev, APOLLO_MEM_PCI_BASENUM)
+		- APOLLO_MEM_PCI_BROKEN_BYTES;
+
+	/* Setup ranges for the ION heaps */
+
+	apollo->pdp_heap_mem_size = APOLLO_PDP_MEM_SIZE;
+	apollo->rogue_heap_mem_size = apollo->apollo_mem_size
+		- apollo->pdp_heap_mem_size;
+
+	apollo->rogue_heap_mem_base = apollo->apollo_mem_base;
+	apollo->pdp_heap_mem_base = apollo->apollo_mem_base +
+		apollo->rogue_heap_mem_size;
+err_out:
+	return err;
 }
 
 static void apollo_deinit_memory(struct apollo_device *apollo)
@@ -292,10 +317,8 @@ static void apollo_devres_release(struct device *dev, void *res)
 	/* No extra cleanup needed */
 }
 
-#if ((RGX_BVNC_KM_B == 1) && (RGX_BVNC_KM_V == 82) && \
-	(RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 5)) || \
-    ((RGX_BVNC_KM_B == 4) && (RGX_BVNC_KM_V == 31) && \
-	(RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 55))
+#if (RGX_BVNC_KM_B == 1) && (RGX_BVNC_KM_V == 82) && \
+	(RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 5)
 
 static int is_interface_aligned(u32 eyes, u32 clk_taps, u32 train_ack)
 {
@@ -385,8 +408,6 @@ static int apollo_hard_reset(struct apollo_device *apollo)
 	/* This is required for SPI reset which is not yet implemented. */
 	/*u32 aux_reset_n;*/
 
-#if !((RGX_BVNC_KM_B == 4) && (RGX_BVNC_KM_V == 31) && \
-	 (RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 55))
 	/* Power down */
 	reg = ioread32(apollo->tcf_registers + TCF_CLK_CTRL_DUT_CONTROL_1);
 	reg &= ~DUT_CTRL_VCC_0V9EN;
@@ -395,7 +416,6 @@ static int apollo_hard_reset(struct apollo_device *apollo)
 	reg |= DUT_CTRL_VCC_CORE_INH;
 	iowrite32(reg, apollo->tcf_registers + TCF_CLK_CTRL_DUT_CONTROL_1);
 	msleep(500);
-#endif
 
 	/* Set clock speed here, before reset. */
 	apollo_set_clocks(apollo);
@@ -407,8 +427,6 @@ static int apollo_hard_reset(struct apollo_device *apollo)
 		  TCF_CLK_CTRL_CLK_AND_RST_CTRL);
 	msleep(100);
 
-#if !((RGX_BVNC_KM_B == 4) && (RGX_BVNC_KM_V == 31) && \
-	 (RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 55))
 	/* Enable the voltage control regulators on DUT */
 	reg = ioread32(apollo->tcf_registers + TCF_CLK_CTRL_DUT_CONTROL_1);
 	reg |= DUT_CTRL_VCC_0V9EN;
@@ -417,7 +435,6 @@ static int apollo_hard_reset(struct apollo_device *apollo)
 	reg &= ~DUT_CTRL_VCC_CORE_INH;
 	iowrite32(reg, apollo->tcf_registers + TCF_CLK_CTRL_DUT_CONTROL_1);
 	msleep(300);
-#endif
 
 	/* Take DCM, DDR, PDP1, and PDP2 out of reset */
 	reg_reset_n |= (0x1 << DDR_RESETN_SHIFT);
@@ -427,12 +444,9 @@ static int apollo_hard_reset(struct apollo_device *apollo)
 	iowrite32(reg_reset_n, apollo->tcf_registers +
 		  TCF_CLK_CTRL_CLK_AND_RST_CTRL);
 
-#if !((RGX_BVNC_KM_B == 4) && (RGX_BVNC_KM_V == 31) && \
-	 (RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 55))
 	/* Set ODT to a specific value that seems to provide the most stable
 	 * signals. */
 	spi_write(apollo, 0x11, 0x413130);
-#endif
 
 	/* Take DUT out of reset */
 	reg_reset_n |= (0x1 << DUT_RESETN_SHIFT);
@@ -529,13 +543,10 @@ static int apollo_hard_reset(struct apollo_device *apollo)
 		dev_dbg(&apollo->pdev->dev, "      If you continue to see this message you may want to report it to IMGWORKS.\n");
 	}
 
-#if !((RGX_BVNC_KM_B == 4) && (RGX_BVNC_KM_V == 31) && \
-	 (RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 55))
 	/* Enable the temperature sensor */
 	spi_write(apollo, 0xc, 0); /* power up */
 	spi_write(apollo, 0xc, 2); /* reset */
 	spi_write(apollo, 0xc, 6); /* init & run */
-#endif
 
 	/* Check the build */
 	reg = ioread32(apollo->tcf_registers + 0x10);
@@ -554,36 +565,26 @@ static int apollo_hard_reset(struct apollo_device *apollo)
 	return 0;
 }
 
-static int apollo_hw_init(struct apollo_device *apollo)
+static int apollo_config(struct apollo_device *apollo)
 {
+	int err;
+
 	apollo_hard_reset(apollo);
-	apollo_init_memory(apollo);
 
-#if ((RGX_BVNC_KM_B == 4) && (RGX_BVNC_KM_V == 31) && \
-	 (RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 55))
-	{	
-		u32 reg;
-		/* Enable ASTC via SPI */
-		if (spi_read(apollo, 0xf, &reg)) {
-			dev_err(&apollo->pdev->dev, "Failed to read apollo ASTC register\n");
-			goto err_out;
-		}    
-
-		reg |= 0x1 << 4;
-		spi_write(apollo, 0xf, reg);
+	err = apollo_init_memory(apollo);
+	if (err) {
+		dev_err(&apollo->pdev->dev, "Failed to init memory\n");
+		goto err_unmap_registers;
 	}
-err_out:
-#endif 
 
-	return 0;
+	return err;
+
+err_unmap_registers:
+	iounmap(apollo->tcf_registers);
+	return err;
 }
 
-static void apollo_hw_fini(struct apollo_device *apollo)
-{
-	apollo_deinit_memory(apollo);
-}
-
-int apollo_sys_info(struct device *dev, u32 *tmp, u32 *pll)
+int apollo_sysinfo(struct device *dev, u32 *tmp, u32 *pll)
 {
 	int err = -ENODEV;
 	struct apollo_device *apollo = devres_find(dev, apollo_devres_release,
@@ -594,15 +595,12 @@ int apollo_sys_info(struct device *dev, u32 *tmp, u32 *pll)
 		goto err_out;
 	}
 
-#if !((RGX_BVNC_KM_B == 4) && (RGX_BVNC_KM_V == 31) && \
-	  (RGX_BVNC_KM_N == 4) && (RGX_BVNC_KM_C == 55))
 	if (spi_read(apollo, TCF_TEMP_SENSOR_SPI_OFFSET, tmp)) {
 		dev_err(dev, "Failed to read apollo temperature sensor\n");
 		goto err_out;
 	}
-	
+
 	*tmp = TCF_TEMP_SENSOR_TO_C(*tmp);
-#endif
 
 	if (spi_read(apollo, 0x2, pll)) {
 		dev_err(dev, "Failed to read PLL status\n");
@@ -613,7 +611,7 @@ int apollo_sys_info(struct device *dev, u32 *tmp, u32 *pll)
 err_out:
 	return err;
 }
-EXPORT_SYMBOL(apollo_sys_info);
+EXPORT_SYMBOL(apollo_sysinfo);
 
 #else
 
@@ -623,7 +621,8 @@ static int iopol32(u32 val, u32 mask, void __iomem *addr)
 	for (polnum = 0; polnum < 500; polnum++) {
 		if ((ioread32(addr) & mask) == val)
 			break;
-		/* NOTE: msleep() < 20 ms may sleep up to 20ms */
+		/* Apparently msleep() < 20 ms 'may' sleep up to 20ms, but that should
+		 * be fine as sleeping longer should have no issues here */
 		msleep(1);
 	}
 	if (polnum == 500) {
@@ -875,7 +874,8 @@ static void apollo_hard_reset(struct apollo_device *apollo)
 	reg |= (0x1 << DUT_DCM_RESETN_SHIFT);
 	iowrite32(reg, apollo->tcf_registers + TCF_CLK_CTRL_CLK_AND_RST_CTRL);
 
-	/* NOTE: msleep() < 20 ms may sleep up to 20ms */
+	/* Apparently msleep() < 20 ms 'may' sleep up to 20ms, but that should
+	 * be fine as sleeping longer should have no issues here */
 	msleep(4);
 	iopol32(0x7, DCM_LOCK_STATUS_MASK,
 		apollo->tcf_registers + TCF_CLK_CTRL_DCM_LOCK_STATUS);
@@ -893,7 +893,7 @@ static int apollo_set_rogue_pll(struct apollo_device *apollo)
 	return err;
 }
 
-static int apollo_hw_init(struct apollo_device *apollo)
+static int apollo_config(struct apollo_device *apollo)
 {
 	int err;
 
@@ -901,38 +901,43 @@ static int apollo_hw_init(struct apollo_device *apollo)
 	err = apollo_rogue_bist(apollo);
 	if (err) {
 		dev_err(&apollo->pdev->dev, "Failed to run BIST on rogue\n");
-		goto exit;
+		goto err_unmap_registers;
 	}
 	apollo_hard_reset(apollo);
-	apollo_init_memory(apollo);
+
+	err = apollo_init_memory(apollo);
+	if (err) {
+		dev_err(&apollo->pdev->dev, "Failed to init memory\n");
+		goto err_unmap_registers;
+	}
 
 	err = apollo_set_clocks(apollo);
 	if (err) {
 		dev_err(&apollo->pdev->dev, "Failed to init clocks\n");
-		goto exit;
+		goto err_deinit_memory;
 	}
 
 	err = apollo_set_rogue_pll(apollo);
 	if (err) {
 		dev_err(&apollo->pdev->dev, "Failed to set rogue PLL\n");
-		goto exit;
+		goto err_deinit_memory;
 	}
 
-exit:
+	return err;
+
+err_deinit_memory:
+	apollo_deinit_memory(apollo);
+err_unmap_registers:
+	iounmap(apollo->tcf_registers);
 	return err;
 }
 
-static void apollo_hw_fini(struct apollo_device *apollo)
-{
-	apollo_deinit_memory(apollo);
-}
-
-int apollo_sys_info(struct device *dev, u32 *tmp, u32 *pll)
+int apollo_sysinfo(struct device *dev, u32 *tmp, u32 *pll)
 {
 	/* Not implemented for TC1 */
 	return -1;
 }
-EXPORT_SYMBOL(apollo_sys_info);
+EXPORT_SYMBOL(apollo_sysinfo);
 
 #endif
 
@@ -941,97 +946,6 @@ int apollo_core_clock_speed(struct device *dev)
 	return apollo_core_clock;
 }
 EXPORT_SYMBOL(apollo_core_clock_speed);
-
-#define HEX2DEC(v) ((((v) >> 4) * 10) + ((v) & 0x0F))
-int apollo_sys_strings(struct device *dev,
-		       char *str_fpga_rev, size_t size_fpga_rev,
-		       char *str_tcf_core_rev, size_t size_tcf_core_rev,
-		       char *str_tcf_core_target_build_id,
-		       size_t size_tcf_core_target_build_id,
-		       char *str_pci_ver, size_t size_pci_ver,
-		       char *str_macro_ver, size_t size_macro_ver)
-{
-	int err = 0;
-	u32 val;
-	resource_size_t host_fpga_register_resource;
-	void __iomem *host_fpga_registers;
-
-	struct apollo_device *apollo = devres_find(dev, apollo_devres_release,
-		NULL, NULL);
-
-	if (!str_fpga_rev || !size_fpga_rev ||
-	    !str_tcf_core_rev || !size_tcf_core_rev ||
-	    !str_tcf_core_target_build_id || !size_tcf_core_target_build_id ||
-	    !str_pci_ver || !size_pci_ver ||
-	    !str_macro_ver || !size_macro_ver) {
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	if (!apollo) {
-		dev_err(dev, "No apollo device resources found\n");
-		err = -ENODEV;
-		goto err_out;
-	}
-
-	/* To get some of the version information we need to read from a
-	   register that we don't normally have mapped. Map it temporarily
-	   (without trying to reserve it) to get the information we need. */
-	host_fpga_register_resource =
-		pci_resource_start(apollo->pdev, SYS_APOLLO_REG_PCI_BASENUM)
-		+ 0x40F0;
-
-	host_fpga_registers = ioremap_nocache(host_fpga_register_resource,
-					      0x04);
-	if (!host_fpga_registers) {
-		dev_err(&apollo->pdev->dev, "Failed to map host fpga registers\n");
-		err = -EIO;
-		goto err_out;
-	}
-
-	/* Create the components of the PCI and macro versions */
-	val = ioread32(host_fpga_registers);
-	snprintf(str_pci_ver, size_pci_ver, "%d",
-		 HEX2DEC((val & 0x00FF0000) >> 16));
-	snprintf(str_macro_ver, size_macro_ver, "%d.%d",
-		 (val & 0x00000F00) >> 8,
-		 HEX2DEC((val & 0x000000FF) >> 0));
-
-	/* Unmap the register now that we no longer need it */
-	iounmap(host_fpga_registers);
-
-	/* Create the components of the FPGA revision number */
-	val = ioread32(apollo->tcf_registers + TCF_CLK_CTRL_FPGA_REV_REG);
-	snprintf(str_fpga_rev, size_fpga_rev, "%d.%d.%d",
-		 HEX2DEC((val & FPGA_REV_REG_MAJOR_MASK)
-			 >> FPGA_REV_REG_MAJOR_SHIFT),
-		 HEX2DEC((val & FPGA_REV_REG_MINOR_MASK)
-			 >> FPGA_REV_REG_MINOR_SHIFT),
-		 HEX2DEC((val & FPGA_REV_REG_MAINT_MASK)
-			 >> FPGA_REV_REG_MAINT_SHIFT));
-
-	/* Create the components of the TCF core revision number */
-	val = ioread32(apollo->tcf_registers + TCF_CLK_CTRL_TCF_CORE_REV_REG);
-	snprintf(str_tcf_core_rev, size_tcf_core_rev, "%d.%d.%d",
-		 HEX2DEC((val & TCF_CORE_REV_REG_MAJOR_MASK)
-			 >> TCF_CORE_REV_REG_MAJOR_SHIFT),
-		 HEX2DEC((val & TCF_CORE_REV_REG_MINOR_MASK)
-			 >> TCF_CORE_REV_REG_MINOR_SHIFT),
-		 HEX2DEC((val & TCF_CORE_REV_REG_MAINT_MASK)
-			 >> TCF_CORE_REV_REG_MAINT_SHIFT));
-
-	/* Create the component of the TCF core target build ID */
-	val = ioread32(apollo->tcf_registers +
-		       TCF_CLK_CTRL_TCF_CORE_TARGET_BUILD_CFG);
-	snprintf(str_tcf_core_target_build_id, size_tcf_core_target_build_id,
-		 "%d",
-		 (val & TCF_CORE_TARGET_BUILD_ID_MASK)
-		 >> TCF_CORE_TARGET_BUILD_ID_SHIFT);
-
-err_out:
-	return err;
-}
-EXPORT_SYMBOL(apollo_sys_strings);
 
 static irqreturn_t apollo_irq_handler(int irq, void *data)
 {
@@ -1102,10 +1016,8 @@ static int register_pdp_device(struct apollo_device *apollo)
 	int err = 0;
 	struct apollo_pdp_platform_data pdata = {
 		.pdev = apollo->pdev,
-#if defined(SUPPORT_ION)
 		.ion_device = apollo->ion_device,
 		.ion_heap_id = ION_HEAP_APOLLO_PDP,
-#endif
 		.apollo_memory_base = apollo->apollo_mem_base,
 	};
 	struct platform_device_info pdp_device_info = {
@@ -1136,10 +1048,8 @@ static int register_rogue_device(struct apollo_device *apollo)
 	int err = 0;
 	struct apollo_rogue_platform_data pdata = {
 		.pdev = apollo->pdev,
-#if defined(SUPPORT_ION)
 		.ion_device = apollo->ion_device,
 		.ion_heap_id = ION_HEAP_APOLLO_ROGUE,
-#endif
 		.apollo_memory_base = apollo->apollo_mem_base,
 		.pdp_heap_memory_base = apollo->pdp_heap_mem_base,
 		.pdp_heap_memory_size = apollo->pdp_heap_mem_size,
@@ -1168,7 +1078,6 @@ err:
 	return err;
 }
 
-#if defined(SUPPORT_ION)
 static int apollo_ion_init(struct apollo_device *apollo)
 {
 	int i, err = 0;
@@ -1258,85 +1167,6 @@ static void apollo_ion_deinit(struct apollo_device *apollo)
 	release_pci_io_addr(apollo->pdev, APOLLO_MEM_PCI_BASENUM,
 		apollo->apollo_mem_base, apollo->apollo_mem_size);
 }
-#endif /* defined(SUPPORT_ION) */
-
-static int apollo_dev_init(struct apollo_device *apollo, struct pci_dev *pdev)
-{
-	int err;
-
-	apollo->pdev = pdev;
-
-	spin_lock_init(&apollo->interrupt_handler_lock);
-	spin_lock_init(&apollo->interrupt_enable_lock);
-
-	/* Reserve and map the TCF registers */
-	err = request_pci_io_addr(pdev, SYS_APOLLO_REG_PCI_BASENUM,
-		SYS_APOLLO_REG_SYS_OFFSET, SYS_APOLLO_REG_SYS_SIZE);
-	if (err) {
-		dev_err(&pdev->dev,
-			"Failed to request apollo registers (err=%d)\n", err);
-		return err;
-	}
-
-	apollo->tcf_register_resource =
-		pci_resource_start(pdev, SYS_APOLLO_REG_PCI_BASENUM)
-		+ SYS_APOLLO_REG_SYS_OFFSET;
-
-	apollo->tcf_registers = ioremap_nocache(apollo->tcf_register_resource,
-		SYS_APOLLO_REG_SYS_SIZE);
-	if (!apollo->tcf_registers) {
-		dev_err(&pdev->dev, "Failed to map TCF registers\n");
-		err = -EIO;
-		goto err_release_registers;
-	}
-
-	/* Setup card memory */
-	apollo->apollo_mem_base =
-		pci_resource_start(pdev, APOLLO_MEM_PCI_BASENUM);
-	apollo->apollo_mem_size =
-		pci_resource_len(pdev, APOLLO_MEM_PCI_BASENUM);
-
-	err = mtrr_setup(pdev, apollo->apollo_mem_base,
-			 apollo->apollo_mem_size);
-	if (err)
-		goto err_unmap_registers;
-
-	/* Setup ranges for the device heaps */
-	apollo->pdp_heap_mem_size = APOLLO_PDP_MEM_SIZE;
-	apollo->rogue_heap_mem_size = apollo->apollo_mem_size
-		- apollo->pdp_heap_mem_size;
-
-	apollo->rogue_heap_mem_base = apollo->apollo_mem_base;
-	apollo->pdp_heap_mem_base = apollo->apollo_mem_base +
-		apollo->rogue_heap_mem_size;
-
-#if defined(SUPPORT_ION)
-	err = apollo_ion_init(apollo);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to initialise ION\n");
-		goto err_unmap_registers;
-	}
-#endif
-
-	return 0;
-
-err_unmap_registers:
-	iounmap(apollo->tcf_registers);
-err_release_registers:
-	release_pci_io_addr(pdev, SYS_APOLLO_REG_PCI_BASENUM,
-		apollo->tcf_register_resource, SYS_APOLLO_REG_SYS_SIZE);
-	return err;
-}
-
-static void apollo_dev_cleanup(struct apollo_device *apollo)
-{
-#if defined(SUPPORT_ION)
-	apollo_ion_deinit(apollo);
-#endif
-	iounmap(apollo->tcf_registers);
-	release_pci_io_addr(apollo->pdev, SYS_APOLLO_REG_PCI_BASENUM,
-		apollo->tcf_register_resource, SYS_APOLLO_REG_SYS_SIZE);
-}
 
 static int apollo_init(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -1355,24 +1185,50 @@ static int apollo_init(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	devres_add(&pdev->dev, apollo);
 
+	apollo->pdev = pdev;
+	spin_lock_init(&apollo->interrupt_handler_lock);
+	spin_lock_init(&apollo->interrupt_enable_lock);
+
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "pci_enable_device returned %d\n", err);
 		goto err_out;
 	}
 
-	err = apollo_dev_init(apollo, pdev);
-	if (err)
+	err = request_pci_io_addr(pdev, SYS_APOLLO_REG_PCI_BASENUM,
+		SYS_APOLLO_REG_SYS_OFFSET, SYS_APOLLO_REG_SYS_SIZE);
+	if (err) {
+		dev_err(&pdev->dev,
+			"Failed to request apollo registers (%d)\n", err);
 		goto err_disable_device;
+	}
 
-	err = apollo_hw_init(apollo);
+	apollo->tcf_register_resource =
+		pci_resource_start(pdev, SYS_APOLLO_REG_PCI_BASENUM)
+		+ SYS_APOLLO_REG_SYS_OFFSET;
+
+	apollo->tcf_registers = ioremap_nocache(apollo->tcf_register_resource,
+		SYS_APOLLO_REG_SYS_SIZE);
+	if (!apollo->tcf_registers) {
+		dev_err(&pdev->dev, "Failed to map TCF registers\n");
+		err = -EIO;
+		goto err_release_registers;
+	}
+
+	err = apollo_config(apollo);
 	if (err)
-		goto err_dev_cleanup;
+		goto err_release_registers;
 
 	err = apollo_enable_irq(apollo);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to initialise IRQ\n");
-		goto err_hw_fini;
+		goto err_deinit_memory;
+	}
+
+	err = apollo_ion_init(apollo);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialise ION\n");
+		goto err_disable_irq;
 	}
 
 	/* Set sense to active high */
@@ -1388,11 +1244,14 @@ static int apollo_init(struct pci_dev *pdev, const struct pci_device_id *id)
 	devres_remove_group(&pdev->dev, NULL);
 
 	return err;
-
-err_hw_fini:
-	apollo_hw_fini(apollo);
-err_dev_cleanup:
-	apollo_dev_cleanup(apollo);
+err_disable_irq:
+	apollo_disable_irq(apollo);
+err_deinit_memory:
+	apollo_deinit_memory(apollo);
+	iounmap(apollo->tcf_registers);
+err_release_registers:
+	release_pci_io_addr(pdev, SYS_APOLLO_REG_PCI_BASENUM,
+		apollo->tcf_register_resource, SYS_APOLLO_REG_SYS_SIZE);
 err_disable_device:
 	pci_disable_device(pdev);
 err_out:
@@ -1416,14 +1275,17 @@ static void apollo_exit(struct pci_dev *pdev)
 	for (i = 0; i < APOLLO_INTERRUPT_COUNT; i++)
 		apollo_disable_interrupt(&pdev->dev, i);
 	apollo_disable_irq(apollo);
-	apollo_hw_fini(apollo);
-	apollo_dev_cleanup(apollo);
+	apollo_ion_deinit(apollo);
+	apollo_deinit_memory(apollo);
+	iounmap(apollo->tcf_registers);
+	release_pci_io_addr(pdev, SYS_APOLLO_REG_PCI_BASENUM,
+		apollo->tcf_register_resource, SYS_APOLLO_REG_SYS_SIZE);
 	pci_disable_device(pdev);
 }
 
 DEFINE_PCI_DEVICE_TABLE(apollo_pci_tbl) = {
-	{ PCI_VDEVICE(POWERVR, DEVICE_ID_PCI_APOLLO_FPGA) },
-	{ PCI_VDEVICE(POWERVR, DEVICE_ID_PCIE_APOLLO_FPGA) },
+	{ PCI_VDEVICE(POWERVR, 0x1CF1) },
+	{ PCI_VDEVICE(POWERVR, 0x1CF2) },
 	{ },
 };
 

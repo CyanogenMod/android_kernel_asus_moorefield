@@ -58,10 +58,38 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGXKMIF_DEVICE_STATE_FTRACE_EN				(0x1 << 1)		/*!< Used to enable device FTrace thread to consume HWPerf data */
 #define RGXKMIF_DEVICE_STATE_DISABLE_DW_LOGGING_EN	(0x1 << 2)		/*!< Used to disable the Devices Watchdog logging */
 
+
+/*!
+ ******************************************************************************
+ * RGXFW Compiler alignment definitions
+ *****************************************************************************/
+#if defined(__GNUC__)
+#define RGXFW_ALIGN			__attribute__ ((aligned (8)))
+#elif defined(__MECC__)
+#define RGXFW_ALIGN			_Pragma("align 8")
+#elif defined(_MSC_VER)
+#define RGXFW_ALIGN			__declspec(align(8))
+#pragma warning (disable : 4324)
+#else
+#error "Align MACROS need to be defined for this compiler"
+#endif
+
 /* Required memory alignment for 64-bit variables accessible by Meta 
   (the gcc meta aligns 64-bit vars to 64-bit; therefore, mem shared between
    the host and meta that contains 64-bit vars has to maintain this aligment)*/
 #define RGXFWIF_FWALLOC_ALIGN	sizeof(IMG_UINT64)
+
+/*!
+ ******************************************************************************
+ * Force structure 8-byte alignment
+ * This option was introduced to fix the ARM64 misalignment issue when accessing
+ * uncached memory.
+ *****************************************************************************/
+#if defined(FORCE_UNCACHED_ALIGN)
+#define UNCACHED_ALIGN      RGXFW_ALIGN
+#else
+#define UNCACHED_ALIGN
+#endif
 
 typedef struct _RGXFWIF_DEV_VIRTADDR_
 {
@@ -77,22 +105,21 @@ typedef struct _RGXFWIF_DMA_ADDR_
 #else
 	RGXFWIF_DEV_VIRTADDR    pbyFWAddr;
 #endif
-} UNCACHED_ALIGN RGXFWIF_DMA_ADDR;
+} RGXFWIF_DMA_ADDR;
 
 typedef IMG_UINT8	RGXFWIF_CCCB;
 
 #if defined(RGX_FIRMWARE)
 /* Compiling the actual firmware - use a fully typed pointer */
-typedef RGXFWIF_CCCB					*PRGXFWIF_CCCB;
+typedef RGXFWIF_CCCB						*PRGXFWIF_CCCB;
 typedef struct _RGXFWIF_CCCB_CTL_		*PRGXFWIF_CCCB_CTL;
 typedef struct _RGXFWIF_RENDER_TARGET_	*PRGXFWIF_RENDER_TARGET;
 typedef struct _RGXFWIF_HWRTDATA_		*PRGXFWIF_HWRTDATA;
 typedef struct _RGXFWIF_FREELIST_		*PRGXFWIF_FREELIST;
-typedef struct _RGXFWIF_RAY_FRAME_DATA_	*PRGXFWIF_RAY_FRAME_DATA;
-typedef struct _RGXFWIF_RPM_FREELIST_	*PRGXFWIF_RPM_FREELIST;
 typedef struct _RGXFWIF_RTA_CTL_		*PRGXFWIF_RTA_CTL;
 typedef IMG_UINT32						*PRGXFWIF_UFO_ADDR;
-typedef struct _RGXFWIF_CLEANUP_CTL_	*PRGXFWIF_CLEANUP_CTL;
+typedef IMG_UINT64                  *PRGXFWIF_TIMESTAMP_ADDR;
+typedef struct _RGXFWIF_CLEANUP_CTL_		*PRGXFWIF_CLEANUP_CTL;
 #else
 /* Compiling the host driver - use a firmware device virtual pointer */
 typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_CCCB;
@@ -100,15 +127,14 @@ typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_CCCB_CTL;
 typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_RENDER_TARGET;
 typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_HWRTDATA;
 typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_FREELIST;
-typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_RAY_FRAME_DATA;
-typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_RPM_FREELIST;
 typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_RTA_CTL;
 typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_UFO_ADDR;
+typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_TIMESTAMP_ADDR;
 typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_CLEANUP_CTL;
 #endif /* RGX_FIRMWARE */
 
 
-/* FIXME PRGXFWIF_UFO_ADDR and RGXFWIF_UFO should move back into rgx_fwif_client.h */
+
 typedef struct _RGXFWIF_UFO_
 {
 	PRGXFWIF_UFO_ADDR	puiAddrUFO;
@@ -151,7 +177,8 @@ typedef struct _RGXFWIF_CLEANUP_CTL_
 {
 	IMG_UINT32				ui32SubmittedCommands;	/*!< Number of commands received by the FW */
 	IMG_UINT32				ui32ExecutedCommands;	/*!< Number of commands executed by the FW */
-} UNCACHED_ALIGN RGXFWIF_CLEANUP_CTL;
+	IMG_UINT32 				ui32SyncObjDevVAddr;	/*!< SyncPrimitive to update after cleanup completion */
+}RGXFWIF_CLEANUP_CTL;
 
 
 /*!
@@ -164,7 +191,7 @@ typedef struct _RGXFWIF_CCCB_CTL_
 	IMG_UINT32				ui32ReadOffset;		/*!< read offset into array of commands */
 	IMG_UINT32				ui32DepOffset;		/*!< Dependency offset */
 	IMG_UINT32				ui32WrapMask;		/*!< Offset wrapping mask (Total capacity of the CCB - 1) */
-} UNCACHED_ALIGN RGXFWIF_CCCB_CTL;
+} RGXFWIF_CCCB_CTL;
 
 typedef enum 
 {
@@ -181,22 +208,18 @@ typedef struct _RGXFWIF_RTA_CTL_
 	IMG_UINT32				ui32RenderTargetIndex;		//Render number
 	IMG_UINT32				ui32CurrentRenderTarget;	//index in RTA
 	IMG_UINT32				ui32ActiveRenderTargets;	//total active RTs
-	IMG_UINT32				ui32CumulActiveRenderTargets;   //total active RTs from the first TA kick, for OOM
 #if defined(RGX_FIRMWARE)
 	IMG_UINT32				*paui32ValidRenderTargets;	//Array of valid RT indices
-	IMG_UINT32              		*paui32NumRenders;  //Array of number of occurred partial renders per render target
 #else
-	RGXFWIF_DEV_VIRTADDR			paui32ValidRenderTargets;  //Array of valid RT indices
-	RGXFWIF_DEV_VIRTADDR    		paui32NumRenders;  //Array of number of occurred partial renders per render target
+	RGXFWIF_DEV_VIRTADDR	paui32ValidRenderTargets;
 #endif
-	IMG_UINT16              		ui16MaxRTs;   //Number of render targets in the array
-} UNCACHED_ALIGN RGXFWIF_RTA_CTL;
+} RGXFWIF_RTA_CTL;
 
 typedef struct _RGXFWIF_FREELIST_
 {
 	IMG_DEV_VIRTADDR	RGXFW_ALIGN psFreeListDevVAddr;
 	IMG_UINT64			RGXFW_ALIGN ui64CurrentDevVAddr;
-	IMG_UINT32			ui32CurrentStackTop;
+	IMG_UINT64			RGXFW_ALIGN ui64CurrentStackTop;
 	IMG_UINT32			ui32MaxPages;
 	IMG_UINT32			ui32GrowPages;
 	IMG_UINT32			ui32CurrentPages;
@@ -205,63 +228,15 @@ typedef struct _RGXFWIF_FREELIST_
 	IMG_UINT32			ui32HWRCounter;
 	IMG_UINT32			ui32FreeListID;
 	IMG_BOOL			bGrowPending;
-} UNCACHED_ALIGN RGXFWIF_FREELIST;
+} RGXFWIF_FREELIST;
 
-#if defined(RGX_FEATURE_RAY_TRACING)
-typedef enum 
-{
-	RGXFW_RPM_SHF_FREELIST = 0,
-	RGXFW_RPM_SHG_FREELIST = 1,
-} RGXFW_RPM_FREELIST_TYPE;
-
-#define		RGXFW_MAX_RPM_FREELISTS		(2)
-
-typedef struct _RGXFWIF_RPM_FREELIST_
-{
-	IMG_DEV_VIRTADDR	RGXFW_ALIGN sFreeListDevVAddr;		/*!< device base address */
-	IMG_DEV_VIRTADDR	RGXFW_ALIGN sRPMPageListDevVAddr;	/*!< device base address for RPM pages in-use */
-	IMG_UINT32			sSyncAddr;				/*!< Free list sync object for OOM event */
-	IMG_UINT32			ui32MaxPages;			/*!< maximum size */
-	IMG_UINT32			ui32GrowPages;			/*!< grow size = maximum pages which may be added later */
-	IMG_UINT32			ui32CurrentPages;		/*!< number of pages */
-	IMG_UINT32			ui32ReadOffset;			/*!< head: where to read alloc'd pages */
-	IMG_UINT32			ui32WriteOffset;		/*!< tail: where to write de-alloc'd pages */
-	IMG_BOOL			bReadToggle;			/*!< toggle bit for circular buffer */
-	IMG_BOOL			bWriteToggle;
-	IMG_UINT32			ui32AllocatedPageCount; /*!< TODO: not sure yet if this is useful */
-	IMG_UINT32			ui32HWRCounter;
-	IMG_UINT32			ui32FreeListID;			/*!< unique ID per device, e.g. rolling counter */
-	IMG_BOOL			bGrowPending;			/*!< FW is waiting for host to grow the freelist */
-} UNCACHED_ALIGN RGXFWIF_RPM_FREELIST;
-
-typedef struct _RGXFWIF_RAY_FRAME_DATA_
-{
-	/* state manager for shared state between vertex and ray processing */
-	
-	/* TODO: not sure if this will be useful, link it here for now */
-	IMG_UINT32		sRPMFreeLists[RGXFW_MAX_RPM_FREELISTS];
-	
-	IMG_BOOL		bAbortOccurred;
-	
-	/* cleanup state.
-	 * Both the SHG and RTU must complete or discard any outstanding work
-	 * which references this frame data.
-	 */
-	RGXFWIF_CLEANUP_CTL		sCleanupStateSHG;
-	RGXFWIF_CLEANUP_CTL		sCleanupStateRTU;
-	IMG_UINT32				ui32CleanupStatus;
-#define HWFRAMEDATA_SHG_CLEAN	(1 << 0)
-#define HWFRAMEDATA_RTU_CLEAN	(1 << 1)
-
-} UNCACHED_ALIGN RGXFWIF_RAY_FRAME_DATA;
-#endif
 
 typedef struct _RGXFWIF_RENDER_TARGET_
 {
 	IMG_DEV_VIRTADDR	RGXFW_ALIGN psVHeapTableDevVAddr; /*!< VHeap Data Store */
 	IMG_BOOL			bTACachesNeedZeroing;			  /*!< Whether RTC and TPC caches (on mem) need to be zeroed on next first TA kick */
 
-} UNCACHED_ALIGN RGXFWIF_RENDER_TARGET;
+} RGXFWIF_RENDER_TARGET;
 
 
 typedef struct _RGXFWIF_HWRTDATA_ 
@@ -305,7 +280,6 @@ typedef struct _RGXFWIF_HWRTDATA_
 	PRGXFWIF_RTA_CTL		psRTACtl;
 
 	IMG_UINT32				bHasLastTA;
-	IMG_BOOL				bPartialRendered;
 
 	IMG_UINT32				ui32PPPScreen;
 	IMG_UINT32				ui32PPPGridOffset;
@@ -324,7 +298,7 @@ typedef struct _RGXFWIF_HWRTDATA_
 	IMG_UINT32				ui32ISPMergeUpperY;
 	IMG_UINT32				ui32ISPMergeScaleX;
 	IMG_UINT32				ui32ISPMergeScaleY;
-} UNCACHED_ALIGN RGXFWIF_HWRTDATA;
+} RGXFWIF_HWRTDATA;
 
 typedef enum
 {
@@ -340,7 +314,7 @@ typedef struct _RGXFWIF_ZSBUFFER_
 	IMG_BOOL				bOnDemand;					/*!< Needs On-demand ZS Buffer allocation */
 	RGXFWIF_ZSBUFFER_STATE	eState;						/*!< Z/S-Buffer state */
 	RGXFWIF_CLEANUP_CTL		sCleanupState;				/*!< Cleanup state */
-} UNCACHED_ALIGN RGXFWIF_FWZSBUFFER;
+} RGXFWIF_FWZSBUFFER;
 
 /* Number of BIF tiling configurations / heaps */
 #define RGXFWIF_NUM_BIF_TILING_CONFIGS 4
@@ -427,8 +401,6 @@ typedef enum _RGXFWIF_CCB_CMD_TYPE_
    bit cleared for POST_TIMESTAMPs. That's why we have 2 different cmd types.
 */
 	RGXFWIF_CCB_CMD_TYPE_POST_TIMESTAMP = 217,
-	RGXFWIF_CCB_CMD_TYPE_UNFENCED_UPDATE = 218,
-	RGXFWIF_CCB_CMD_TYPE_UNFENCED_RMW_UPDATE = 219,
 	
 	RGXFWIF_CCB_CMD_TYPE_PADDING	= 220,
 } RGXFWIF_CCB_CMD_TYPE;
@@ -455,69 +427,10 @@ typedef struct _RGXFWIF_REG_CFG_REC_
 
 typedef struct _RGXFWIF_TIME_CORR_
 {
-	IMG_UINT64 RGXFW_ALIGN ui64OSTimeStamp;
-	IMG_UINT64 RGXFW_ALIGN ui64CRTimeStamp;
-	IMG_UINT32             ui32CoreClockSpeed;
-
-	/* Utility variable used to convert CR timer deltas to OS timer deltas (nS),
-	 * where the deltas are relative to the timestamps above:
-	 * deltaOS = (deltaCR * K) >> decimal_shift, see full explanation below */
-	IMG_UINT32             ui32CRDeltaToOSDeltaKNs;
-} UNCACHED_ALIGN RGXFWIF_TIME_CORR;
-
-typedef struct _RGXFWIF_TIMESTAMP_
-{
-	RGXFWIF_TIME_CORR      sTimeCorr;
-	IMG_UINT64 RGXFW_ALIGN ui64Timestamp;
-} UNCACHED_ALIGN RGXFWIF_TIMESTAMP;
-
-
-/* These macros are used to help converting FW timestamps to the Host time domain.
- * On the FW the RGX_CR_TIMER counter is used to keep track of the time;
- * it increments by 1 every 256 GPU clock ticks, so the general formula
- * to perform the conversion is:
- *
- * [ GPU clock speed in Hz, if (scale == 10^9) then deltaOS is in nS,
- *   otherwise if (scale == 10^6) then deltaOS is in uS ]
- *
- *             deltaCR * 256                                   256 * scale
- *  deltaOS = --------------- * scale = deltaCR * K    [ K = --------------- ]
- *             GPUclockspeed                                  GPUclockspeed
- *
- * The actual K is multiplied by 2^20 (and deltaCR * K is divided by 2^20)
- * to get some better accuracy and to avoid returning 0 in the integer
- * division 256000000/GPUfreq if GPUfreq is greater than 256MHz.
- * This is the same as keeping K as a decimal number.
- *
- * The maximum deltaOS is slightly more than 5hrs for all GPU frequencies
- * (deltaCR * K is more or less a costant), and it's relative to
- * the base OS timestamp sampled as a part of the timer correlation data.
- * This base is refreshed on GPU power-on, DVFS transition and
- * periodic frequency calibration (executed every few seconds if the FW is
- * doing some work), so as long as the GPU is doing something and one of these
- * events is triggered then deltaCR * K will not overflow and deltaOS will be
- * correct.
- */
-
-#define RGXFWIF_CRDELTA_TO_OSDELTA_ACCURACY_SHIFT  (20)
-
-#define RGXFWIF_GET_CRDELTA_TO_OSDELTA_K_NS(clockfreq, remainder) \
-	OSDivide64((256000000ULL << RGXFWIF_CRDELTA_TO_OSDELTA_ACCURACY_SHIFT), \
-	           ((clockfreq) + 500) / 1000, \
-	           &(remainder))
-
-#define RGXFWIF_GET_DELTA_OSTIME_NS(deltaCR, K) \
-	( ((deltaCR) * (K)) >> RGXFWIF_CRDELTA_TO_OSDELTA_ACCURACY_SHIFT)
-
-#define RGXFWIF_GET_DELTA_OSTIME_US(deltacr, clockfreq, remainder) \
-	OSDivide64r64((deltacr) * 256000, ((clockfreq) + 500) / 1000, &(remainder))
-
-/* Use this macro to get a more realistic GPU core clock speed than
- * the one given by the upper layers (used when doing GPU frequency
- * calibration)
- */
-#define RGXFWIF_GET_GPU_CLOCK_FREQUENCY_HZ(deltacr_us, deltaos_us, remainder) \
-	OSDivide64((deltacr_us) * 256000000, (deltaos_us), &(remainder))
+	IMG_UINT64 RGXFW_ALIGN 	ui64OSTimeStamp;
+	IMG_UINT64 RGXFW_ALIGN 	ui64CRTimeStamp;
+	IMG_UINT32				ui32DVFSClock;
+} RGXFWIF_TIME_CORR;
 
 #endif /*  __RGX_FWIF_SHARED_H__ */
 

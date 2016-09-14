@@ -108,6 +108,9 @@ $(DRIVER_NAME)-objs += \
 	$(DISPLAYDIR)/tng_wa.o \
 	$(DISPLAYDIR)/pmu_tng.o \
 	$(DISPLAYDIR)/cmn_cabc.o \
+	$(DISPLAYDIR)/otm1284a_vid.o \
+	$(DISPLAYDIR)/nt35596_vid.o \
+	$(DISPLAYDIR)/otm1901a_vid.o \
 	$(DISPLAYDIR)/ospm/pwr_mgmt.o \
 	$(DISPLAYDIR)/ospm/gfx_rtpm.o \
 	$(DISPLAYDIR)/ospm/dc_ospm.o \
@@ -117,36 +120,6 @@ $(DRIVER_NAME)-objs += \
 	$(DISPLAYDIR)/ospm/early_suspend_sysfs.o
 
 $(DRIVER_NAME)-objs += $(DISPLAYDIR)/cmn_dc_callbacks.o
-
-ifeq ($(CONFIG_SUPPORT_MIPI_OTM1284A_DISPLAY),y)
-$(DRIVER_NAME)-objs += \
-	$(DISPLAYDIR)/otm1284a_vid.o
-endif
-
-ifeq ($(CONFIG_SUPPORT_MIPI_OTM1901A_DISPLAY),y)
-$(DRIVER_NAME)-objs += \
-	$(DISPLAYDIR)/otm1901a_vid.o
-endif
-
-ifeq ($(CONFIG_SUPPORT_MIPI_NT35596_DISPLAY),y)
-$(DRIVER_NAME)-objs += \
-	$(DISPLAYDIR)/nt35596_vid.o
-endif
-
-ifeq ($(CONFIG_SUPPORT_MIPI_SAMSUNG_FHD_DISPLAY),y)
-$(DRIVER_NAME)-objs += \
-	$(DISPLAYDIR)/samsungFHD_cmd.o
-endif
-
-ifeq ($(CONFIG_SUPPORT_MIPI_SAMSUNG_WQHD_DISPLAY),y)
-$(DRIVER_NAME)-objs += \
-	$(DISPLAYDIR)/samsungWQHD_cmd.o
-endif
-
-ifeq ($(CONFIG_SUPPORT_MIPI_TD4300_DISPLAY),y)
-$(DRIVER_NAME)-objs += \
-	$(DISPLAYDIR)/td4300_vid.o
-endif
 
 ifeq ($(CONFIG_MOOREFIELD),y)
 $(DRIVER_NAME)-objs += \

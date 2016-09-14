@@ -264,20 +264,6 @@ static int pm_cmd_freq_set(u32 reg_freq, u32 freq_code, u32 *p_freq_code_rlzd)
 	}
 
 	freq_val = IP_FREQ_VALID | freq_code;
-	/* Before making a frequency request, check the current frequency.
-	 * If it is the same, don't make another request. Punit sometimes
-	 * marks the valid flag incorrectly. If so, don't make the frequency
-	 * request.
-	 */
-	if ((intel_mid_msgbus_read32(PUNIT_PORT, reg_freq) &
-		IP_FREQ_MASK) == freq_code){
-		*p_freq_code_rlzd = freq_code;
-		PSB_DEBUG_PM("Skipping Frequency update since desired freq"
-			"is same as current freq. Freq Code=0x%x\n",
-			freq_code);
-		return rva;
-	}
-
 	intel_mid_msgbus_write32(PUNIT_PORT, reg_freq, freq_val);
 
 	rva = pm_cmd_freq_wait(reg_freq, &freq_code_realized);
@@ -640,14 +626,14 @@ static bool ospm_slc_power_up(struct drm_device *dev,
 		/* soc.gfx_wrapper.gbypassenable_sw = 1 */
 		reg = 0x160854 - GFX_WRAPPER_OFFSET;
 		data = WRAPPER_REG_READ(reg);
-		if (IS_TNG(dev))
+		if (IS_TNG_B0(dev))
 			data |= 0x101; /*Disable Bypass SLC for VED on Merfld PR2 B0*/
 		else
 			data |= 0x100; /*Bypass SLC for VEC*/
 		WRAPPER_REG_WRITE(reg, data);
 	}
 
-	if (!ret && IS_TNG(dev)) {
+	if (!ret && IS_TNG_B0(dev)) {
 		/* soc.gfx_wrapper.gclip_control.aes_bypass_disable = 1*/
 		reg = 0x160020 - GFX_WRAPPER_OFFSET;
 		data = WRAPPER_REG_READ(reg);

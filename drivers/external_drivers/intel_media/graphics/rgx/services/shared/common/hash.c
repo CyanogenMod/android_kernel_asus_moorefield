@@ -266,12 +266,8 @@ _Resize (HASH_TABLE *pHash, IMG_UINT32 uNewSize)
 		BUCKET **ppNewTable;
         IMG_UINT32 uIndex;
 
-#if defined(__linux__) && defined(__KERNEL__)
-		ppNewTable = OSAllocMemstatMem(sizeof (BUCKET *) * uNewSize);
-#else
 		ppNewTable = OSAllocMem(sizeof (BUCKET *) * uNewSize);
-#endif
-		if (ppNewTable == IMG_NULL)
+        if (ppNewTable == IMG_NULL)
         {
             return IMG_FALSE;
         }
@@ -292,11 +288,7 @@ _Resize (HASH_TABLE *pHash, IMG_UINT32 uNewSize)
 			return IMG_FALSE;
 		}
 
-#if defined(__linux__) && defined(__KERNEL__)
-        OSFreeMemstatMem(pHash->ppBucketTable);
-#else
         OSFreeMem(pHash->ppBucketTable);
-#endif
         /*not nulling pointer, being reassigned just below*/
         pHash->ppBucketTable = ppNewTable;
         pHash->uSize = uNewSize;
@@ -327,11 +319,7 @@ HASH_TABLE * HASH_Create_Extended (IMG_UINT32 uInitialLen, IMG_SIZE_T uKeySize, 
 
 	PVR_DPF ((PVR_DBG_MESSAGE, "HASH_Create_Extended: InitialSize=0x%x", uInitialLen));
 
-#if defined(__linux__) && defined(__KERNEL__)
-	pHash = OSAllocMemstatMem(sizeof(HASH_TABLE));
-#else
 	pHash = OSAllocMem(sizeof(HASH_TABLE));
-#endif
     if (pHash == IMG_NULL)
 	{
 		return IMG_NULL;
@@ -344,18 +332,10 @@ HASH_TABLE * HASH_Create_Extended (IMG_UINT32 uInitialLen, IMG_SIZE_T uKeySize, 
 	pHash->pfnHashFunc = pfnHashFunc;
 	pHash->pfnKeyComp = pfnKeyComp;
 
-#if defined(__linux__) && defined(__KERNEL__)
-    pHash->ppBucketTable = OSAllocMemstatMem(sizeof (BUCKET *) * pHash->uSize);
-#else
     pHash->ppBucketTable = OSAllocMem(sizeof (BUCKET *) * pHash->uSize);
-#endif
     if (pHash->ppBucketTable == IMG_NULL)
     {
-#if defined(__linux__) && defined(__KERNEL__)
-		OSFreeMemstatMem(pHash);
-#else
 		OSFreeMem(pHash);
-#endif
 		/*not nulling pointer, out of scope*/
 		return IMG_NULL;
     }
@@ -405,6 +385,7 @@ HASH_Delete (HASH_TABLE *pHash)
 			bDoCheck = IMG_FALSE;
 		}
 	}
+
 #endif
 	if (pHash != IMG_NULL)
     {
@@ -417,17 +398,9 @@ HASH_Delete (HASH_TABLE *pHash)
 			PVR_DPF ((PVR_DBG_ERROR, "HASH_Delete: leak detected in hash table!"));
 			PVR_DPF ((PVR_DBG_ERROR, "Likely Cause: client drivers not freeing alocations before destroying devmemcontext"));
 		}
-#if defined(__linux__) && defined(__KERNEL__)
-		OSFreeMemstatMem(pHash->ppBucketTable);
-#else
 		OSFreeMem(pHash->ppBucketTable);
-#endif
 		pHash->ppBucketTable = IMG_NULL;
-#if defined(__linux__) && defined(__KERNEL__)
-		OSFreeMemstatMem(pHash);
-#else
 		OSFreeMem(pHash);
-#endif
 		/*not nulling pointer, copy on stack*/
     }
 }
@@ -455,11 +428,7 @@ HASH_Insert_Extended (HASH_TABLE *pHash, IMG_VOID *pKey, IMG_UINTPTR_T v)
 		return IMG_FALSE;
 	}
 
-#if defined(__linux__) && defined(__KERNEL__)
-	pBucket = OSAllocMemstatMem(sizeof(BUCKET) + pHash->uKeySize);
-#else
 	pBucket = OSAllocMem(sizeof(BUCKET) + pHash->uKeySize);
-#endif
     if (pBucket == IMG_NULL)
 	{
 		return IMG_FALSE;
@@ -467,14 +436,10 @@ HASH_Insert_Extended (HASH_TABLE *pHash, IMG_VOID *pKey, IMG_UINTPTR_T v)
 
 	pBucket->v = v;
 	/* PRQA S 0432,0541 1 */ /* ignore warning about dynamic array k (linux)*/
-	OSCachedMemCopy(pBucket->k, pKey, pHash->uKeySize);
+	OSMemCopy(pBucket->k, pKey, pHash->uKeySize);
 	if (_ChainInsert (pHash, pBucket, pHash->ppBucketTable, pHash->uSize) != PVRSRV_OK)
 	{
-#if defined(__linux__) && defined(__KERNEL__)
-		OSFreeMemstatMem(pBucket);
-#else
 		OSFreeMem(pBucket);
-#endif
 		return IMG_FALSE;
 	}
 
@@ -542,11 +507,7 @@ HASH_Remove_Extended(HASH_TABLE *pHash, IMG_VOID *pKey)
 			IMG_UINTPTR_T v = pBucket->v;
 			(*ppBucket) = pBucket->pNext;
 
-#if defined(__linux__) && defined(__KERNEL__)
-			OSFreeMemstatMem(pBucket);
-#else
 			OSFreeMem(pBucket);
-#endif
 			/*not nulling original pointer, already overwritten*/
 
 			pHash->uCount--;

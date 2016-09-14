@@ -78,7 +78,7 @@ static int __esd_thread(void *data)
 	dsi_config = dev_priv->dsi_configs[0];
 	if (!dsi_config)
 		return -EINVAL;
-
+#ifndef CONFIG_A500CG
 	struct mdfld_dsi_pkg_sender *sender
 		= mdfld_dsi_get_pkg_sender(dsi_config);
 
@@ -86,7 +86,7 @@ static int __esd_thread(void *data)
 		DRM_ERROR("Failed to get DSI packet sender\n");
 		return -EINVAL;
 	}
-
+#endif
 	set_freezable();
 
 #ifdef CONFIG_SUPPORT_OTM8018B_MIPI_480X854_DISPLAY

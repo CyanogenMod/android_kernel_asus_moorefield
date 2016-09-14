@@ -84,8 +84,7 @@ static IMG_VOID *gpvTempBuffer = IMG_NULL;
 #define PDUMP_PERSISTENT_HASH_SIZE 10
 
 #define PDUMP_PRM_FILE_NAME_MAX	32         /*|< Size of parameter name used*/
-#define PRM_FILE_SIZE_MAX	0x7FDFFFFFU /*!< Default maximum file size to split output files, 2GB-2MB as fwrite limits it to 2GB-1 on 32bit systems */
-#define FRAME_UNSET			0xFFFFFFFFU /*|< Used to signify no or invalid frame number */
+#define PDUMP_PRM_FILE_SIZE_MAX	0x7FDFFFFF /*!< Default maximum file size to split output files, 2GB-2MB as fwrite limits it to 2GB-1 on 32bit systems */
 
 
 static HASH_TABLE *g_psPersistentHash = IMG_NULL;
@@ -119,7 +118,7 @@ typedef struct
 } PDUMP_PARAMETERS;
 
 static PDUMP_SCRIPT     g_PDumpScript    = { { 0, 0, 0} };
-static PDUMP_PARAMETERS g_PDumpParameters = { { 0, 0, 0}, {0, 0, 0}, 0, PRM_FILE_SIZE_MAX};
+static PDUMP_PARAMETERS g_PDumpParameters = { { 0, 0, 0}, {0, 0, 0}, 0, PDUMP_PRM_FILE_SIZE_MAX};
 
 
 #if defined(PDUMP_DEBUG_OUTFILES)
@@ -156,13 +155,12 @@ typedef struct _PDUMP_CTRL_STATE_
 	IMG_UINT32          ui32Flags;          /*!< Unused */
 
 	IMG_UINT32          ui32DefaultCapMode; /*!< Capture mode of the dump */
-	PDUMP_CAPTURE_RANGE sCaptureRange;      /*|< The capture range for capture mode 'framed' */
+	PDUMP_CAPTURE_RANGE sDefaultRange;      /*|< The default capture range */
 	IMG_UINT32          ui32CurrentFrame;   /*!< Current frame number */
 
 	IMG_BOOL            bCaptureOn;         /*!< Current capture status, is current frame in range */
 	IMG_BOOL            bSuspended;         /*!< Suspend flag set on unrecoverable error */
 	IMG_BOOL            bInPowerTransition; /*!< Device power transition state */
-	POS_LOCK            hLock;              /*!< Exclusive lock to this structure */
 } PDUMP_CTRL_STATE;
 
 static PDUMP_CTRL_STATE g_PDumpCtrl =
@@ -172,65 +170,30 @@ static PDUMP_CTRL_STATE g_PDumpCtrl =
 
 	0,              /*!< Value obtained from OS PDump layer during initialisation */
 	{
-		FRAME_UNSET,
-		FRAME_UNSET,
+		0xFFFFFFFF,
+		0xFFFFFFFF,
 		1
 	},
 	0,
 
 	IMG_FALSE,
 	IMG_FALSE,
-	IMG_FALSE,
-	IMG_NULL
+	IMG_FALSE
 };
 
-static PVRSRV_ERROR PDumpCtrlInit(IMG_UINT32 ui32InitCapMode)
+IMG_VOID PDumpCtrlInit(IMG_UINT32 ui32InitCapMode)
 {
 	g_PDumpCtrl.ui32DefaultCapMode = ui32InitCapMode;
 	PVR_ASSERT(g_PDumpCtrl.ui32DefaultCapMode != 0);
-
-	/* Create lock for PDUMP_CTRL_STATE struct, which is shared between pdump client
-	   and PDumping app. This lock will help us serialize calls from pdump client
-	   and PDumping app */
-	PVR_LOGR_IF_ERROR(OSLockCreate(&g_PDumpCtrl.hLock, LOCK_TYPE_PASSIVE), "OSLockCreate");
-	
-	return PVRSRV_OK;
 }
-
-static IMG_VOID PDumpCtrlDeInit(IMG_VOID)
-{
-	if (g_PDumpCtrl.hLock)
-	{
-		OSLockDestroy(g_PDumpCtrl.hLock);
-		g_PDumpCtrl.hLock = IMG_NULL;
-	}
-}
-
-static INLINE IMG_VOID PDumpCtrlLockAcquire(IMG_VOID)
-{
-	OSLockAcquire(g_PDumpCtrl.hLock);
-}
-
-static INLINE IMG_VOID PDumpCtrlLockRelease(IMG_VOID)
-{
-	OSLockRelease(g_PDumpCtrl.hLock);
-}
-
-/**********************************************************************************************************
-	NOTE:
-	The following PDumpCtrl*** functions require the PDUMP_CTRL_STATE lock be acquired BEFORE they are
-	called. This is because the PDUMP_CTRL_STATE data is shared between the PDumping App and the PDump
-	client, hence an exclusive access is required. The lock can be acquired and released by using the
-	PDumpCtrlLockAcquire & PDumpCtrlLockRelease functions respectively.
-**********************************************************************************************************/
 
 static IMG_VOID PDumpCtrlUpdateCaptureStatus(IMG_VOID)
 {
 	if (g_PDumpCtrl.ui32DefaultCapMode == DEBUG_CAPMODE_FRAMED)
 	{
-		if ((g_PDumpCtrl.ui32CurrentFrame >= g_PDumpCtrl.sCaptureRange.ui32Start) &&
-			(g_PDumpCtrl.ui32CurrentFrame <= g_PDumpCtrl.sCaptureRange.ui32End) &&
-			(((g_PDumpCtrl.ui32CurrentFrame - g_PDumpCtrl.sCaptureRange.ui32Start) % g_PDumpCtrl.sCaptureRange.ui32Interval) == 0))
+		if ((g_PDumpCtrl.ui32CurrentFrame >= g_PDumpCtrl.sDefaultRange.ui32Start) &&
+			(g_PDumpCtrl.ui32CurrentFrame <= g_PDumpCtrl.sDefaultRange.ui32End) &&
+			(((g_PDumpCtrl.ui32CurrentFrame - g_PDumpCtrl.sDefaultRange.ui32Start) % g_PDumpCtrl.sDefaultRange.ui32Interval) == 0))
 		{
 			g_PDumpCtrl.bCaptureOn = IMG_TRUE;
 		}
@@ -251,7 +214,43 @@ static IMG_VOID PDumpCtrlUpdateCaptureStatus(IMG_VOID)
 
 }
 
-static IMG_VOID PDumpCtrlSetCurrentFrame(IMG_UINT32 ui32Frame)
+IMG_VOID PDumpCtrlSetDefaultCaptureParams(IMG_UINT32 ui32Mode, IMG_UINT32 ui32Start, IMG_UINT32 ui32End, IMG_UINT32 ui32Interval)
+{
+	PVR_ASSERT(ui32Interval > 0);
+	PVR_ASSERT(ui32End >= ui32Start);
+	PVR_ASSERT((ui32Mode == DEBUG_CAPMODE_FRAMED) || (ui32Mode == DEBUG_CAPMODE_CONTINUOUS));
+
+	/*
+		Set the default capture range to that supplied by the PDump client tool
+	 */
+	g_PDumpCtrl.ui32DefaultCapMode = ui32Mode;
+	g_PDumpCtrl.sDefaultRange.ui32Start = ui32Start;
+	g_PDumpCtrl.sDefaultRange.ui32End = ui32End;
+	g_PDumpCtrl.sDefaultRange.ui32Interval = ui32Interval;
+
+	/*
+		Reset the current frame on reset of the default capture range, helps
+		avoid inter-pdump start frame issues when the driver is not reloaded.
+	 */
+	PDumpCtrlSetCurrentFrame(0);
+}
+
+INLINE IMG_BOOL PDumpCtrlCapModIsFramed(IMG_VOID)
+{
+	return g_PDumpCtrl.ui32DefaultCapMode == DEBUG_CAPMODE_FRAMED;
+}
+
+INLINE IMG_BOOL PDumpCtrlCapModIsContinuous(IMG_VOID)
+{
+	return g_PDumpCtrl.ui32DefaultCapMode == DEBUG_CAPMODE_CONTINUOUS;
+}
+
+IMG_UINT32 PDumpCtrlGetCurrentFrame(IMG_VOID)
+{
+	return g_PDumpCtrl.ui32CurrentFrame;
+}
+
+IMG_VOID PDumpCtrlSetCurrentFrame(IMG_UINT32 ui32Frame)
 {
 	g_PDumpCtrl.ui32CurrentFrame = ui32Frame;
 	/* Mirror the value into the debug driver */
@@ -264,65 +263,29 @@ static IMG_VOID PDumpCtrlSetCurrentFrame(IMG_UINT32 ui32Frame)
 #endif
 }
 
-static IMG_VOID PDumpCtrlSetDefaultCaptureParams(IMG_UINT32 ui32Mode, IMG_UINT32 ui32Start, IMG_UINT32 ui32End, IMG_UINT32 ui32Interval)
-{
-	PVR_ASSERT(ui32Interval > 0);
-	PVR_ASSERT(ui32End >= ui32Start);
-	PVR_ASSERT((ui32Mode == DEBUG_CAPMODE_FRAMED) || (ui32Mode == DEBUG_CAPMODE_CONTINUOUS));
-
-	/* Set the capture range to that supplied by the PDump client tool
-	 */
-	g_PDumpCtrl.ui32DefaultCapMode = ui32Mode;
-	g_PDumpCtrl.sCaptureRange.ui32Start = ui32Start;
-	g_PDumpCtrl.sCaptureRange.ui32End = ui32End;
-	g_PDumpCtrl.sCaptureRange.ui32Interval = ui32Interval;
-
-	/* Reset the current frame on reset of the capture range, the helps to
-	 * avoid inter-pdump start frame issues when the driver is not reloaded.
-	 * No need to call PDumpCtrlUpdateCaptureStatus() direct as the set
-	 * current frame call will.
-	 */
-	PDumpCtrlSetCurrentFrame(0);
-}
-
-static INLINE IMG_BOOL PDumpCtrlCapModIsFramed(IMG_VOID)
-{
-	return g_PDumpCtrl.ui32DefaultCapMode == DEBUG_CAPMODE_FRAMED;
-}
-
-static INLINE IMG_BOOL PDumpCtrlCapModIsContinuous(IMG_VOID)
-{
-	return g_PDumpCtrl.ui32DefaultCapMode == DEBUG_CAPMODE_CONTINUOUS;
-}
-
-static IMG_UINT32 PDumpCtrlGetCurrentFrame(IMG_VOID)
-{
-	return g_PDumpCtrl.ui32CurrentFrame;
-}
-
-static INLINE IMG_BOOL PDumpCtrlCaptureOn(IMG_VOID)
+INLINE IMG_BOOL PDumpCtrlCaptureOn(IMG_VOID)
 {
 	return !g_PDumpCtrl.bSuspended && g_PDumpCtrl.bCaptureOn;
 }
 
-static INLINE IMG_BOOL PDumpCtrlCaptureRangePast(IMG_VOID)
+INLINE IMG_BOOL PDumpCtrlCaptureRangePast(IMG_VOID)
 {
-	return (g_PDumpCtrl.ui32CurrentFrame > g_PDumpCtrl.sCaptureRange.ui32End);
+	return (g_PDumpCtrl.ui32CurrentFrame > g_PDumpCtrl.sDefaultRange.ui32End);
 }
 
 /* Used to imply if the PDump client is connected or not. */
-static INLINE IMG_BOOL PDumpCtrlCaptureRangeUnset(IMG_VOID)
+INLINE IMG_BOOL PDumpCtrlCaptureRangeUnset(IMG_VOID)
 {
-	return ((g_PDumpCtrl.sCaptureRange.ui32Start == FRAME_UNSET) &&
-			(g_PDumpCtrl.sCaptureRange.ui32End == FRAME_UNSET));
+	return ((g_PDumpCtrl.sDefaultRange.ui32Start == 0xFFFFFFFFU) &&
+			(g_PDumpCtrl.sDefaultRange.ui32End == 0xFFFFFFFFU));
 }
 
-static IMG_BOOL PDumpCtrlIsLastCaptureFrame(IMG_VOID)
+IMG_BOOL PDumpCtrIsLastCaptureFrame(IMG_VOID)
 {
 	if (g_PDumpCtrl.ui32DefaultCapMode == DEBUG_CAPMODE_FRAMED)
 	{
 		/* Is the next capture frame within the range end limit? */
-		if ((g_PDumpCtrl.ui32CurrentFrame + g_PDumpCtrl.sCaptureRange.ui32Interval) > g_PDumpCtrl.sCaptureRange.ui32End)
+		if ((g_PDumpCtrl.ui32CurrentFrame + g_PDumpCtrl.sDefaultRange.ui32Interval) > g_PDumpCtrl.sDefaultRange.ui32End)
 		{
 			return IMG_TRUE;
 		}
@@ -336,12 +299,12 @@ static IMG_BOOL PDumpCtrlIsLastCaptureFrame(IMG_VOID)
 	return IMG_FALSE;
 }
 
-static INLINE IMG_BOOL PDumpCtrlInitPhaseComplete(IMG_VOID)
+INLINE IMG_BOOL PDumpCtrlInitPhaseComplete(IMG_VOID)
 {
 	return !g_PDumpCtrl.bInitPhaseActive;
 }
 
-static INLINE IMG_VOID PDumpCtrlSetInitPhaseComplete(IMG_BOOL bIsComplete)
+INLINE IMG_VOID PDumpCtrlSetInitPhaseComplete(IMG_BOOL bIsComplete)
 {
 	if (bIsComplete)
 	{
@@ -355,91 +318,38 @@ static INLINE IMG_VOID PDumpCtrlSetInitPhaseComplete(IMG_BOOL bIsComplete)
 	}
 }
 
-static INLINE IMG_VOID PDumpCtrlSuspend(IMG_VOID)
+INLINE IMG_VOID PDumpCtrlSuspend(IMG_VOID)
 {
 	PDUMP_HEREA(104);
 	g_PDumpCtrl.bSuspended = IMG_TRUE;
 }
 
-static INLINE IMG_VOID PDumpCtrlResume(IMG_VOID)
+INLINE IMG_VOID PDumpCtrlResume(IMG_VOID)
 {
 	PDUMP_HEREA(105);
 	g_PDumpCtrl.bSuspended = IMG_FALSE;
 }
 
-static INLINE IMG_BOOL PDumpCtrlIsDumpSuspended(IMG_VOID)
+INLINE IMG_BOOL PDumpCtrlIsDumpSuspended(IMG_VOID)
 {
 	return g_PDumpCtrl.bSuspended;
 }
 
-static INLINE IMG_VOID PDumpCtrlPowerTransitionStart(IMG_VOID)
+IMG_VOID PDumpCtrlPowerTransitionStart(IMG_VOID)
 {
 	g_PDumpCtrl.bInPowerTransition = IMG_TRUE;
 }
 
-static INLINE IMG_VOID PDumpCtrlPowerTransitionEnd(IMG_VOID)
+IMG_VOID PDumpCtrlPowerTransitionEnd(IMG_VOID)
 {
 	g_PDumpCtrl.bInPowerTransition = IMG_FALSE;
 }
 
-static INLINE IMG_BOOL PDumpCtrlInPowerTransition(IMG_VOID)
+INLINE IMG_BOOL PDumpCtrlInPowerTransition(IMG_VOID)
 {
 	return g_PDumpCtrl.bInPowerTransition;
 }
 
-static PVRSRV_ERROR PDumpCtrlIsCaptureFrame(IMG_BOOL *bIsCapturing)
-{
-	*bIsCapturing = PDumpCtrlCaptureOn();
-	return PVRSRV_OK;
-}
-
-/********************************************************************************
-	End of PDumpCtrl*** functions
-*********************************************************************************/
-
-/*
-	Wrapper functions which need to be exposed in pdump_km.h for use in other
-	pdump_*** modules safely. These functions call the specific PDumpCtrl layer
-	function after acquiring the PDUMP_CTRL_STATE lock, hence making the calls 
-	from other modules hassle free by avoiding the acquire/release CtrlLock
-	calls.
-*/
-
-IMG_VOID PDumpPowerTransitionStart(IMG_VOID)
-{
-	PDumpCtrlLockAcquire();
-	PDumpCtrlPowerTransitionStart();
-	PDumpCtrlLockRelease();
-}
-
-IMG_VOID PDumpPowerTransitionEnd(IMG_VOID)
-{
-	PDumpCtrlLockAcquire();
-	PDumpCtrlPowerTransitionEnd();
-	PDumpCtrlLockRelease();
-}
-
-IMG_BOOL PDumpInPowerTransition(IMG_VOID)
-{
-	IMG_BOOL bPDumpInPowerTransition = IMG_FALSE;
-	
-	PDumpCtrlLockAcquire();
-	bPDumpInPowerTransition = PDumpCtrlInPowerTransition();
-	PDumpCtrlLockRelease();
-
-	return bPDumpInPowerTransition;
-}
-
-IMG_BOOL PDumpIsDumpSuspended(IMG_VOID)
-{
-	IMG_BOOL bPDumpIsDumpSuspended;
-
-	PDumpCtrlLockAcquire();
-	bPDumpIsDumpSuspended = PDumpCtrlIsDumpSuspended();
-	PDumpCtrlLockRelease();
-
-	return bPDumpIsDumpSuspended;
-}
 
 /*****************************************************************************/
 /*	PDump Common Write Layer just above PDump OS Layer                       */
@@ -455,23 +365,18 @@ IMG_BOOL PDumpIsDumpSuspended(IMG_VOID)
  */
 static IMG_BOOL PDumpWriteAllowed(IMG_UINT32 ui32Flags)
 {
-	/* Lock down the PDUMP_CTRL_STATE struct before calling the following
-	   PDumpCtrl*** functions. This is to avoid updates to the Control data
-	   while we are reading from it */
-	PDumpCtrlLockAcquire();
-
 	/* No writes if in framed mode and range pasted */
 	if (PDumpCtrlCaptureRangePast())
 	{
 		PDUMP_HERE(10);
-		goto unlockAndReturnFalse;
+		return IMG_FALSE;
 	}
 
 	/* No writes while writing is suspended */
 	if (PDumpCtrlIsDumpSuspended())
 	{
 		PDUMP_HERE(11);
-		goto unlockAndReturnFalse;
+		return IMG_FALSE;
 	}
 
 	/* Prevent PDumping during a power transition */
@@ -480,22 +385,22 @@ static IMG_BOOL PDumpWriteAllowed(IMG_UINT32 ui32Flags)
 		if (ui32Flags & PDUMP_FLAGS_POWER)
 		{
 			PDUMP_HERE(20);
-			goto unlockAndReturnTrue;
+			return IMG_TRUE;
 		}
 		PDUMP_HERE(16);
-		goto unlockAndReturnFalse;
+		return IMG_FALSE;
 	}
 
 	/* Always allow dumping in init phase and when persistent flagged */
 	if (ui32Flags & PDUMP_FLAGS_PERSISTENT)
 	{
 		PDUMP_HERE(12);
-		goto unlockAndReturnTrue;
+		return IMG_TRUE;
 	}
 	if (!PDumpCtrlInitPhaseComplete())
 	{
 		PDUMP_HERE(15);
-		goto unlockAndReturnTrue;
+		return IMG_TRUE;
 	}
 
 	/* The following checks are made when the driver has completed initialisation */
@@ -506,10 +411,10 @@ static IMG_BOOL PDumpWriteAllowed(IMG_UINT32 ui32Flags)
 		if (PDumpCtrlCaptureRangeUnset()) /* Is client connected? */
 		{
 			PDUMP_HERE(13);
-			goto unlockAndReturnFalse;
+			return IMG_FALSE;
 		}
 		PDUMP_HERE(14);
-		goto unlockAndReturnTrue;
+		return IMG_TRUE;
 	}
 
 	/* No last/deinit statements allowed when not in initialisation phase */
@@ -519,7 +424,7 @@ static IMG_BOOL PDumpWriteAllowed(IMG_UINT32 ui32Flags)
 		{
 			PDUMP_HERE(17);
 			PVR_DPF((PVR_DBG_ERROR, "PDumpWriteAllowed: DEINIT flag used at the wrong time outside of initialisation!"));
-			goto unlockAndReturnFalse;
+			return IMG_FALSE;
 		}
 	}
 
@@ -530,19 +435,13 @@ static IMG_BOOL PDumpWriteAllowed(IMG_UINT32 ui32Flags)
 	if (PDumpCtrlCapModIsFramed() && !PDumpCtrlCaptureOn())
 	{
 		PDUMP_HERE(18);
-		goto unlockAndReturnFalse;
+		return IMG_FALSE;
 	}
 
 	PDUMP_HERE(19);
 
-unlockAndReturnTrue:
 	/* Allow the write to take place */
-	PDumpCtrlLockRelease();
 	return IMG_TRUE;
-
-unlockAndReturnFalse:
-	PDumpCtrlLockRelease();
-	return IMG_FALSE;
 }
 
 #undef PDUMP_DEBUG_SCRIPT_LINES
@@ -621,18 +520,7 @@ static IMG_UINT32 PDumpWriteToBuffer(IMG_HANDLE psStream, IMG_UINT8 *pui8Data,
 			{
 				/* Fatal -suspend PDump to prevent flooding kernel log buffer */
 				PVR_LOG(("PDump suspended, debug driver out of memory"));
-				/*
-					Acquire the control lock before updating "suspended" state. This may not be required
-					because "this" is the context which checks the "suspended" state in PDumpWriteAllowed
-					before calling this function. So, this update is mainly for other contexts.
-					Also, all the other contexts which will/wish-to read the "suspended" state ought to be
-					waiting on the bridge lock first and then the PDUMP_OSLOCK (to pdump into script or 
-					parameter buffer). However, this acquire may be useful incase the PDump call is being
-					made from a direct bridge
-				*/
-				PDumpCtrlLockAcquire();
 				PDumpCtrlSuspend();
-				PDumpCtrlLockRelease();
 			}
 			return 0;
 		}
@@ -723,20 +611,16 @@ static IMG_BOOL PDumpWriteToChannel(PDUMP_CHANNEL* psChannel, PDUMP_CHANNEL_WOFF
 			}
 
 			/* Don't write continuous data if client not connected */
-			PDumpCtrlLockAcquire();
 			if ((ui32Flags & PDUMP_FLAGS_CONTINUOUS) && PDumpCtrlCaptureRangeUnset())
 			{
-				PDumpCtrlLockRelease();
 				return IMG_TRUE;
 			}
-			PDumpCtrlLockRelease();
 		}
 
 		/* Prepare to write the data to the main stream for
 		 * persistent, continuous or framed data. Override and use init
 		 * stream if driver still in init phase and we have not written 
 		 * to it yet.*/
-		PDumpCtrlLockAcquire();
 		if (!PDumpCtrlInitPhaseComplete() && !bDumpedToInitAlready)
 		{
 			PDUMP_HERE(215);
@@ -755,7 +639,6 @@ static IMG_BOOL PDumpWriteToChannel(PDUMP_CHANNEL* psChannel, PDUMP_CHANNEL_WOFF
 				pui32Offset = &psWOff->ui32Main;
 			}
 		}
-		PDumpCtrlLockRelease();
 
 		/* Write the data to the stream */
 		ui32BytesWritten = PDumpWriteToBuffer(*phStream, pui8Data, ui32Size, ui32Flags);
@@ -780,7 +663,6 @@ PVRSRV_ERROR PDumpWriteParameter(IMG_UINT8 *pui8Data, IMG_UINT32 ui32Size, IMG_U
 		IMG_UINT32* pui32FileOffset, IMG_CHAR* aszFilenameStr)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
-	IMG_BOOL bPDumpCtrlInitPhaseComplete = IMG_FALSE;
 
 	PVR_ASSERT(pui8Data && (ui32Size!=0));
 	PVR_ASSERT(pui32FileOffset && aszFilenameStr);
@@ -796,11 +678,7 @@ PVRSRV_ERROR PDumpWriteParameter(IMG_UINT8 *pui8Data, IMG_UINT32 ui32Size, IMG_U
 
 	PDUMP_HERE(2);
 
-	PDumpCtrlLockAcquire();
-	bPDumpCtrlInitPhaseComplete = PDumpCtrlInitPhaseComplete();
-	PDumpCtrlLockRelease();
-
-	if (!bPDumpCtrlInitPhaseComplete || (ui32Flags & PDUMP_FLAGS_PERSISTENT))
+	if (!PDumpCtrlInitPhaseComplete() || (ui32Flags & PDUMP_FLAGS_PERSISTENT))
 	{
 		PDUMP_HERE(3);
 
@@ -929,7 +807,7 @@ static IMG_VOID _PDumpConnectionRelease(PDUMP_CONNECTION_DATA *psPDumpConnection
 
 IMG_BOOL PDumpIsPersistent(IMG_VOID)
 {
-	IMG_PID uiPID = OSGetCurrentProcessID();
+	IMG_PID uiPID = OSGetCurrentProcessIDKM();
 	IMG_UINTPTR_T puiRetrieve;
 
 	puiRetrieve = HASH_Retrieve(g_psPersistentHash, uiPID);
@@ -1089,8 +967,7 @@ PVRSRV_ERROR PDumpInitCommon(IMG_VOID)
 	PVR_LOGG_IF_ERROR(eError, "PDumpOSInit", errExitLock);
 
 	/* Initialise PDump control module in common layer */
-	eError = PDumpCtrlInit(ui32InitCapMode);
-	PVR_LOGG_IF_ERROR(eError, "PDumpCtrlInit", errExitOSDeInit);
+	PDumpCtrlInit(ui32InitCapMode);
 
 	/* Test PDump initialised and ready by logging driver details */
 	eError = PDumpComment("Driver Product Name: %s", PVRSRVGetSystemName());
@@ -1115,8 +992,7 @@ PVRSRV_ERROR PDumpInitCommon(IMG_VOID)
 	return PVRSRV_OK;
 
 errExitCtrl:
-	PDumpCtrlDeInit();
-errExitOSDeInit:
+	/* No PDumpCtrlDeInit at present */
 	PDUMP_HEREA(2018);
 	PDumpOSDeInit(&g_PDumpParameters.sCh, &g_PDumpScript.sCh);
 errExitLock:
@@ -1135,9 +1011,6 @@ IMG_VOID PDumpDeInitCommon(IMG_VOID)
 	/* Free temporary buffer */
 	FreeTempBuffer();
 
-	/* DeInit the PDUMP_CTRL_STATE data */
-	PDumpCtrlDeInit();
-
 	/* Call environment specific PDump Deinitialisation */
 	PDumpOSDeInit(&g_PDumpParameters.sCh, &g_PDumpScript.sCh);
 
@@ -1153,7 +1026,7 @@ IMG_BOOL PDumpReady(IMG_VOID)
 
 PVRSRV_ERROR PDumpAddPersistantProcess(IMG_VOID)
 {
-	IMG_PID uiPID = OSGetCurrentProcessID();
+	IMG_PID uiPID = OSGetCurrentProcessIDKM();
 	IMG_UINTPTR_T puiRetrieve;
 	PVRSRV_ERROR eError = PVRSRV_OK;
 
@@ -1179,9 +1052,7 @@ PVRSRV_ERROR PDumpAddPersistantProcess(IMG_VOID)
 PVRSRV_ERROR PDumpStartInitPhaseKM(IMG_VOID)
 {
 	PDUMPCOMMENT("Start Init Phase");
-	PDumpCtrlLockAcquire();
 	PDumpCtrlSetInitPhaseComplete(IMG_FALSE);
-	PDumpCtrlLockRelease();
 	return PVRSRV_OK;
 }
 
@@ -1191,9 +1062,7 @@ PVRSRV_ERROR PDumpStopInitPhaseKM(IMG_MODULE_ID eModuleID)
 	if (PDumpOSAllowInitPhaseToComplete(eModuleID))
 	{
 		PDUMPCOMMENT("Stop Init Phase");
-		PDumpCtrlLockAcquire();
 		PDumpCtrlSetInitPhaseComplete(IMG_TRUE);
-		PDumpCtrlLockRelease();
 	}
 
 	return PVRSRV_OK;
@@ -1201,13 +1070,7 @@ PVRSRV_ERROR PDumpStopInitPhaseKM(IMG_MODULE_ID eModuleID)
 
 IMG_BOOL PDumpIsLastCaptureFrameKM(IMG_VOID)
 {
-	IMG_BOOL bIsLastCaptureFrame = IMG_FALSE;
-
-	PDumpCtrlLockAcquire();
-	bIsLastCaptureFrame = PDumpCtrlIsLastCaptureFrame();
-	PDumpCtrlLockRelease();
-
-	return bIsLastCaptureFrame;
+	return PDumpCtrIsLastCaptureFrame();
 }
 
 
@@ -1309,9 +1172,23 @@ PVRSRV_ERROR PDumpTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionData, IMG_B
 
 PVRSRV_ERROR PDumpIsCaptureFrameKM(IMG_BOOL *bIsCapturing)
 {
-	PDumpCtrlLockAcquire();
-	PDumpCtrlIsCaptureFrame(bIsCapturing);
-	PDumpCtrlLockRelease();
+	/* WDDM has an extended init phase to work around RA suballocs not
+     * having a PDump MALLOC.
+     * As a consequence, the WDDM init phase contains some FW command submissions.
+     * These commands were discarded due to being outside a capture range. In order
+	 * to correctly PDump these commands the init phase is considered to be a
+	 * capture range.
+	 * Note that PDumpCtrlInitPhasecCmplete was invented for
+	 * this purpose. They are not otherwise required.
+	 */
+	if(!PDumpCtrlInitPhaseComplete())
+	{
+		*bIsCapturing = IMG_TRUE;
+	}
+	else
+	{
+		*bIsCapturing = PDumpCtrlCaptureOn();
+	}
 
 	return PVRSRV_OK;
 }
@@ -1333,21 +1210,9 @@ static PVRSRV_ERROR _PDumpSetFrameKM(CONNECTION_DATA *psConnection, IMG_UINT32 u
 	*/
 	if (psPDumpConnectionData->ui32LastSetFrameNumber != ui32Frame)
 	{
-		/*
-			The boolean values below decide if the PDump transition
-			should trigger because of the current context setting the
-			frame number, hence the functions below should execute
-			atomically and do not give a chance to some other context
-			to transition
-		*/
-		PDumpCtrlLockAcquire(); 
-		
-		PDumpCtrlIsCaptureFrame(&bWasInCaptureRange);
+		PDumpIsCaptureFrameKM(&bWasInCaptureRange);
 		PDumpCtrlSetCurrentFrame(ui32Frame);
-		PDumpCtrlIsCaptureFrame(&bIsInCaptureRange);
-
-		PDumpCtrlLockRelease();
-
+		PDumpIsCaptureFrameKM(&bIsInCaptureRange);
 		psPDumpConnectionData->ui32LastSetFrameNumber = ui32Frame;
 
 		/* Save the Transition data incase we fail the Transition */
@@ -1362,7 +1227,7 @@ static PVRSRV_ERROR _PDumpSetFrameKM(CONNECTION_DATA *psConnection, IMG_UINT32 u
 	}
 	else
 	{
-		/* New frame is the same as the last frame set and the last
+		/* New frame is the same as the last fame set and the last
 		 * transition succeeded, no need to perform another transition.
 		 */
 		return PVRSRV_OK;
@@ -1427,18 +1292,7 @@ PVRSRV_ERROR PDumpGetFrameKM(CONNECTION_DATA *psConnection, IMG_UINT32* pui32Fra
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
-	/*
-		It may be safe to avoid acquiring this lock here as all the other calls
-		which read/modify current frame will wait on the PDump Control bridge
-		lock first. Also, in no way as of now, does the PDumping app modify the
-		current frame through a call which acquires the global bridge lock.
-		Still, as a legacy we acquire and then read.
-	*/	
-	PDumpCtrlLockAcquire();
-
 	*pui32Frame = PDumpCtrlGetCurrentFrame();
-
-	PDumpCtrlLockRelease();
 	return eError;
 }
 
@@ -1448,17 +1302,10 @@ PVRSRV_ERROR PDumpSetDefaultCaptureParamsKM(IMG_UINT32 ui32Mode,
                                            IMG_UINT32 ui32Interval,
                                            IMG_UINT32 ui32MaxParamFileSize)
 {
-	/*
-		Acquire PDUMP_CTRL_STATE struct lock before modifications as a 
-		PDumping app may be reading the state data for some checks
-	*/
-	PDumpCtrlLockAcquire();
 	PDumpCtrlSetDefaultCaptureParams(ui32Mode, ui32Start, ui32End, ui32Interval);
-	PDumpCtrlLockRelease();
-
 	if (ui32MaxParamFileSize == 0)
 	{
-		g_PDumpParameters.ui32MaxFileSize = PRM_FILE_SIZE_MAX;
+		g_PDumpParameters.ui32MaxFileSize = PDUMP_PRM_FILE_SIZE_MAX;
 	}
 	else
 	{
@@ -1738,9 +1585,9 @@ PVRSRV_ERROR PDumpCommentKM(IMG_CHAR *pszComment, IMG_UINT32 ui32Flags)
 	/* Prefix comment with PID and line number */
 	eErr = PDumpOSSprintf(pszTemp, 256, "%u %u:%lu %s: %s",
 		g_ui32EveryLineCounter,
-		OSGetCurrentProcessID(),
-		(unsigned long)OSGetCurrentThreadID(),
-		OSGetCurrentProcessName(),
+		OSGetCurrentProcessIDKM(),
+		(unsigned long)OSGetCurrentThreadIDKM(),
+		OSGetCurrentProcessNameKM(),
 		pszComment);
 
 	/* Append the comment to the script stream */
@@ -2068,86 +1915,6 @@ PVRSRV_ERROR PDumpBitmapKM(	PVRSRV_DEVICE_NODE *psDeviceNode,
 			break;
 		}
 		
-		case PVRSRV_PDUMP_PIXEL_FORMAT_YUV_YV32: // YV32 - 4 contiguous planes in the order VUYA, stride can be > width.
-		{
-			const IMG_UINT32 ui32PlaneSize = ui32StrideInBytes*ui32Height; // All 4 planes are the same size
-			const IMG_UINT32 ui32Plane0FileOffset = ui32FileOffset + (ui32PlaneSize<<1);		// SII plane 0 is Y, which is YV32 plane 2
-			const IMG_UINT32 ui32Plane1FileOffset = ui32FileOffset + ui32PlaneSize;				// SII plane 1 is U, which is YV32 plane 1
-			const IMG_UINT32 ui32Plane2FileOffset = ui32FileOffset;								// SII plane 2 is V, which is YV32 plane 0
-			const IMG_UINT32 ui32Plane3FileOffset = ui32Plane0FileOffset + ui32PlaneSize;		// SII plane 3 is A, which is YV32 plane 3
-			const IMG_UINT32 ui32Plane0MemOffset = ui32PlaneSize<<1;
-			const IMG_UINT32 ui32Plane1MemOffset = ui32PlaneSize;
-			const IMG_UINT32 ui32Plane2MemOffset = 0;
-			const IMG_UINT32 ui32Plane3MemOffset = ui32Plane0MemOffset + ui32PlaneSize;
-							 						
-			PDumpCommentWithFlags(ui32PDumpFlags, "YV32 4 planes. Width=0x%08X Height=0x%08X Stride=0x%08X",
-							 						ui32Width, ui32Height, ui32StrideInBytes);
-			
-			PDumpCommentWithFlags(ui32PDumpFlags, "YV32 plane size is 0x%08X", ui32PlaneSize);
-			
-			PDumpCommentWithFlags(ui32PDumpFlags, "YV32 Plane 0 Mem Offset=0x%08X", ui32Plane0MemOffset);
-			PDumpCommentWithFlags(ui32PDumpFlags, "YV32 Plane 1 Mem Offset=0x%08X", ui32Plane1MemOffset);
-			PDumpCommentWithFlags(ui32PDumpFlags, "YV32 Plane 2 Mem Offset=0x%08X", ui32Plane2MemOffset);
-			PDumpCommentWithFlags(ui32PDumpFlags, "YV32 Plane 3 Mem Offset=0x%08X", ui32Plane3MemOffset);
-			
-			/*
-				SII <imageset> <filename>	:<memsp1>:v<id1>:<virtaddr1> <size1> <fileoffset1>		Y
-											:<memsp2>:v<id2>:<virtaddr2> <size2> <fileoffset2>		U
-											:<memsp3>:v<id3>:<virtaddr3> <size3> <fileoffset3>		V
-											:<memsp4>:v<id4>:<virtaddr4> <size4> <fileoffset4>		A
-											<pixfmt> <width> <height> <stride> <addrmode>
-			*/
-			eErr = PDumpOSBufprintf(hScript,
-						ui32MaxLen,
-						"SII %s %s.bin :%s:v%x:0x%010llX 0x%08X 0x%08X :%s:v%x:0x%010llX 0x%08X 0x%08X :%s:v%x:0x%010llX 0x%08X 0x%08X :%s:v%x:0x%010llX 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X",
-						pszFileName,
-						pszFileName,
-						
-						// Plane 0 (V)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane0MemOffset,	// virtaddr
-						ui32PlaneSize,				// size
-						ui32Plane0FileOffset,		// fileoffset
-						
-						// Plane 1 (U)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane1MemOffset,	// virtaddr
-						ui32PlaneSize,				// size
-						ui32Plane1FileOffset,		// fileoffset
-						
-						// Plane 2 (Y)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane2MemOffset,	// virtaddr
-						ui32PlaneSize,				// size
-						ui32Plane2FileOffset,		// fileoffset
-						
-						// Plane 3 (A)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane3MemOffset,	// virtaddr
-						ui32PlaneSize,				// size
-						ui32Plane3FileOffset,		// fileoffset
-						
-						ePixelFormat,
-						ui32Width,
-						ui32Height,
-						ui32StrideInBytes,
-						ui32AddrMode);
-						
-			if (eErr != PVRSRV_OK)
-			{
-				return eErr;
-			}
-			
-			PDUMP_LOCK();
-			PDumpWriteScript( hScript, ui32PDumpFlags);
-			PDUMP_UNLOCK();
-			break;
-		}
-				
 		default: // Single plane formats
 		{
 			eErr = PDumpOSBufprintf(hScript,
@@ -2673,9 +2440,7 @@ IMG_VOID PDumpConnectionNotify(IMG_VOID)
 		 * client can connect multiple times and we don't want the comment
 		 * appearing multiple times in out files.
 		 */
-		PDumpCtrlLockAcquire();
 		PDumpCtrlSetInitPhaseComplete(IMG_TRUE);
-		PDumpCtrlLockRelease();
 	}
 
 	g_ConnectionCount++;
@@ -2695,32 +2460,6 @@ IMG_VOID PDumpConnectionNotify(IMG_VOID)
 			psThis->pfnPDumpInitDevice(psThis);
 		}
 		psThis = psThis->psNext;
-	}
-}
-
-/**************************************************************************
- * Function Name  : PDumpDisconnectionNotify
- * Description    : Called by the connection_server to tell PDump core that
- *                  the PDump capture and control client has disconnected
- **************************************************************************/
-void PDumpDisconnectionNotify(void)
-{
-	PVRSRV_ERROR eErr;
-
-	if (PDumpCtrlCaptureOn())
-	{
-		PVR_LOG(("PDump killed, output files may be invalid or incomplete!"));
-
-		/* Disable capture in server, in case PDump client was killed and did
-		 * not get a chance to reset the capture parameters.
-		 */
-		eErr = PDumpSetDefaultCaptureParamsKM( DEBUG_CAPMODE_FRAMED,
-		                                       FRAME_UNSET, FRAME_UNSET, 1, 0);
-		PVR_LOG_IF_ERROR(eErr, "PVRSRVPDumpSetDefaultCaptureParams");
-	}
-	else
-	{
-		PVR_LOG(("PDump disconnected"));
 	}
 }
 
@@ -2859,8 +2598,8 @@ IMG_VOID PDumpCommonDumpState(IMG_BOOL bDumpOSLayerState)
 			&g_PDumpCtrl, g_PDumpCtrl.bInitPhaseActive, g_PDumpCtrl.ui32Flags) );
 	PVR_LOG(("--- PDUMP COMMON: ui32DefaultCapMode( %d ) ui32CurrentFrame( %d )",
 			g_PDumpCtrl.ui32DefaultCapMode, g_PDumpCtrl.ui32CurrentFrame) );
-	PVR_LOG(("--- PDUMP COMMON: sCaptureRange.ui32Start( %x ) sCaptureRange.ui32End( %x ) sCaptureRange.ui32Interval( %u )",
-			g_PDumpCtrl.sCaptureRange.ui32Start, g_PDumpCtrl.sCaptureRange.ui32End, g_PDumpCtrl.sCaptureRange.ui32Interval) );
+	PVR_LOG(("--- PDUMP COMMON: sDefaultRange.ui32Start( %d ) sDefaultRange.ui32End( %d ) sDefaultRange.ui32Interval( %d )",
+			g_PDumpCtrl.sDefaultRange.ui32Start, g_PDumpCtrl.sDefaultRange.ui32End, g_PDumpCtrl.sDefaultRange.ui32Interval) );
 	PVR_LOG(("--- PDUMP COMMON: bCaptureOn( %d ) bSuspended( %d ) bInPowerTransition( %d )",
 			g_PDumpCtrl.bCaptureOn, g_PDumpCtrl.bSuspended, g_PDumpCtrl.bInPowerTransition) );
 
@@ -2896,15 +2635,14 @@ PVRSRV_ERROR PDumpRegisterConnection(SYNC_CONNECTION_DATA *psSyncConnectionData,
 	dllist_init(&psPDumpConnectionData->sListHead);
 	psPDumpConnectionData->ui32RefCount = 1;
 	psPDumpConnectionData->bLastInto = IMG_FALSE;
-	psPDumpConnectionData->ui32LastSetFrameNumber = FRAME_UNSET;
+	psPDumpConnectionData->ui32LastSetFrameNumber = 0xFFFFFFFFU;
 	psPDumpConnectionData->bLastTransitionFailed = IMG_FALSE;
-
 	/*
-	 * Although we don't take a ref count here, handle base destruction
-	 * will ensure that any resource that might trigger us to do a
-	 * Transition will have been freed before the sync blocks which
-	 * are keeping the sync connection data alive.
-	 */
+		Although we don't take a refcount here resman will ensure that
+		any resource which might trigger use to do a Transition will
+		have been freed before the sync blocks which are keeping the
+		sync connection data alive
+	*/
 	psPDumpConnectionData->psSyncConnectionData = psSyncConnectionData;
 	*ppsPDumpConnectionData = psPDumpConnectionData;
 

@@ -82,7 +82,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PMR_MAX_MEMSPACE_NAME_LENGTH_DEFAULT		(20)
 #define PMR_MAX_MEMSPNAME_SYMB_ADDR_LENGTH_DEFAULT	(PMR_MAX_SYMBOLIC_ADDRESS_LENGTH_DEFAULT + PMR_MAX_MEMSPACE_NAME_LENGTH_DEFAULT)
 #define PMR_MAX_PARAMSTREAM_FILENAME_LENGTH_DEFAULT (100)
-#define PMR_MAX_TRANSLATION_STACK_ALLOC				(32)
 
 typedef IMG_UINT64 PMR_BASE_T;
 typedef IMG_UINT64 PMR_SIZE_T;
@@ -371,15 +370,6 @@ PMRAcquireKernelMappingData(PMR *psPMR,
                             IMG_VOID **ppvKernelAddressOut,
                             IMG_SIZE_T *puiLengthOut,
                             IMG_HANDLE *phPrivOut);
-
-extern PVRSRV_ERROR
-PMRAcquireSparseKernelMappingData(PMR *psPMR,
-                                  IMG_SIZE_T uiLogicalOffset,
-                                  IMG_SIZE_T uiSize,
-                                  IMG_VOID **ppvKernelAddressOut,
-                                  IMG_SIZE_T *puiLengthOut,
-                                  IMG_HANDLE *phPrivOut);
-
 extern PVRSRV_ERROR
 PMRReleaseKernelMappingData(PMR *psPMR,
                             IMG_HANDLE hPriv);
@@ -461,7 +451,6 @@ extern PVRSRV_ERROR
 PMR_Flags(const PMR *psPMR,
           PMR_FLAGS_T *puiMappingFlags);
 
-
 extern PVRSRV_ERROR
 PMR_LogicalSize(const PMR *psPMR,
 				IMG_DEVMEM_SIZE_T *puiLogicalSize);
@@ -481,13 +470,9 @@ PMR_LogicalSize(const PMR *psPMR,
  * corresponding page in the PMR.  It may be called multiple times
  * until the address of all relevant pages has been determined.
  *
- * If caller only wants one physical address it is sufficient to pass in:
- * ui32Log2PageSize==0 and ui32NumOfPages==1
  */
 extern PVRSRV_ERROR
 PMR_DevPhysAddr(const PMR *psPMR,
-                IMG_UINT32 ui32Log2PageSize,
-                IMG_UINT32 ui32NumOfPages,
                 IMG_DEVMEM_OFFSET_T uiLogicalOffset,
                 IMG_DEV_PHYADDR *psDevAddr,
                 IMG_BOOL *pbValid);
@@ -504,8 +489,6 @@ PMR_DevPhysAddr(const PMR *psPMR,
  */
 extern PVRSRV_ERROR
 PMR_CpuPhysAddr(const PMR *psPMR,
-                IMG_UINT32 ui32Log2PageSize,
-                IMG_UINT32 ui32NumOfPages,
                 IMG_DEVMEM_OFFSET_T uiLogicalOffset,
                 IMG_CPU_PHYADDR *psCpuAddrPtr,
                 IMG_BOOL *pbValid);
@@ -736,6 +719,14 @@ PMRWritePMPageList(/* Target PMR, offset, and length */
 extern PVRSRV_ERROR // should be IMG_VOID, surely
 PMRUnwritePMPageList(PMR_PAGELIST *psPageList);
 
+extern PVRSRV_ERROR
+PMRWriteVFPPageList(/* Target PMR, offset, and length */
+                   PMR *psPageListPMR,
+                   IMG_DEVMEM_OFFSET_T 		uiTableOffset,
+                   IMG_DEVMEM_SIZE_T  		uiTableLength,
+                   IMG_UINT32				ui32TableBase,
+                   IMG_DEVMEM_LOG2ALIGN_T 	uiLog2PageSize);
+
 #if defined(PDUMP)
 extern PVRSRV_ERROR
 PMRPDumpPol32(const PMR *psPMR,
@@ -820,4 +811,3 @@ PMRStoreRIHandle(PMR *psPMR,
 #endif
 
 #endif /* #ifdef _SRVSRV_PMR_H_ */
-

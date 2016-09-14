@@ -53,23 +53,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef struct _HANDLE_IMPL_BASE_ HANDLE_IMPL_BASE;
 
-typedef PVRSRV_ERROR (*PFN_HANDLE_ITER)(IMG_HANDLE hHandle, void *pvData);
+typedef PVRSRV_ERROR (*PFN_HANDLE_ITER)(IMG_HANDLE hHandle, IMG_VOID *pvData);
 
 typedef struct _HANDLE_IMPL_FUNCTAB_
 {
 	/* Acquire a new handle which is associated with the given data */
-	PVRSRV_ERROR (*pfnAcquireHandle)(HANDLE_IMPL_BASE *psHandleBase, IMG_HANDLE *phHandle, void *pvData);
+	PVRSRV_ERROR (*pfnAcquireHandle)(HANDLE_IMPL_BASE *psHandleBase, IMG_HANDLE *phHandle, IMG_VOID *pvData);
 
 	/* Release the given handle (optionally returning the data associated with it) */
-	PVRSRV_ERROR (*pfnReleaseHandle)(HANDLE_IMPL_BASE *psHandleBase, IMG_HANDLE hHandle, void **ppvData);
+	PVRSRV_ERROR (*pfnReleaseHandle)(HANDLE_IMPL_BASE *psHandleBase, IMG_HANDLE hHandle, IMG_VOID **ppvData);
 
 	/* Get the data associated with the given handle */
-	PVRSRV_ERROR (*pfnGetHandleData)(HANDLE_IMPL_BASE *psHandleBase, IMG_HANDLE hHandle, void **ppvData);
+	PVRSRV_ERROR (*pfnGetHandleData)(HANDLE_IMPL_BASE *psHandleBase, IMG_HANDLE hHandle, IMG_VOID **ppvData);
 
-	/* Set the data associated with the given handle */
-	PVRSRV_ERROR (*pfnSetHandleData)(HANDLE_IMPL_BASE *psHandleBase, IMG_HANDLE hHandle, void *pvData);
-
-	PVRSRV_ERROR (*pfnIterateOverHandles)(HANDLE_IMPL_BASE *psHandleBase, PFN_HANDLE_ITER pfnHandleIter, void *pvHandleIterData);
+	PVRSRV_ERROR (*pfnIterateOverHandles)(HANDLE_IMPL_BASE *psHandleBase, PFN_HANDLE_ITER pfnHandleIter, IMG_VOID *pvHandleIterData);
 
 	/* Enable handle purging on the given handle base */
 	PVRSRV_ERROR (*pfnEnableHandlePurging)(HANDLE_IMPL_BASE *psHandleBase);

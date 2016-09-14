@@ -42,10 +42,7 @@ struct ttm_lock;
 extern int ttm_pl_create_ioctl(struct ttm_object_file *tfile,
 			       struct ttm_bo_device *bdev,
 			       struct ttm_lock *lock, void *data);
-extern int ttm_pl_userptr_create_ioctl(struct ttm_object_file *tfile,
-				  struct ttm_bo_device *bdev,
-				  struct ttm_lock *lock, void *data);
-extern int ttm_pl_dmabuf_create_ioctl(struct ttm_object_file *tfile,
+extern int ttm_pl_ub_create_ioctl(struct ttm_object_file *tfile,
 				  struct ttm_bo_device *bdev,
 				  struct ttm_lock *lock, void *data);
 extern int ttm_pl_reference_ioctl(struct ttm_object_file *tfile, void *data);

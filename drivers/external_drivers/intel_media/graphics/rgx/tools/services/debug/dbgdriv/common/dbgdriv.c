@@ -40,7 +40,11 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
+#if defined(UNDER_CE)
+#include <windows.h>
+#include <ceddk.h>
 
+#else
 #if defined(_WIN32)
 #pragma  warning(disable:4201)
 #pragma  warning(disable:4214)
@@ -52,6 +56,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <windef.h>
 #include <winerror.h>
 #endif /* _WIN32 */
+#endif /* UNDER_CE */
 
 #ifdef LINUX
 #include <linux/string.h>
@@ -110,10 +115,6 @@ BLD_ASSERT(sizeof(DBG_STREAM)<<2<HOST_PAGESIZE,dbgdriv_c)
 
 static PDBG_STREAM          g_psStreamList = 0;
 
-/* Mutex used to prevent UM threads (via the dbgdrv ioctl interface) and KM
- * threads (from pvrsrvkm via the ExtDBG API) entering the debug driver core
- * and changing the state of share data at the same time.
- */
 IMG_VOID *                  g_pvAPIMutex=IMG_NULL;
 
 static IMG_UINT32			g_PDumpCurrentFrameNo = 0;
@@ -586,7 +587,7 @@ static IMG_UINT32 WriteExpandingBuffer(PDBG_STREAM psStream,IMG_UINT8 * pui8InBu
 				Find new buffer size, double the current size or increase by 1MB
 			*/
 			ui32NewBufSize = MIN(psStream->ui32Size<<1,psStream->ui32Size+(1<<20));
-			ui32NewBufSize = MIN(ui32NewBufSize, (PDUMP_STREAMBUF_MAX_SIZE_MB<<20));
+			ui32NewBufSize = MIN(ui32NewBufSize, (16<<20));
 
 			PVR_DPF((PVR_DBGDRIV_MESSAGE, "Expanding buffer size = %x, new size = %x",
 					psStream->ui32Size, ui32NewBufSize));
@@ -851,7 +852,9 @@ errCleanup:
 		if (psStreamDeinit) HostPageablePageFree(psStreamDeinit->pvBase);
 	}
 	HostNonPageablePageFree(psStream);
+#if !defined(__KLOCWORK__) /* klocworks would report a possible memory leak */
 	psStream = psInitStream = psStreamDeinit = IMG_NULL;
+#endif
 	return IMG_FALSE;
 }
 
@@ -1071,8 +1074,6 @@ static IMG_VOID InvalidateAllStreams(IMG_VOID)
 	while (psStream != IMG_NULL)
 	{
 		DBGDrivInvalidateStream(psStream);
-		DBGDrivInvalidateStream(psStream->psInitStream);
-		DBGDrivInvalidateStream(psStream->psDeinitStream);
 		psStream = psStream->psNext;
 	}
 	return;

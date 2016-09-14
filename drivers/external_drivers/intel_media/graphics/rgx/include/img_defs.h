@@ -81,11 +81,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	typedef char _impl_JOIN(build_assertion_failed_##file##_,line)[2*!!(expr)-1];
 
 /*! Macro to calculate the n-byte aligned value from that supplied rounding up.
- * n must be a power of two.
- *
- * Both arguments should be of a type with the same size otherwise the macro may
- * cut off digits, e.g. imagine a 64 bit address in _x and a 32 bit value in _n.
- */
+ * n must be a power of two. */
 #define PVR_ALIGN(_x, _n)   (((_x)+((_n)-1)) & ~((_n)-1))
 
 
@@ -101,6 +97,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #if defined(_WIN32)
+#if defined(UNDER_CE)
+	#include "windowsce_img_defs.h"
+#else
 	#define IMG_CALLCONV __stdcall
 	#define IMG_INTERNAL
 	#define	IMG_EXPORT	__declspec(dllexport)
@@ -127,6 +126,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#endif
 //	#define IMG_ABORT()	img_abort()
 #endif /* UNDER_WDDM */
+#endif /* UNDER_CE */
 #else
 	#if defined(LINUX) || defined(__METAG) || defined(__QNXNTO__)
 
@@ -151,7 +151,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#if defined(EXIT_ON_ABORT)
 		#define IMG_ABORT()	exit(1)
 	#else
+#if defined UNDER_CE
+		/* WinCE / WinEC does not have an abort() function */
+		#define IMG_ABORT()	exit(1)
+#else
 		#define IMG_ABORT()	abort()
+#endif
 	#endif
 #endif
 
@@ -184,7 +189,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define IMG_CONTAINER_OF(ptr, type, member) \
 	(type *) ((IMG_UINT8 *) (ptr) - offsetof(type, member))
 
-/* The number of elements in a fixed-sized array, IMGs ARRAY_SIZE macro */
+/* The number of elements in a fixed-sized array */
 #define IMG_ARR_NUM_ELEMS(ARR) \
 	(sizeof(ARR) / sizeof((ARR)[0]))
 

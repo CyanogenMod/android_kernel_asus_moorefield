@@ -46,66 +46,65 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if defined (__cplusplus)
 extern "C" {
 #endif
+/* number of bits in the units returned by sizeof */
+#define IMG_CHAR_BIT 8
 
-/* To use C99 types and definitions, there are two special cases we need to
- * cater for:
- *
- * - Visual Studio: in VS2010 or later, some standard headers are available,
- *   and MSVC has its own built-in sized types. We can define the C99 types
- *   in terms of these.
- *
- * - Linux kernel code: C99 sized types are defined in <linux/types.h>, but
- *   some other features (like macros for constants or printf format
- *   strings) are missing, so we need to fill in the gaps ourselves.
- *
- * For other cases (userspace code under Linux, Android or Neutrino, or
- * firmware code), we can include the standard headers.
- */
-#if defined(_MSC_VER)
-	#include "msvc_types.h"
-#elif defined(LINUX) && defined(__KERNEL__)
-	#include "kernel_types.h"
-#elif defined(LINUX) || defined(__METAG) || defined(__QNXNTO__)
-	#include <stddef.h>			/* NULL */
-	#include <inttypes.h>		/* intX_t/uintX_t, format specifiers */
-	#include <limits.h>			/* INT_MIN, etc */
-#else
-	#error C99 support not set up for this build
+/* define all address space bit depths: */
+/* CPU virtual address space defaults to 32bits */
+#if !defined(IMG_ADDRSPACE_CPUVADDR_BITS)
+#define IMG_ADDRSPACE_CPUVADDR_BITS		32
 #endif
 
-/* number of bits in the units returned by sizeof */
-#define IMG_CHAR_BIT CHAR_BIT
-
 typedef unsigned int	IMG_UINT,	*IMG_PUINT;
-typedef int				IMG_INT,	*IMG_PINT;
+typedef signed int		IMG_INT,	*IMG_PINT;
 
-typedef uint8_t			IMG_UINT8,	*IMG_PUINT8;
-typedef uint8_t			IMG_BYTE,	*IMG_PBYTE;
-typedef int8_t			IMG_INT8,	*IMG_PINT8;
+typedef unsigned char	IMG_UINT8,	*IMG_PUINT8;
+typedef unsigned char	IMG_BYTE,	*IMG_PBYTE;
+typedef signed char		IMG_INT8,	*IMG_PINT8;
 typedef char			IMG_CHAR,	*IMG_PCHAR;
 typedef IMG_CHAR const				*IMG_PCCHAR;
 
-typedef uint16_t		IMG_UINT16,	*IMG_PUINT16;
-typedef int16_t			IMG_INT16,	*IMG_PINT16;
-typedef uint32_t		IMG_UINT32,	*IMG_PUINT32;
-typedef int32_t			IMG_INT32,	*IMG_PINT32;
-
-typedef uint64_t		IMG_UINT64,	*IMG_PUINT64;
-typedef int64_t			IMG_INT64,	*IMG_PINT64;
-#define IMG_INT64_C(c)	INT64_C(c)
-#define IMG_UINT64_C(c)	UINT64_C(c)
-#define IMG_UINT64_FMTSPECX PRIX64
-#define IMG_UINT64_FMTSPEC PRIu64
-
-#define IMG_UINT16_MAX	UINT16_MAX
-#define IMG_UINT32_MAX	UINT32_MAX
-#define IMG_UINT64_MAX	UINT64_MAX
+typedef unsigned short	IMG_UINT16,	*IMG_PUINT16;
+typedef signed short	IMG_INT16,	*IMG_PINT16;
+typedef unsigned int	IMG_UINT32,	*IMG_PUINT32;
+typedef signed int		IMG_INT32,	*IMG_PINT32;
+#if !defined(IMG_UINT32_MAX)
+	#define IMG_UINT32_MAX 0xFFFFFFFFUL
+#endif
+#if !defined(IMG_UINT16_MAX)
+	#define IMG_UINT16_MAX 0xFFFFU
+#endif
 
 typedef IMG_UINT16 const* IMG_PCUINT16;
 typedef IMG_INT16 const* IMG_PCINT16;
 typedef IMG_UINT32 const* IMG_PCUINT32;
 typedef IMG_INT32 const* IMG_PCINT32;
 
+#if defined(_WIN32)
+
+typedef unsigned __int64	IMG_UINT64, *IMG_PUINT64;
+typedef __int64			IMG_INT64,  *IMG_PINT64;
+#define IMG_INT64_C(c)	c ## LL
+#define IMG_UINT64_C(c)	c ## ULL
+#if defined(_MSC_VER)
+#define strtoll         _strtoi64
+#endif
+
+#else
+	#if defined(LINUX) || defined(__METAG) || defined(__QNXNTO__)
+		typedef unsigned long long		IMG_UINT64,	*IMG_PUINT64;
+		typedef long long 				IMG_INT64,	*IMG_PINT64;
+		#define IMG_INT64_C(c)	c ## LL
+		#define IMG_UINT64_C(c)	c ## ULL
+	#else
+		#error("define an OS")
+	#endif
+#endif
+#if !defined(IMG_UINT64_MAX)
+	#define IMG_UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
+#endif
+
+#if !(defined(LINUX) && defined (__KERNEL__))
 /* Linux kernel mode does not use floating point */
 typedef float			IMG_FLOAT,	*IMG_PFLOAT;
 typedef double			IMG_DOUBLE, *IMG_PDOUBLE;
@@ -115,6 +114,8 @@ typedef union _IMG_UINT32_FLOAT_
 	IMG_UINT32 ui32;
 	IMG_FLOAT f;
 } IMG_UINT32_FLOAT;
+
+#endif
 
 typedef int				IMG_SECURE_TYPE;
 
@@ -129,10 +130,24 @@ typedef IMG_BOOL const* IMG_PCBOOL;
 typedef void            IMG_VOID, *IMG_PVOID;
 typedef IMG_VOID const* IMG_PCVOID;
 
+/* Figure out which headers to include to get uintptr_t. */
+#if !defined(_MSC_VER) && !defined(__KERNEL__)
+/* MSVC before VS2010 doesn't have <stdint.h>, but it has uintptr_t in
+   <stddef.h>. */
+#include <stdint.h>
+#endif
+#if defined(__QNXNTO__)
+#include <stdint.h>
+#endif
+#if defined(LINUX) && defined (__KERNEL__)
+#include <linux/types.h>
+#endif
+#include <stddef.h>
+
 typedef uintptr_t		IMG_UINTPTR_T;
 typedef size_t			IMG_SIZE_T;
 
-#define IMG_SIZE_T_MAX	SIZE_MAX
+#define IMG_SIZE_T_MAX ((IMG_SIZE_T) -1)
 
 #if defined(_MSC_VER)
 #define IMG_SIZE_FMTSPEC  "%Iu"
@@ -145,13 +160,6 @@ typedef size_t			IMG_SIZE_T;
 typedef IMG_PVOID       IMG_HANDLE;
 
 #define IMG_NULL        NULL
-
-#if defined(LINUX) && defined(__KERNEL__)
-/* prints the function name when used with printk */
-#define IMG_PFN_FMTSPEC "%pf"
-#else
-#define IMG_PFN_FMTSPEC "%p"
-#endif
 
 /* services/stream ID */
 typedef IMG_UINT64      IMG_SID;
@@ -217,10 +225,10 @@ typedef IMG_UINT64 IMG_DEVMEM_ALIGN_T;
 typedef IMG_UINT64 IMG_DEVMEM_OFFSET_T;
 typedef IMG_UINT32 IMG_DEVMEM_LOG2ALIGN_T;
 
-#define IMG_DEV_VIRTADDR_FMTSPEC "0x%010" IMG_UINT64_FMTSPECX
-#define IMG_DEVMEM_SIZE_FMTSPEC "0x%010" IMG_UINT64_FMTSPECX
-#define IMG_DEVMEM_ALIGN_FMTSPEC "0x%010" IMG_UINT64_FMTSPECX
-#define IMG_DEVMEM_OFFSET_FMTSPEC "0x%010" IMG_UINT64_FMTSPECX
+#define IMG_DEV_VIRTADDR_FMTSPEC "0x%010llX"
+#define IMG_DEVMEM_SIZE_FMTSPEC "0x%010llX"
+#define IMG_DEVMEM_ALIGN_FMTSPEC "0x%010llX"
+#define IMG_DEVMEM_OFFSET_FMTSPEC "0x%010llX"
 
 /* cpu physical address */
 typedef struct _IMG_CPU_PHYADDR
@@ -249,13 +257,6 @@ typedef struct _IMG_SYS_PHYADDR
 	IMG_UINT64 uiAddr;
 #endif
 } IMG_SYS_PHYADDR;
-
-/* 32-bit device virtual address (e.g. MSVDX) */
-typedef struct _IMG_DEV_VIRTADDR32
-{
-	IMG_UINT32 uiAddr;
-#define IMG_CAST_TO_DEVVADDR_UINT32(var) (IMG_UINT32)(var)
-} IMG_DEV_VIRTADDR32;
 
 /*
 	rectangle structure

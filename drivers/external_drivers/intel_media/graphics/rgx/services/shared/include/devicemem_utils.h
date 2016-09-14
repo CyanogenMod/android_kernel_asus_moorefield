@@ -55,10 +55,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "lock.h"
 #include "devicemem_mmap.h"
 #include "devicemem_utils.h"
-#if defined(SUPPORT_PAGE_FAULT_DEBUG)
-#include "mm_common.h"
-#include "devicemem_history_shared.h"
-#endif
 
 #define DEVMEM_HEAPNAME_MAXLENGTH 160
 
@@ -117,7 +113,7 @@ struct _DEVMEM_HEAP_ {
     IMG_CHAR *pszName;
 
     /* Number of live imports in the heap */
-    ATOMIC_T hImportCount;
+    IMG_UINT32 uiImportCount;
 
     /*
      * Base address of heap, required by clients due to some requesters
@@ -140,9 +136,6 @@ struct _DEVMEM_HEAP_ {
     /* We also need to store a copy of the quantum size in order to
        feed this down to the server */
     IMG_UINT32 uiLog2Quantum;
-
-    /* Store a copy of the minimum import alignment */
-    IMG_UINT32 uiLog2ImportAlignment;
 
     /* The parent memory context for this heap */
     struct _DEVMEM_CONTEXT_ *psCtx;
@@ -180,9 +173,9 @@ typedef struct _DEVMEM_CPU_IMPORT_ {
 
 typedef struct _DEVMEM_IMPORT_ {
     DEVMEM_BRIDGE_HANDLE hBridge;		/*!< Bridge connection for the server */
-	IMG_DEVMEM_ALIGN_T uiAlign;			/*!< Alignment of the PMR */
+    IMG_DEVMEM_ALIGN_T uiAlign;			/*!< Alignment requirement */
 	DEVMEM_SIZE_T uiSize;				/*!< Size of import */
-    ATOMIC_T hRefCount;					/*!< Refcount for this import */
+    IMG_UINT32 ui32RefCount;			/*!< Refcount for this import */
     IMG_BOOL bExportable;				/*!< Is this import exportable? */
     IMG_HANDLE hPMR;					/*!< Handle to the PMR */
     DEVMEM_FLAGS_T uiFlags;				/*!< Flags for this import */
@@ -207,14 +200,11 @@ typedef struct _DEVMEM_CPU_MEMDESC_ {
 struct _DEVMEM_MEMDESC_ {
     DEVMEM_IMPORT *psImport;				/*!< Import this memdesc is on */
     IMG_DEVMEM_OFFSET_T uiOffset;			/*!< Offset into import where our allocation starts */
-    ATOMIC_T hRefCount;						/*!< Refcount of the memdesc */
+    IMG_UINT32 ui32RefCount;				/*!< Refcount of the memdesc */
     POS_LOCK hLock;							/*!< Lock to protect memdesc */
 
 	DEVMEM_DEVICE_MEMDESC sDeviceMemDesc;	/*!< Device specifics of the memdesc */
 	DEVMEM_CPU_MEMDESC sCPUMemDesc;		/*!< CPU specifics of the memdesc */
-#if defined(SUPPORT_PAGE_FAULT_DEBUG)
-	DEVICEMEM_HISTORY_MEMDESC_DATA sTraceData;
-#endif
 
 #if defined(PVR_RI_DEBUG)
     IMG_HANDLE hRIHandle;					/*!< Handle to RI information */

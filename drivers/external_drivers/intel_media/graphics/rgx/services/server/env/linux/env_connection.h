@@ -55,6 +55,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "allocmem.h"
 #endif
 
+#if defined(SUPPORT_DRM)
+#include <drm/drmP.h>
+#endif
+
 #if defined(SUPPORT_ION)
 #define ION_CLIENT_NAME_SIZE	50
 
@@ -69,13 +73,16 @@ typedef struct _ENV_ION_CONNECTION_DATA_
 
 typedef struct _ENV_CONNECTION_DATA_
 {
+#if defined(SUPPORT_DRM)
+	struct drm_file *psFile;
+#else
 	struct file *psFile;
-
+#endif
 #if defined(SUPPORT_ION)
 	ENV_ION_CONNECTION_DATA *psIonData;
 #endif
-#if defined(SUPPORT_DRM_EXT)
-	IMG_VOID *pPriv;
+#if defined(SUPPORT_DRM)
+	IMG_BOOL bAuthenticated;
 #endif
 } ENV_CONNECTION_DATA;
 

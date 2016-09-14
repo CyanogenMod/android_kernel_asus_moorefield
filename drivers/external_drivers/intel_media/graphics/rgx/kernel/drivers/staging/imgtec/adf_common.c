@@ -45,8 +45,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
-#include <linux/compat.h>
-#include <linux/bug.h>
 
 #include <video/adf_client.h>
 
@@ -56,8 +54,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define val_dbg(dev, fmt, x...) do { } while (0)
 #endif
 
-static long validate(struct adf_device *dev,
-	struct adf_validate_config_ext __user *arg)
+long adf_img_ioctl_validate(struct adf_device *dev,
+			    struct adf_validate_config_ext __user *arg)
 {
 	struct adf_interface **intfs = NULL;
 	struct adf_buffer *bufs = NULL;
@@ -66,6 +64,12 @@ static long validate(struct adf_device *dev,
 	void *driver_state;
 	int err = 0;
 	size_t i, j;
+
+	if (!access_ok(VERIFY_READ, arg,
+		       sizeof(struct adf_validate_config_ext))) {
+		err = -EFAULT;
+		goto err_out;
+	}
 
 	if (arg->n_interfaces > ADF_MAX_INTERFACES) {
 		err = -EINVAL;
@@ -93,13 +97,8 @@ static long validate(struct adf_device *dev,
 	}
 
 	if (arg->n_interfaces) {
-		if (!access_ok(VERIFY_READ, arg->interfaces,
-		     sizeof(*arg->interfaces) * arg->n_interfaces)) {
-			err = -EFAULT;
-			goto err_out;
-		}
-		intfs = kmalloc_array(arg->n_interfaces, sizeof(intfs[0]),
-				      GFP_KERNEL);
+		intfs = kmalloc(sizeof(intfs[0]) * arg->n_interfaces,
+				GFP_KERNEL);
 		if (!intfs) {
 			err = -ENOMEM;
 			goto err_out;
@@ -115,7 +114,7 @@ static long validate(struct adf_device *dev,
 	}
 
 	if (arg->n_bufs) {
-		bufs = kcalloc(arg->n_bufs, sizeof(bufs[0]), GFP_KERNEL);
+		bufs = kzalloc(sizeof(bufs[0]) * arg->n_bufs, GFP_KERNEL);
 		if (!bufs) {
 			err = -ENOMEM;
 			goto err_out;
@@ -190,71 +189,6 @@ err_out:
 	return err;
 }
 
-static long adf_img_ioctl_validate(struct adf_device *dev,
-struct adf_validate_config_ext __user *arg)
-{
-	int err;
-
-	if (!access_ok(VERIFY_READ, arg,
-	     sizeof(struct adf_validate_config_ext))) {
-		err = -EFAULT;
-		goto err_out;
-	}
-	err = validate(dev, arg);
-err_out:
-	return err;
-}
-
-#ifdef CONFIG_COMPAT
-
-#define ADF_VALIDATE_CONFIG_EXT32 \
-	_IOW(ADF_IOCTL_TYPE, ADF_IOCTL_NR_VALIDATE_IMG, \
-		struct adf_validate_config_ext32)
-
-struct adf_validate_config_ext32 {
-	__u32		n_interfaces;
-	compat_uptr_t	interfaces;
-
-	__u32		n_bufs;
-
-	compat_uptr_t	bufs;
-	compat_uptr_t	post_ext;
-} __packed;
-
-/* adf_validate_config_ext32 must map to the adf_validate_config_ext struct.
- * Changes to struct adf_validate_config_ext will likely be needed to be
- * mirrored in adf_validate_config_ext32, so put a sanity check here to try
- * to notice if the size has changed from what's expected.
- */
-
-static long adf_img_ioctl_validate_compat(struct adf_device *dev,
-		  struct adf_validate_config_ext32 __user *arg_compat)
-{
-	struct adf_validate_config_ext arg;
-	int err = 0;
-
-	BUILD_BUG_ON_MSG(sizeof(struct adf_validate_config_ext) != 32,
-		"adf_validate_config_ext has unexpected size");
-
-	if (!access_ok(VERIFY_READ, arg_compat,
-		sizeof(struct adf_validate_config_ext32))) {
-		err = -EFAULT;
-		goto err_out;
-	}
-
-	arg.n_interfaces = arg_compat->n_interfaces;
-	arg.interfaces = compat_ptr(arg_compat->interfaces);
-	arg.n_bufs = arg_compat->n_bufs;
-	arg.bufs = compat_ptr(arg_compat->bufs);
-	arg.post_ext = compat_ptr(arg_compat->post_ext);
-
-	err = validate(dev, &arg);
-err_out:
-	return err;
-}
-
-#endif /* CONFIG_COMPAT */
-
 long adf_img_ioctl(struct adf_obj *obj, unsigned int cmd, unsigned long arg)
 {
 	struct adf_device *dev =
@@ -264,12 +198,6 @@ long adf_img_ioctl(struct adf_obj *obj, unsigned int cmd, unsigned long arg)
 	case ADF_VALIDATE_CONFIG_EXT:
 		return adf_img_ioctl_validate(dev,
 			(struct adf_validate_config_ext __user *)arg);
-#ifdef CONFIG_COMPAT
-	case ADF_VALIDATE_CONFIG_EXT32:
-		return adf_img_ioctl_validate_compat(dev,
-			(struct adf_validate_config_ext32 __user *)
-							compat_ptr(arg));
-#endif
 	}
 
 	return -ENOTTY;
@@ -383,50 +311,39 @@ int adf_img_validate_simple(struct adf_device *dev, struct adf_post *cfg,
 
 	for (i = 0; i < cfg->n_bufs; i++) {
 		struct adf_buffer_config_ext *buf_ext = &post_ext->bufs_ext[i];
-		u16 hdisplay = interface->current_mode.hdisplay;
-		u16 vdisplay = interface->current_mode.vdisplay;
-
 		if (buf_ext->crop.x1 != 0 ||
-		    buf_ext->crop.y1 != 0 ||
-		    buf_ext->crop.x2 != hdisplay ||
-		    buf_ext->crop.y2 != vdisplay) {
+			buf_ext->crop.y1 != 0 ||
+			buf_ext->crop.x2 != interface->current_mode.hdisplay ||
+			buf_ext->crop.y2 != interface->current_mode.vdisplay) {
 			val_dbg(device, "Buffer crop {%u,%u,%u,%u} not expected {%u,%u,%u,%u}.\n",
 				buf_ext->crop.x1, buf_ext->crop.y1,
 				buf_ext->crop.x2, buf_ext->crop.y2,
-				0, 0, hdisplay, vdisplay);
-
-			/* Userspace might be emulating a lower resolution */
-			if (buf_ext->crop.x2 > hdisplay ||
-			    buf_ext->crop.y2 > vdisplay)
-				return -EINVAL;
+				0, 0, interface->current_mode.hdisplay,
+				interface->current_mode.vdisplay);
+			return -EINVAL;
 		}
 
 		if (buf_ext->display.x1 != 0 ||
-		    buf_ext->display.y1 != 0 ||
-		    buf_ext->display.x2 != hdisplay ||
-		    buf_ext->display.y2 != vdisplay) {
+			buf_ext->display.y1 != 0 ||
+			buf_ext->display.x2 != interface->current_mode.hdisplay ||
+			buf_ext->display.y2 != interface->current_mode.vdisplay) {
 			val_dbg(device, "Buffer display {%u,%u,%u,%u} not expected {%u,%u,%u,%u}.\n",
 				buf_ext->display.x1, buf_ext->display.y1,
 				buf_ext->display.x2, buf_ext->display.y2,
-				0, 0, hdisplay, vdisplay);
-
-			/* Userspace might be emulating a lower resolution */
-			if (buf_ext->display.x2 > hdisplay ||
-			    buf_ext->display.y2 > vdisplay)
-				return -EINVAL;
+				0, 0, interface->current_mode.hdisplay,
+				interface->current_mode.vdisplay);
+			return -EINVAL;
 		}
 
 		if (buf_ext->transform != ADF_BUFFER_TRANSFORM_NONE_EXT) {
 			val_dbg(device, "Buffer transform 0x%x not expected transform 0x%x.\n",
-				buf_ext->transform,
-				ADF_BUFFER_TRANSFORM_NONE_EXT);
+				buf_ext->transform, ADF_BUFFER_TRANSFORM_NONE_EXT);
 			return -EINVAL;
 		}
 
-		if (buf_ext->blend_type != ADF_BUFFER_BLENDING_PREMULT_EXT &&
-		    buf_ext->blend_type != ADF_BUFFER_BLENDING_NONE_EXT) {
-			val_dbg(device, "Buffer blend type %u not supported.\n",
-				buf_ext->blend_type);
+		if (buf_ext->blend_type != ADF_BUFFER_BLENDING_PREMULT_EXT) {
+			val_dbg(device, "Buffer blend type %u not expected blend type %u.\n",
+				buf_ext->blend_type, ADF_BUFFER_BLENDING_PREMULT_EXT);
 			return -EINVAL;
 		}
 
@@ -444,9 +361,8 @@ bool adf_img_buffer_sanity_check(const struct adf_interface *intf,
 	const struct adf_buffer *buf,
 	const struct adf_buffer_config_ext *buf_ext)
 {
-	struct device *dev = intf->base.parent->dev;
 	int plane;
-
+	struct device *dev = intf->base.parent->dev;
 	if (buf->w == 0) {
 		dev_err(dev, "Buffer sanity failed: Zero width\n");
 		return false;

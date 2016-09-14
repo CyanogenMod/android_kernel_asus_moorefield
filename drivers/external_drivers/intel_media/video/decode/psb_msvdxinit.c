@@ -696,10 +696,6 @@ static int msvdx_startup_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&msvdx_priv->msvdx_queue);
 	mutex_init(&msvdx_priv->msvdx_mutex);
 	spin_lock_init(&msvdx_priv->msvdx_lock);
-#ifdef CONFIG_ION
-	INIT_LIST_HEAD(&msvdx_priv->ion_buffers_list);
-	mutex_init(&msvdx_priv->ion_buf_list_lock);
-#endif
 #ifndef CONFIG_DRM_VXD_BYT
 	/*figure out the stepping */
 	pci_read_config_byte(dev->pdev, PSB_REVID_OFFSET, &psb_rev_id);
@@ -902,7 +898,7 @@ int psb_msvdx_init(struct drm_device *dev)
         }
 
 #ifdef MERRIFIELD
-	if (!(IS_TNG(dev) || IS_MOFD(dev))) {
+	if (!(IS_TNG_B0(dev) || IS_MOFD(dev))) {
 #endif
 		ret = psb_msvdx_post_init(dev);
 		if (ret) {

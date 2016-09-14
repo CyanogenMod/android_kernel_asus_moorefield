@@ -111,21 +111,12 @@ int psb_pl_create_ioctl(struct drm_device *dev, void *data,
 				   &dev_priv->bdev, &dev_priv->ttm_lock, data);
 }
 
-int psb_pl_userptr_create_ioctl(struct drm_device *dev, void *data,
+int psb_pl_ub_create_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
 	struct drm_psb_private *dev_priv = psb_priv(dev);
 
-	return ttm_pl_userptr_create_ioctl(psb_fpriv(file_priv)->tfile,
-				      &dev_priv->bdev, &dev_priv->ttm_lock, data);
-}
-
-int psb_pl_dmabuf_create_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-
-	return ttm_pl_dmabuf_create_ioctl(psb_fpriv(file_priv)->tfile,
+	return ttm_pl_ub_create_ioctl(psb_fpriv(file_priv)->tfile,
 				      &dev_priv->bdev, &dev_priv->ttm_lock, data);
 }
 

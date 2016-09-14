@@ -128,10 +128,9 @@ static struct adf_fbdev_dmabuf *
 adf_fbdev_alloc_buffer(struct adf_fbdev_interface *interface)
 {
 	struct adf_fbdev_dmabuf *fbdev_dmabuf;
-	struct scatterlist *sg;
 	size_t unitary_size;
-	int i, err;
 	u32 id = 0;
+	int err;
 
 	spin_lock(&interface->alloc_lock);
 
@@ -189,16 +188,6 @@ adf_fbdev_alloc_buffer(struct adf_fbdev_interface *interface)
 		    pfn_to_page(PFN_DOWN(fbdev_dmabuf->paddr)),
 		    fbdev_dmabuf->length, 0);
 
-	/* Shadow what ion is doing currently to ensure sg_dma_address() is
-	 * valid. This is not strictly correct as the dma address should
-	 * only be valid after mapping (ownership changed), and we haven't
-	 * mapped the scatter list yet.
-	 */
-	for_each_sg(fbdev_dmabuf->sg_table.sgl, sg,
-		    fbdev_dmabuf->sg_table.nents, i) {
-		sg_dma_address(sg) = sg_phys(sg);
-	}
-
 	fbdev_dmabuf->alloc_mask = &interface->alloc_mask;
 	fbdev_dmabuf->alloc_lock = &interface->alloc_lock;
 	fbdev_dmabuf->id         = id;
@@ -227,7 +216,6 @@ adf_fbdev_d_map_dma_buf(struct dma_buf_attachment *attachment,
 			enum dma_data_direction direction)
 {
 	struct adf_fbdev_dmabuf *fbdev_dmabuf = attachment->dmabuf->priv;
-
 	return &fbdev_dmabuf->sg_table;
 }
 
@@ -241,7 +229,6 @@ static void adf_fbdev_d_unmap_dma_buf(struct dma_buf_attachment *attachment,
 static int adf_fbdev_d_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct adf_fbdev_dmabuf *fbdev_dmabuf = dmabuf->priv;
-
 	return remap_pfn_range(vma, vma->vm_start,
 			       PFN_DOWN(fbdev_dmabuf->paddr),
 			       vma->vm_end - vma->vm_start,
@@ -258,7 +245,6 @@ adf_fbdev_d_begin_cpu_access(struct dma_buf *dmabuf, size_t start, size_t len,
 			     enum dma_data_direction dir)
 {
 	struct adf_fbdev_dmabuf *fbdev_dmabuf = dmabuf->priv;
-
 	if (start + len > fbdev_dmabuf->length)
 		return -EINVAL;
 	return 0;
@@ -275,7 +261,6 @@ adf_fbdev_d_kmap(struct dma_buf *dmabuf, unsigned long page_offset)
 {
 	struct adf_fbdev_dmabuf *fbdev_dmabuf = dmabuf->priv;
 	void *vaddr;
-
 	if (page_offset * PAGE_SIZE >= fbdev_dmabuf->length)
 		return ERR_PTR(-EINVAL);
 	vaddr = fbdev_dmabuf->vaddr + page_offset * PAGE_SIZE;
@@ -292,7 +277,6 @@ adf_fbdev_d_kunmap(struct dma_buf *dmabuf, unsigned long page_offset,
 static void *adf_fbdev_d_vmap(struct dma_buf *dmabuf)
 {
 	struct adf_fbdev_dmabuf *fbdev_dmabuf = dmabuf->priv;
-
 	return fbdev_dmabuf->vaddr;
 }
 
@@ -501,25 +485,8 @@ adf_fbdev_alloc_simple_buffer(struct adf_interface *intf, u16 w, u16 h,
 	if (IS_ERR_OR_NULL(fbdev_dmabuf))
 		return PTR_ERR(fbdev_dmabuf);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
-	{
-		DEFINE_DMA_BUF_EXPORT_INFO(export_info);
-
-		export_info.ops = &adf_fbdev_dma_buf_ops;
-		export_info.size = fbdev_dmabuf->length;
-		export_info.flags = O_RDWR;
-		export_info.priv = fbdev_dmabuf;
-
-		*dma_buf = dma_buf_export(&export_info);
-	}
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || \
-      defined(CONFIG_ARCH_MT8173)
-	*dma_buf = dma_buf_export(fbdev_dmabuf, &adf_fbdev_dma_buf_ops,
-				  fbdev_dmabuf->length, O_RDWR, NULL);
-#else
 	*dma_buf = dma_buf_export(fbdev_dmabuf, &adf_fbdev_dma_buf_ops,
 				  fbdev_dmabuf->length, O_RDWR);
-#endif
 	if (IS_ERR(*dma_buf)) {
 		adf_fbdev_free_buffer(fbdev_dmabuf);
 		return PTR_ERR(*dma_buf);

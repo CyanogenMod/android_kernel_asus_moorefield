@@ -72,7 +72,10 @@
 #include "pvr_bridge.h"
 
 #include <linux/HWVersion.h>
-#include <asm/intel-mid.h>
+
+extern int Read_HW_ID(void);
+extern int Read_LCD_ID(void);
+extern int Read_PROJ_ID(void);
 
 static u8 *panel_unique_id;
 
@@ -499,14 +502,13 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_PSB_TTM_PL_SYNCCPU	 (TTM_PL_SYNCCPU + DRM_PSB_PLACEMENT_OFFSET)
 #define DRM_PSB_TTM_PL_WAITIDLE  (TTM_PL_WAITIDLE + DRM_PSB_PLACEMENT_OFFSET)
 #define DRM_PSB_TTM_PL_SETSTATUS (TTM_PL_SETSTATUS + DRM_PSB_PLACEMENT_OFFSET)
-#define DRM_PSB_TTM_PL_CREATE_USERPTR (TTM_PL_CREATE_USERPTR + DRM_PSB_PLACEMENT_OFFSET)
-#define DRM_PSB_TTM_PL_CREATE_DMABUF (TTM_PL_CREATE_DMABUF + DRM_PSB_PLACEMENT_OFFSET)
+#define DRM_PSB_TTM_PL_CREATE_UB (TTM_PL_CREATE_UB + DRM_PSB_PLACEMENT_OFFSET)
 
 /*
  * TTM fence extension.
  */
 
-#define DRM_PSB_FENCE_OFFSET	   (DRM_PSB_TTM_PL_CREATE_DMABUF + 1)
+#define DRM_PSB_FENCE_OFFSET	   (DRM_PSB_TTM_PL_CREATE_UB + 1)
 #define DRM_PSB_TTM_FENCE_SIGNALED (TTM_FENCE_SIGNALED + DRM_PSB_FENCE_OFFSET)
 #define DRM_PSB_TTM_FENCE_FINISH   (TTM_FENCE_FINISH + DRM_PSB_FENCE_OFFSET)
 #define DRM_PSB_TTM_FENCE_UNREF    (TTM_FENCE_UNREF + DRM_PSB_FENCE_OFFSET)
@@ -538,12 +540,9 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_IOCTL_PSB_TTM_PL_SETSTATUS \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_SETSTATUS,\
 		 union ttm_pl_setstatus_arg)
-#define DRM_IOCTL_PSB_TTM_PL_CREATE_USERPTR    \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_CREATE_USERPTR,\
-		 union ttm_pl_create_userptr_arg)
-#define DRM_IOCTL_PSB_TTM_PL_CREATE_DMABUF    \
-		DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_CREATE_DMABUF,\
-			 union ttm_pl_create_dmabuf_arg)
+#define DRM_IOCTL_PSB_TTM_PL_CREATE_UB    \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_CREATE_UB,\
+		 union ttm_pl_create_ub_arg)
 #define DRM_IOCTL_PSB_TTM_FENCE_SIGNALED \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_FENCE_SIGNALED,	\
 		  union ttm_fence_signaled_arg)
@@ -773,9 +772,7 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 		      DRM_AUTH | DRM_UNLOCKED),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_SETSTATUS, psb_pl_setstatus_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_CREATE_USERPTR, psb_pl_userptr_create_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_CREATE_DMABUF, psb_pl_dmabuf_create_ioctl,
+	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_CREATE_UB, psb_pl_ub_create_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_FENCE_SIGNALED,
 		      psb_fence_signaled_ioctl, DRM_AUTH | DRM_UNLOCKED),
@@ -1154,11 +1151,9 @@ bool mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 	u8 primary_panel;
 	u8 number_desc = 0;
 	u8 panel_name_id[PANEL_NAME_MAX_LEN+1] = {0};
-	struct intel_mid_vbt *pVBT = &dev_priv->vbt_data;
+	struct intel_mid_vbt *pVBT = (struct intel_mid_vbt *) &dev_priv->vbt_data;
 	void *panel_desc;
 	struct pci_dev *pci_gfx_root = pci_get_bus_and_slot(0, PCI_DEVFN(2, 0));
-	mdfld_dsi_encoder_t mipi_mode;
-	int ret = 0, len = 0;
 
 	PSB_DEBUG_ENTRY("\n");
 
@@ -1216,6 +1211,16 @@ bool mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 	strncpy(panel_name, panel_desc, PANEL_NAME_MAX_LEN);
 
 	switch(Read_PROJ_ID()) {
+		case PROJ_ID_ZE500ML:
+			switch (Read_LCD_ID()) {
+				case ZE500ML_LCD_ID_CTP:
+				case ZE500ML_LCD_ID_HSD:
+				case ZE500ML_LCD_ID_TM:
+					dev_priv->panel_id = OTM1284A_VID;
+					strncpy(panel_name_id, "OTM1284A", strlen("OTM1284A"));
+					break;
+			}
+			break;
 		case PROJ_ID_ZE550ML:
 			switch (Read_LCD_ID()) {
 				case ZE550ML_LCD_ID_OTM_TM:
@@ -1244,64 +1249,21 @@ bool mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 					break;
 			}
 			break;
-		case PROJ_ID_ZS570ML:
-		case PROJ_ID_TAURUS_CES:
-			if (Read_HW_ID() == HW_ID_EVB) {
-				switch (Read_LCD_ID()){
-					case ZE551ML_LCD_ID_NT_TM:
-						dev_priv->panel_id = NT35596_VID;
-						strncpy(panel_name_id, "NT35596", strlen("NT35596"));
-						break;
-					case ZE551ML_LCD_ID_NT_AUO:
-						dev_priv->panel_id = NT35596_VID;
-						strncpy(panel_name_id, "NT35596", strlen("NT35596"));
-						break;
-					case ZE551ML_LCD_ID_OTM_INX:
-						dev_priv->panel_id = OTM1901A_VID;
-						strncpy(panel_name_id, "OTM1901A", strlen("OTM1901A"));
-						break;
-				}
-			} else {
-				dev_priv->panel_id = SAMSUNG_FHD_CMD;
-				strncpy(panel_name_id, "SAMSUNG_FHD", strlen("SAMSUNG_FHD"));
-			}
-			break;
-		case PROJ_ID_ZS571ML:
-			if (Read_HW_ID() == HW_ID_EVB) {
-				switch (Read_LCD_ID()){
-					case ZE551ML_LCD_ID_NT_TM:
-						dev_priv->panel_id = NT35596_VID;
-						strncpy(panel_name_id, "NT35596", strlen("NT35596"));
-						break;
-					case ZE551ML_LCD_ID_NT_AUO:
-						dev_priv->panel_id = NT35596_VID;
-						strncpy(panel_name_id, "NT35596", strlen("NT35596"));
-						break;
-					case ZE551ML_LCD_ID_OTM_INX:
-						dev_priv->panel_id = OTM1901A_VID;
-						strncpy(panel_name_id, "OTM1901A", strlen("OTM1901A"));
-						break;
-				}
-			} else {
-				dev_priv->panel_id = SAMSUNG_WQHD_CMD;
-				strncpy(panel_name_id, "SAMSUNG_WQHD", strlen("SAMSUNG_WQHD"));
-			}
-			break;
-		case PROJ_ID_ZS550ML:
-			switch (Read_LCD_ID()) {
-				case ZE551ML_LCD_ID_NT_AUO:
+		case PROJ_ID_ZR550ML:
+			switch (Read_LCD_ID()){
+				case ZR550ML_LCD_ID_NT_TM:
 					dev_priv->panel_id = NT35596_VID;
 					strncpy(panel_name_id, "NT35596", strlen("NT35596"));
 					break;
-				case ZS550ML_LCD_ID_SYN_BOE:
-					dev_priv->panel_id = TD4300_VID;
-					strncpy(panel_name_id, "TD4300", strlen("TD4300"));
+				case ZR550ML_LCD_ID_OTM_INX:
+					dev_priv->panel_id = OTM1901A_VID;
+					strncpy(panel_name_id, "OTM1901A", strlen("OTM1901A"));
 					break;
 			}
 			break;
 		default:
-			dev_priv->panel_id = NT35596_VID;
-			strncpy(panel_name_id, "NT35596", strlen("NT35596"));
+			dev_priv->panel_id = OTM1284A_VID;
+			strncpy(panel_name_id, "OTM1284A", strlen("OTM1284A"));
 			break;
 	}
 //	dev_priv->panel_id = PanelID;
@@ -1317,7 +1279,7 @@ bool mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 	if (is_dual_dsi(dev) && IS_ANN(dev)) {
 		dev_priv->bUseHFPLL = false;
 		dev_priv->bRereadZero = false;
-	} else if (IS_TNG(dev) || IS_ANN_A0(dev)) {
+	} else if (IS_TNG_B0(dev) || IS_ANN_A0(dev)) {
 		if (dev_priv->mipi_encoder_type == MDFLD_DSI_ENCODER_DBI) {
 			if (IS_ANN(dev))
 				dev_priv->bUseHFPLL = false;
@@ -1997,6 +1959,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 		INIT_WORK(&dev_priv->te_work, mdfld_te_handler_work);
 		INIT_WORK(&dev_priv->reset_panel_work,
 				mdfld_reset_panel_handler_work);
+	} else {
+		INIT_WORK(&dev_priv->reset_panel_work, mdfld_reset_dpi_panel_handler_work);
 	}
 	INIT_WORK(&dev_priv->vsync_event_work, mdfld_vsync_event_work);
 
@@ -2007,7 +1971,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_err;
 	}
 
-	dev_priv->power_wq = alloc_ordered_workqueue("power_wq", 0);
+	dev_priv->power_wq = alloc_ordered_workqueue("power_wq", WQ_HIGHPRI);
 	if (!dev_priv->power_wq) {
 		DRM_ERROR("failed to create vsync workqueue\n");
 		ret = -ENOMEM;
@@ -3107,25 +3071,6 @@ static void vsync_state_dump(struct drm_device *dev, int pipe)
 	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
 }
 
-void psb_enable_esd(struct drm_device *dev, int pipe)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	struct mdfld_dsi_config *dsi_config = NULL;
-	if (!pipe)
-		dsi_config = dev_priv->dsi_configs[0];
-	else if (pipe == 2)
-		dsi_config = dev_priv->dsi_configs[1];
-
-	if (IS_ANN(dev)) {
-		if (pipe != 1 &&
-			is_panel_vid_or_cmd(dev) == MDFLD_DSI_ENCODER_DPI &&
-			dsi_config &&
-			dsi_config->dsi_hw_context.panel_on) {
-			mdfld_reset_dpi_panel(dev_priv);
-		}
-	}
-}
-
 static int psb_vsync_set_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {
@@ -3180,6 +3125,11 @@ static int psb_vsync_set_ioctl(struct drm_device *dev, void *data,
 					DRM_ERROR("fail to get vsync on pipe %d, ret %d\n", pipe, ret);
 					vsync_state_dump(dev, pipe);
 
+					if (	dsi_config && dsi_config->dsi_hw_context.panel_on) {
+						printk("[DISP] RESET the panel\n");
+						schedule_work(&dev_priv->reset_panel_work);
+					}
+
 					if (!IS_ANN(dev)) {
 						if (pipe != 1 &&
 							is_panel_vid_or_cmd(dev) == MDFLD_DSI_ENCODER_DBI &&
@@ -3200,6 +3150,7 @@ static int psb_vsync_set_ioctl(struct drm_device *dev, void *data,
 				DRM_INFO("request VSYNC on pipe(%d) when vsync_enabled=%d.\n",
 						 pipe, dev_priv->vsync_enabled[pipe]);
 			}
+
 			nsecs = timespec_to_ns(&time_vsync_irq);
 			arg->vsync.timestamp = (uint64_t)nsecs;
 			return ret;
@@ -4176,6 +4127,7 @@ ssize_t rgx_HWR_control_write(struct file *file, const char *buffer,
 	char buf[2];
 	int  rgx_HWR_control;
 	struct drm_psb_private *dev_priv = NULL;
+	struct drm_minor *minor;
 
 	if (gpDrmDevice == NULL || gpDrmDevice->dev_private == NULL)
 		return -EINVAL;
@@ -4183,13 +4135,10 @@ ssize_t rgx_HWR_control_write(struct file *file, const char *buffer,
 		dev_priv = (struct drm_psb_private *)gpDrmDevice->dev_private;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
-	struct drm_minor *minor =
-		(struct drm_minor *) PDE_DATA(file_inode(file));
+	minor = (struct drm_minor *) PDE_DATA(file_inode(file));
 #else
-	struct drm_minor *minor =
-		(struct drm_minor *) PDE(file->f_path.dentry->d_inode)->data;
+	minor = (struct drm_minor *) PDE(file->f_path.dentry->d_inode)->data;
 #endif
-	struct drm_device *dev = minor->dev;
 
 	if (count != sizeof(buf)) {
 		return -EINVAL;
@@ -4230,6 +4179,7 @@ static struct file_operations rgx_HWR_control_proc_fops = {
 	.release= rgx_HWR_control_proc_close,
 };
 
+#ifdef CONFIG_SUPPORT_HDMI
 static int rgx_HWR_control_proc_init(struct drm_minor *minor)
 {
 	struct proc_dir_entry *rgx_HWR_control_setting;
@@ -4243,6 +4193,7 @@ static int rgx_HWR_control_proc_init(struct drm_minor *minor)
 
 	return 0;
 }
+#endif
 
 #endif /* CONFIG_SUPPORT_TRIGER_RGX_HWR */
 
@@ -4291,16 +4242,13 @@ static void psb_shutdown(struct pci_dev *pdev)
 
 static int psb_proc_init(struct drm_minor *minor)
 {
-	struct proc_dir_entry *csc_setting;
-
 #ifdef CONFIG_SUPPORT_HDMI
 	psb_hdmi_proc_init(minor);
 
 #ifdef CONFIG_SUPPORT_TRIGER_RGX_HWR
 	rgx_HWR_control_proc_init(minor);
 #endif
-
-	csc_setting = proc_create_data(CSC_PROC_ENTRY, 0644, minor->proc_root, &psb_csc_proc_fops, minor);
+	proc_create_data(CSC_PROC_ENTRY, 0644, minor->proc_root, &psb_csc_proc_fops, minor);
 #endif
 	return 0;
 }
@@ -4610,7 +4558,7 @@ static __init int parse_hdmi_edid(char *arg)
 early_param("hdmi_edid", parse_hdmi_edid);
 #endif
 
-static int lcd_unique_id_read(struct file *file, char __user *buffer,
+static ssize_t lcd_unique_id_read(struct file *file, char __user *buffer,
 				    size_t count, loff_t *ppos)
 {
 	int len = 0;
@@ -4627,13 +4575,13 @@ static int lcd_unique_id_read(struct file *file, char __user *buffer,
 
 	return ret;
 }
-static int lcd_unique_id_write(struct file *file, const char *buffer,
+static ssize_t lcd_unique_id_write(struct file *file, const char *buffer,
 			  size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
-static int panel_id_read(struct file *file, char __user *buffer,
+static ssize_t panel_id_read(struct file *file, char __user *buffer,
 				    size_t count, loff_t *ppos)
 {
 	int len = 0;
@@ -4653,7 +4601,7 @@ static int panel_id_read(struct file *file, char __user *buffer,
 
 	return ret;
 }
-static int panel_id_write(struct file *file, const char *buffer,
+static ssize_t panel_id_write(struct file *file, const char *buffer,
 			  size_t count, loff_t *ppos)
 {
 	return 0;
@@ -4759,7 +4707,6 @@ typedef struct drm_psb_mem_alloc {
 typedef struct pvrsrv_bridge_package_32
 {
 	u32	ui32BridgeID;		/*!< ioctl/drvesc index */
-	u32	ui32FunctionID;			/*! bridge function ID */
 	u32	ui32Size;			/*!< size of structure */
 	u32	pvParamIn;			/*!< input data buffer */
 	u32	ui32InBufferSize;		/*!< size of input data buf */
@@ -4778,10 +4725,10 @@ int compat_PVRSRV_BridgeDispatchKM2(struct file *filp, unsigned int cmd,
 		printk(KERN_ERR "%s: copy_from_user failed\n", __func__);
 		return -EFAULT;
 	}
+
 	request = compat_alloc_user_space(sizeof(*request));
 	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
 		|| __put_user(req32.ui32BridgeID, &request->ui32BridgeID)
-		|| __put_user(req32.ui32FunctionID, &request->ui32FunctionID)
 		|| __put_user(req32.ui32Size, &request->ui32Size)
 		|| __put_user((void __user *)(unsigned long)req32.pvParamIn, &request->pvParamIn)
 		|| __put_user(req32.ui32InBufferSize, &request->ui32InBufferSize)

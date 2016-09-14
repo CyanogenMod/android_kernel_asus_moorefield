@@ -53,6 +53,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "cache_external.h"
 #include "device.h"
 #include "osfunc.h"
+#include "servicesext.h"
 
 typedef struct _RGX_SERVER_COMMON_CONTEXT_ RGX_SERVER_COMMON_CONTEXT;
 
@@ -70,56 +71,30 @@ typedef struct {
 #define RGXKM_DEVICE_STATE_FTRACE_EN				(0x1 << 1)		/*!< Used to enable device FTrace thread to consume HWPerf data */
 #define RGXKM_DEVICE_STATE_DISABLE_DW_LOGGING_EN 	(0x1 << 2)		/*!< Used to disable the Devices Watchdog logging */
 
-
 /*!
  ******************************************************************************
- * GPU DVFS Table
+ * GPU DVFS History CB
  *****************************************************************************/
 
-#define RGX_GPU_DVFS_TABLE_SIZE            100                      /* DVFS Table size */
-#define RGX_GPU_DVFS_GET_INDEX(clockfreq)  ((clockfreq) / 10000000) /* Assuming different GPU clocks are separated by at least 10MHz
-                                                                     * WARNING: this macro must be used only with nominal values of
-                                                                     * the GPU clock speed (the ones provided by the customer code) */
-#define RGX_GPU_DVFS_FIRST_CALIBRATION_TIME_US       25000          /* Time required to calibrate a clock frequency the first time */
-#define RGX_GPU_DVFS_TRANSITION_CALIBRATION_TIME_US  150000         /* Time required for a recalibration after a DVFS transition */
-#define RGX_GPU_DVFS_PERIODIC_CALIBRATION_TIME_US    10000000       /* Time before the next periodic calibration and correlation */
+#define RGX_GPU_DVFS_HIST_SIZE 200  /* History size must NOT be greater than 4096 (2^12) */
 
-typedef struct _RGX_GPU_DVFS_TABLE_
+typedef struct _RGX_GPU_DVFS_HIST_
 {
-	IMG_UINT64 ui64CalibrationCRTimestamp;              /*!< CR timestamp used to calibrate GPU frequencies (beginning of a calibration period) */
-	IMG_UINT64 ui64CalibrationOSTimestamp;              /*!< OS timestamp used to calibrate GPU frequencies (beginning of a calibration period) */
-	IMG_UINT64 ui64CalibrationCRTimediff;               /*!< CR timediff used to calibrate GPU frequencies (calibration period) */
-	IMG_UINT64 ui64CalibrationOSTimediff;               /*!< OS timediff used to calibrate GPU frequencies (calibration period) */
-	IMG_UINT32 ui32CalibrationPeriod;                   /*!< Threshold used to determine whether the current GPU frequency should be calibrated */
-	IMG_UINT32 ui32CurrentDVFSId;                       /*!< Current table entry index */
-	IMG_BOOL   bAccumulatePeriod;                       /*!< Accumulate many consecutive periods to get a better calibration at the end */
-	IMG_UINT32 aui32DVFSClock[RGX_GPU_DVFS_TABLE_SIZE]; /*!< DVFS clocks table (clocks in Hz) */
-} RGX_GPU_DVFS_TABLE;
-
-
-/*!
- ******************************************************************************
- * GPU utilisation statistics
- *****************************************************************************/
+	IMG_UINT32               ui32CurrentDVFSId;              /*!< Current history entry index */
+	IMG_UINT32				 aui32DVFSClockCB[RGX_GPU_DVFS_HIST_SIZE];   /*!< Circular buffer of DVFS clock history in Hz */
+} RGX_GPU_DVFS_HIST;
 
 typedef struct _RGXFWIF_GPU_UTIL_STATS_
 {
-	IMG_BOOL   bValid;                /* If TRUE, statistics are valid.
-	                                     FALSE if the driver couldn't get reliable stats. */
-	IMG_UINT64 ui64GpuStatActiveHigh; /* GPU active high statistic */
-	IMG_UINT64 ui64GpuStatActiveLow;  /* GPU active low (i.e. TLA active only) statistic */
-	IMG_UINT64 ui64GpuStatBlocked;    /* GPU blocked statistic */
-	IMG_UINT64 ui64GpuStatIdle;       /* GPU idle statistic */
-	IMG_UINT64 ui64GpuStatCumulative; /* Sum of active/blocked/idle stats */
-
-#if defined(GPU_UTIL_SLC_STALL_COUNTERS)
-	IMG_UINT32 ui32SLCStallsRatio;    /* SLC Read/Write stalls ratio expressed in 0,01% units */
-#endif
-#if defined(PVR_POWER_ACTOR) && defined (PVR_DVFS)
-	IMG_UINT32 ui32GpuEnergy;         /* GPU dynamic energy */
-#endif
+	IMG_BOOL		bValid;					/* If TRUE, statistics are valid.
+											   It might be FALSE if DVFS frequency is not provided by system layer (see RGX_TIMING_INFORMATION::ui32CoreClockSpeed)
+											   or if the driver couldn't acquire the PowerLock */
+	IMG_BOOL		bIncompleteData;		/* TRUE when the host couldn't find enough data to cover the whole time window, so the returned values could be wrong */
+	IMG_UINT32		ui32GpuStatActiveHigh;	/* GPU active high ratio expressed in 0,01% units */
+	IMG_UINT32		ui32GpuStatActiveLow;	/* GPU active low (i.e. TLA active only) ratio expressed in 0,01% units */
+	IMG_UINT32		ui32GpuStatBlocked;		/* GPU blocked ratio expressed in 0,01% units */
+	IMG_UINT32		ui32GpuStatIdle;		/* GPU idle ratio expressed in 0,01% units */
 } RGXFWIF_GPU_UTIL_STATS;
-
 
 typedef struct _RGX_REG_CONFIG_
 {
@@ -155,7 +130,7 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	/* Kernel mode linear address of device registers */
 	IMG_PVOID				pvRegsBaseKM;
 
-	/* FIXME: The alloc for this should go through OSAllocMem in future */
+	
 	IMG_HANDLE				hRegMapping;
 
 	/* System physical address of device registers*/
@@ -164,6 +139,8 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	IMG_UINT32				ui32RegSize;
 
 	PVRSRV_STUB_PBDESC		*psStubPBDescListKM;
+
+    IMG_BOOL				bEnableProcessStats;
 
 	/* Firmware memory context info */
 	DEVMEM_CONTEXT			*psKernelDevmemCtx;
@@ -222,26 +199,24 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	DEVMEM_MEMDESC			*psRGXFWIfHWPerfBufMemDesc;
 	IMG_BYTE				*psRGXFWIfHWPerfBuf;
 	IMG_UINT32				ui32RGXFWIfHWPerfBufSize; /* in bytes */
-
+	
 	DEVMEM_MEMDESC			*psRGXFWIfCorememDataStoreMemDesc;
 
 	DEVMEM_MEMDESC			*psRGXFWIfRegCfgMemDesc;
 
-	DEVMEM_MEMDESC			*psRGXFWIfHWPerfCountersMemDesc;
-	DEVMEM_EXPORTCOOKIE     sRGXFWHWPerfCountersExportCookie;
 	DEVMEM_MEMDESC			*psRGXFWIfInitMemDesc;
 
 	DEVMEM_MEMDESC			*psRGXFWIfRuntimeCfgMemDesc;
 	RGXFWIF_RUNTIME_CFG		*psRGXFWIfRuntimeCfg;
 
 #if defined(RGXFW_ALIGNCHECKS)
-	DEVMEM_MEMDESC			*psRGXFWAlignChecksMemDesc;
+	DEVMEM_MEMDESC			*psRGXFWAlignChecksMemDesc;	
 #endif
 
-	DEVMEM_MEMDESC			*psRGXFWSigTAChecksMemDesc;
+	DEVMEM_MEMDESC			*psRGXFWSigTAChecksMemDesc;	
 	IMG_UINT32				ui32SigTAChecksSize;
 
-	DEVMEM_MEMDESC			*psRGXFWSig3DChecksMemDesc;
+	DEVMEM_MEMDESC			*psRGXFWSig3DChecksMemDesc;	
 	IMG_UINT32				ui32Sig3DChecksSize;
 
 #if defined(RGX_FEATURE_RAY_TRACING)
@@ -287,20 +262,16 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	IMG_BOOL				bFTraceGPUEventsEnabled;
 	IMG_HANDLE				hGPUTraceTLConnection;
 	IMG_HANDLE				hGPUTraceTLStream;
-	IMG_UINT64				ui64LastSampledTimeCorrOSTimeStamp;
 #endif
 
 	/* If we do 10 deferred memory allocations per second, then the ID would warp around after 13 years */
 	IMG_UINT32				ui32ZSBufferCurrID;	/*!< ID assigned to the next deferred devmem allocation */
 	IMG_UINT32				ui32FreelistCurrID;	/*!< ID assigned to the next freelist */
-	IMG_UINT32				ui32RPMFreelistCurrID;	/*!< ID assigned to the next RPM freelist */
 
 	POS_LOCK 				hLockZSBuffer;		/*!< Lock to protect simultaneous access to ZSBuffers */
 	DLLIST_NODE				sZSBufferHead;		/*!< List of on-demand ZSBuffers */
 	POS_LOCK 				hLockFreeList;		/*!< Lock to protect simultaneous access to Freelists */
 	DLLIST_NODE				sFreeListHead;		/*!< List of growable Freelists */
-	POS_LOCK 				hLockRPMFreeList;	/*!< Lock to protect simultaneous access to RPM Freelists */
-	DLLIST_NODE				sRPMFreeListHead;	/*!< List of growable RPM Freelists */
 	PSYNC_PRIM_CONTEXT		hSyncPrimContext;
 	PVRSRV_CLIENT_SYNC_PRIM *psPowSyncPrim;
 
@@ -322,41 +293,24 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	IMG_BOOL	bStalledClient;
 
 	/* Timer Queries */
-	IMG_UINT32        ui32ActiveQueryId;       /*!< id of the active line */
-	IMG_BOOL          bSaveStart;              /*!< save the start time of the next kick on the device*/
-	IMG_BOOL          bSaveEnd;                /*!< save the end time of the next kick on the device*/
+	IMG_UINT32     ui32ActiveQueryId;       /*!< id of the active line */
+	IMG_BOOL       bSaveStart;              /*!< save the start time of the next kick on the device*/
+	IMG_BOOL       bSaveEnd;                /*!< save the end time of the next kick on the device*/
 
-	DEVMEM_MEMDESC    * psStartTimeMemDesc;    /*!< memdesc for Start Times */
-	RGXFWIF_TIMESTAMP * pasStartTimeById;      /*!< CPU mapping of the above */
+	DEVMEM_MEMDESC * psStartTimeMemDesc;    /*!< memdesc for Start Times */
+	IMG_UINT64     * pui64StartTimeById;    /*!< CPU mapping of the above */
 
-	DEVMEM_MEMDESC    * psEndTimeMemDesc;      /*!< memdesc for End Timer */
-	RGXFWIF_TIMESTAMP * pasEndTimeById;        /*!< CPU mapping of the above */
+	DEVMEM_MEMDESC * psEndTimeMemDesc;      /*!< memdesc for End Timer */
+	IMG_UINT64     * pui64EndTimeById;      /*!< CPU mapping of the above */
 
-	IMG_UINT32        aui32ScheduledOnId[RGX_MAX_TIMER_QUERIES];      /*!< kicks Scheduled on QueryId */
-	DEVMEM_MEMDESC    * psCompletedMemDesc;    /*!< kicks Completed on QueryId */
-	IMG_UINT32        * pui32CompletedById;    /*!< CPU mapping of the above */
+	IMG_UINT32     aui32ScheduledOnId[RGX_MAX_TIMER_QUERIES];      /*!< kicks Scheduled on QueryId */
+	DEVMEM_MEMDESC * psCompletedMemDesc;    /*!< kicks Completed on QueryId */
+	IMG_UINT32     * pui32CompletedById;    /*!< CPU mapping of the above */
 
-	/* GPU DVFS Table */
-	RGX_GPU_DVFS_TABLE  *psGpuDVFSTable;
 
-	/* Pointer to function returning the GPU utilisation statistics since the last
-	 * time the function was called. Supports different users at the same time.
-	 *
-	 * psReturnStats [out]: GPU utilisation statistics (active high/active low/idle/blocked)
-	 *                      in microseconds since the last time the function was called
-	 *                      by a specific user (identified by hGpuUtilUser)
-	 *
-	 * Returns PVRSRV_OK in case the call completed without errors,
-	 * some other value otherwise.
-	 */
-	PVRSRV_ERROR (*pfnGetGpuUtilStats) (PVRSRV_DEVICE_NODE *psDeviceNode,
-	                                    IMG_HANDLE hGpuUtilUser,
-	                                    RGXFWIF_GPU_UTIL_STATS *psReturnStats);
-
-	PVRSRV_ERROR (*pfnRegisterGpuUtilStats) (IMG_HANDLE *phGpuUtilUser);
-	PVRSRV_ERROR (*pfnUnregisterGpuUtilStats) (IMG_HANDLE hGpuUtilUser);
-
-	POS_LOCK    hGPUUtilLock;
+	/* GPU DVFS History and GPU Utilization stats */
+	RGX_GPU_DVFS_HIST*      psGpuDVFSHistory;
+	RGXFWIF_GPU_UTIL_STATS	(*pfnGetGpuUtilStats) (PVRSRV_DEVICE_NODE *psDeviceNode);
 
 	/* Register configuration */
 	RGX_REG_CONFIG		sRegCongfig;
@@ -378,14 +332,8 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 
 	DLLIST_NODE 		sCommonCtxtListHead;
 	IMG_UINT32			ui32CommonCtxtCurrentID;			/*!< ID assigned to the next common context */
-	IMG_UINT32 bRecord;
-	IMG_UINT32 aRecord;
 
-#if defined(SUPPORT_PAGE_FAULT_DEBUG)
-        POS_LOCK                                hDebugFaultInfoLock;            /*!< Lock to protect the debug fault info list */
-        POS_LOCK                                hMMUCtxUnregLock;       /*!< Lock to protect list of unregistered MMU contexts */
-#endif
-
+	PVRSRV_DEV_POWER_STATE eLastPowerState;
 } PVRSRV_RGXDEV_INFO;
 
 

@@ -49,14 +49,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __OSFUNC_H__
 #define __OSFUNC_H__
 
-
-#if defined(__KERNEL__) && defined(ANDROID) && !defined(__GENKSYMS__)
-#define __pvrsrv_defined_struct_enum__
-#include <services_kernel_client.h>
+#if defined (__cplusplus)
+extern "C" {
 #endif
 
-#if defined(__QNXNTO__)
-#include <string.h>
+#if defined(KERNEL) && defined(ANDROID)
+#define __pvrsrv_defined_struct_enum__
+#include <services_kernel_client.h>
 #endif
 
 #include "img_types.h"
@@ -93,14 +92,12 @@ PVRSRV_ERROR OSUninstallMISR(IMG_HANDLE hMISRData);
 PVRSRV_ERROR OSScheduleMISR(IMG_HANDLE hMISRData);
 
 
-
-
 /*************************************************************************/ /*!
 @Function       OSThreadCreate
 @Description    Creates a kernel thread and starts it running. The caller
                 is responsible for informing the thread that it must finish
                 and return from the pfnThread function. It is not possible
-                to kill or terminate it.The new thread runs with the default
+                to kill or terminate it. The new thread runs with the default
                 priority provided by the Operating System.
 @Output         phThread       Returned handle to the thread.
 @Input          pszThreadName  Name to assign to the thread.
@@ -108,7 +105,6 @@ PVRSRV_ERROR OSScheduleMISR(IMG_HANDLE hMISRData);
 @Input          hData          Thread specific data pointer for pfnThread().
 @Return         Standard PVRSRV_ERROR error code.
 */ /**************************************************************************/
-
 PVRSRV_ERROR OSThreadCreate(IMG_HANDLE *phThread,
 							IMG_CHAR *pszThreadName,
 							PFN_THREAD pfnThread,
@@ -141,10 +137,10 @@ typedef enum priority_levels
 @Return         Standard PVRSRV_ERROR error code.
 */ /**************************************************************************/
 PVRSRV_ERROR OSThreadCreatePriority(IMG_HANDLE *phThread,
-                                    IMG_CHAR *pszThreadName,
-                                    PFN_THREAD pfnThread,
-                                    IMG_VOID *hData,
-                                    OS_THREAD_LEVEL eThreadPriority);
+							IMG_CHAR *pszThreadName,
+							PFN_THREAD pfnThread,
+							IMG_VOID *hData,
+							OS_THREAD_LEVEL eThreadPriority);
 
 /*************************************************************************/ /*!
 @Function       OSThreadDestroy
@@ -158,24 +154,7 @@ PVRSRV_ERROR OSThreadCreatePriority(IMG_HANDLE *phThread,
 */ /**************************************************************************/
 PVRSRV_ERROR OSThreadDestroy(IMG_HANDLE hThread);
 
-void PVRSRVDeviceMemSet(void *pvDest, IMG_UINT8 ui8Value, size_t ui32Size);
-void PVRSRVDeviceMemCopy(void *pvDst, const void *pvSrc, size_t ui32Size);
-
-#if defined(__arm64__) || defined(__aarch64__) || defined (PVRSRV_DEVMEM_SAFE_MEMSETCPY)
-#define OSDeviceMemSet(a,b,c) PVRSRVDeviceMemSet((a), (b), (c))
-#define OSDeviceMemCopy(a,b,c) PVRSRVDeviceMemCopy((a), (b), (c))
-#define OSMemSet(a,b,c)  PVRSRVDeviceMemSet((a), (b), (c))
-#define OSMemCopy(a,b,c)  PVRSRVDeviceMemCopy((a), (b), (c))
-#else
-#define OSDeviceMemSet(a,b,c) memset((a), (b), (c))
-#define OSDeviceMemCopy(a,b,c) memcpy((a), (b), (c))
-#define OSMemSet(a,b,c)  memset((a), (b), (c))
-#define OSMemCopy(a,b,c)  memcpy((a), (b), (c))
-#endif
-
-#define OSCachedMemSet(a,b,c) memset((a), (b), (c))
-#define OSCachedMemCopy(a,b,c) memcpy((a), (b), (c))
-
+IMG_VOID OSMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T ui32Size);
 IMG_VOID *OSMapPhysToLin(IMG_CPU_PHYADDR BasePAddr, IMG_SIZE_T ui32Bytes, IMG_UINT32 ui32Flags);
 IMG_BOOL OSUnMapPhysToLin(IMG_VOID *pvLinAddr, IMG_SIZE_T ui32Bytes, IMG_UINT32 ui32Flags);
 
@@ -199,10 +178,10 @@ IMG_VOID OSInvalidateCPUCacheRangeKM(IMG_PVOID pvVirtStart,
 									 IMG_CPU_PHYADDR sCPUPhysEnd);
 
 
-IMG_PID OSGetCurrentProcessID(IMG_VOID);
-IMG_CHAR *OSGetCurrentProcessName(IMG_VOID);
-IMG_UINTPTR_T OSGetCurrentThreadID(IMG_VOID);
-
+IMG_PID OSGetCurrentProcessIDKM(IMG_VOID);
+IMG_CHAR *OSGetCurrentProcessNameKM(IMG_VOID);
+IMG_PID OSGetCurrentThreadIDKM(IMG_VOID);
+IMG_VOID OSMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T ui32Size);
 IMG_INT OSMemCmp(IMG_VOID *pvBufA, IMG_VOID *pvBufB, IMG_SIZE_T uiLen);
 
 PVRSRV_ERROR OSMMUPxAlloc(PVRSRV_DEVICE_NODE *psDevNode, IMG_SIZE_T uiSize,
@@ -232,8 +211,6 @@ PVRSRV_ERROR OSEventObjectDestroy(IMG_HANDLE hEventObject);
 PVRSRV_ERROR OSEventObjectSignal(IMG_HANDLE hEventObject);
 PVRSRV_ERROR OSEventObjectWait(IMG_HANDLE hOSEventKM);
 PVRSRV_ERROR OSEventObjectWaitTimeout(IMG_HANDLE hOSEventKM, IMG_UINT32 uiTimeoutMs);
-PVRSRV_ERROR OSEventObjectWaitAndHoldBridgeLock(IMG_HANDLE hOSEventKM);
-PVRSRV_ERROR OSEventObjectWaitTimeoutAndHoldBridgeLock(IMG_HANDLE hOSEventKM, IMG_UINT32 uiTimeoutMs);
 PVRSRV_ERROR OSEventObjectOpen(IMG_HANDLE hEventObject,
 											IMG_HANDLE *phOSEvent);
 PVRSRV_ERROR OSEventObjectClose(IMG_HANDLE hOSEventKM);
@@ -241,13 +218,7 @@ PVRSRV_ERROR OSEventObjectClose(IMG_HANDLE hOSEventKM);
 /* Avoid macros so we don't evaluate pszSrc twice */
 static INLINE IMG_CHAR *OSStringCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc)
 {
-	IMG_CHAR  *result; /* Helps with klocwork, will be optimised away */
-
-	result = OSStringNCopy(pszDest, pszSrc, OSStringLength(pszSrc)+1);
-#if defined(__KLOCWORK__)
-	pszDest[OSStringLength(pszSrc)] = '\0';
-#endif
-	return result;
+	return OSStringNCopy(pszDest, pszSrc, OSStringLength(pszSrc) + 1);
 }
 
 /*!
@@ -330,70 +301,67 @@ IMG_BOOL OSAccessOK(IMG_VERIFY_TEST eVerification, IMG_VOID *pvUserPtr, IMG_SIZE
 PVRSRV_ERROR OSCopyToUser(IMG_PVOID pvProcess, IMG_VOID *pvDest, const IMG_VOID *pvSrc, IMG_SIZE_T ui32Bytes);
 PVRSRV_ERROR OSCopyFromUser(IMG_PVOID pvProcess, IMG_VOID *pvDest, const IMG_VOID *pvSrc, IMG_SIZE_T ui32Bytes);
 
-#if defined (__linux__)
-#define OSBridgeCopyFromUser OSCopyFromUser
-#define OSBridgeCopyToUser OSCopyToUser
-#else
-PVRSRV_ERROR OSBridgeCopyFromUser (IMG_PVOID pvProcess,
-						IMG_PVOID pvDest,
-						const IMG_PVOID pvSrc,
-						IMG_SIZE_T ui32Bytes);
-PVRSRV_ERROR OSBridgeCopyToUser (IMG_PVOID pvProcess,
-						IMG_VOID *pvDest,
-						const IMG_VOID *pvSrc,
-						IMG_SIZE_T ui32Bytes);
-#endif
-
-/* Fairly arbitrary sizes - hopefully enough for all bridge calls */
-#define PVRSRV_MAX_BRIDGE_IN_SIZE	0x2000
-#define PVRSRV_MAX_BRIDGE_OUT_SIZE	0x1000
-
-PVRSRV_ERROR OSGetGlobalBridgeBuffers (IMG_VOID **ppvBridgeInBuffer,
-							IMG_UINT32 *pui32BridgeInBufferSize,
-							IMG_VOID **ppvBridgeOutBuffer,
-							IMG_UINT32 *pui32BridgeOutBufferSize);
-
-IMG_BOOL OSSetDriverSuspended(void);
-IMG_BOOL OSClearDriverSuspended(void);
-IMG_BOOL OSGetDriverSuspended(void);
-
+							
 IMG_VOID OSWriteMemoryBarrier(IMG_VOID);
 IMG_VOID OSMemoryBarrier(IMG_VOID);
 
-#if defined(LINUX) && defined(__KERNEL__)
-
-/* Provide LockDep friendly definitions for Services RW locks */
-#include <linux/mutex.h>
-#include <linux/slab.h>
-#include "allocmem.h"
-
-typedef struct rw_semaphore *POSWR_LOCK;
-
-#define OSWRLockCreate(ppsLock) ({ \
-	PVRSRV_ERROR e = PVRSRV_ERROR_OUT_OF_MEMORY; \
-	*(ppsLock) = OSAllocMem(sizeof(struct rw_semaphore)); \
-	if (*(ppsLock)) { init_rwsem(*(ppsLock)); e = PVRSRV_OK; }; \
-	e;})
-#define OSWRLockDestroy(psLock) ({OSFreeMem(psLock); PVRSRV_OK;})
-
-#define OSWRLockAcquireRead(psLock) ({down_read(psLock); PVRSRV_OK;})
-#define OSWRLockReleaseRead(psLock) ({up_read(psLock); PVRSRV_OK;})
-#define OSWRLockAcquireWrite(psLock) ({down_write(psLock); PVRSRV_OK;})
-#define OSWRLockReleaseWrite(psLock) ({up_write(psLock); PVRSRV_OK;})
-
-#elif defined(LINUX) || defined(__QNXNTO__)
-/* User-mode unit tests use these definitions on Linux */
+/* These functions alter the behaviour of OSEventObjectWait*() calls.
+ * When ReleasePVRLock is set the PVR/bridge lock is released prior to the
+ * thread entering the descheduled wait state to allow other bridge call
+ * activity. When KeepPVRLock is set the bridge lock is not released and is
+ * held while the thread is descheduled in a wait state. ReleasePVRLock
+ * is considered the default state and it is recommended any use of
+ * KeepPVRLock is paired with a call to the RelasePVRLock in the same scope.
+ * NOTE: This release/keep state may only be changed by the thread (by calling
+ * these Set functions) when it has been able to obtain the bridge lock first.
+ */
+IMG_VOID OSSetReleasePVRLock(IMG_VOID);
+IMG_VOID OSSetKeepPVRLock(IMG_VOID);
+IMG_BOOL OSGetReleasePVRLock(IMG_VOID);
 
 typedef struct _OSWR_LOCK_ *POSWR_LOCK;
 
+#if defined(__linux__) || (UNDER_CE) || defined(__QNXNTO__)
+
 PVRSRV_ERROR OSWRLockCreate(POSWR_LOCK *ppsLock);
 IMG_VOID OSWRLockDestroy(POSWR_LOCK psLock);
-IMG_VOID OSWRLockAcquireRead(POSWR_LOCK psLock);
+
+/* Linux kernel requires these functions defined as macros to avoid
+ * lockdep issues */
+#if defined(__linux__) && defined(__KERNEL__)
+
+struct _OSWR_LOCK_
+{
+	struct rw_semaphore sRWLock;
+};
+
+/* Lock classes used for each rw semaphore */
+typedef enum RWLockClasses
+{
+	GLOBAL_DBGNOTIFY = 0,
+	GLOBAL_NOTIFY,
+	DEVINFO_RENDERLIST,
+	DEVINFO_COMPUTELIST,
+	DEVINFO_TRANSFERLIST,
+	DEVINFO_RAYTRACELIST,
+	DEVINFO_MEMORYLIST
+} RWLOCKCLASSES;
+
+#define OSWRLockAcquireRead(psLock, ui32class)   ({down_read_nested(&psLock->sRWLock, ui32class); PVRSRV_OK;})
+#define OSWRLockReleaseRead(psLock)              ({up_read(&psLock->sRWLock); PVRSRV_OK;})
+#define OSWRLockAcquireWrite(psLock, ui32class)  ({down_write_nested(&psLock->sRWLock, ui32class); PVRSRV_OK;})
+#define OSWRLockReleaseWrite(psLock)             ({up_write(&psLock->sRWLock); PVRSRV_OK;})
+
+#else /* defined(__linux__) && defined(__KERNEL__) */
+
+IMG_VOID OSWRLockAcquireRead(POSWR_LOCK psLock, IMG_UINT32 ui32class);
 IMG_VOID OSWRLockReleaseRead(POSWR_LOCK psLock);
-IMG_VOID OSWRLockAcquireWrite(POSWR_LOCK psLock);
+IMG_VOID OSWRLockAcquireWrite(POSWR_LOCK psLock, IMG_UINT32 ui32class);
 IMG_VOID OSWRLockReleaseWrite(POSWR_LOCK psLock);
 
-#else
+#endif /* defined(__linux__) && defined(__KERNEL__) */
+
+#else /* defined(__linux__) || (UNDER_CE) || defined(__QNXNTO__) */
 struct _OSWR_LOCK_ {
 	IMG_UINT32 ui32Dummy;
 };
@@ -427,7 +395,7 @@ static INLINE IMG_VOID OSWRLockReleaseWrite(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
 }
-#endif
+#endif /* defined(__linux__) || (UNDER_CE) || defined(__QNXNTO__) */
 
 IMG_UINT64 OSDivide64r64(IMG_UINT64 ui64Divident, IMG_UINT32 ui32Divisor, IMG_UINT32 *pui32Remainder);
 IMG_UINT32 OSDivide64(IMG_UINT64 ui64Divident, IMG_UINT32 ui32Divisor, IMG_UINT32 *pui32Remainder);
@@ -441,23 +409,21 @@ IMG_VOID OSReleaseBridgeLock(IMG_VOID);
 /*
  *  Functions for providing support for PID statistics.
  */
-typedef void (OS_STATS_PRINTF_FUNC)(IMG_PVOID pvFilePtr, const IMG_CHAR *pszFormat, ...);
- 
-typedef void (OS_STATS_PRINT_FUNC)(IMG_PVOID pvFilePtr,
-								   IMG_PVOID pvStatPtr,
-                                   OS_STATS_PRINTF_FUNC* pfnOSGetStatsPrintf);
+typedef IMG_BOOL (OS_GET_STATS_ELEMENT_FUNC)(IMG_PVOID pvStatPtr,
+                                             IMG_UINT32 ui32StatNumber,
+                                             IMG_INT32* pi32StatData,
+                                             IMG_CHAR** ppszStatFmtText);
 
-typedef IMG_UINT32 (OS_INC_STATS_MEM_REFCOUNT_FUNC)(IMG_PVOID pvStatPtr);
-typedef IMG_UINT32 (OS_DEC_STATS_MEM_REFCOUNT_FUNC)(IMG_PVOID pvStatPtr);
 IMG_PVOID OSCreateStatisticEntry(IMG_CHAR* pszName, IMG_PVOID pvFolder,
-                                 OS_STATS_PRINT_FUNC* pfnStatsPrint,
-							 	 OS_INC_STATS_MEM_REFCOUNT_FUNC* pfnIncMemRefCt,
-							 	 OS_DEC_STATS_MEM_REFCOUNT_FUNC* pfnDecMemRefCt,
+                                 OS_GET_STATS_ELEMENT_FUNC* pfnGetElement,
                                  IMG_PVOID pvData);
 IMG_VOID OSRemoveStatisticEntry(IMG_PVOID pvEntry);
 IMG_PVOID OSCreateStatisticFolder(IMG_CHAR *pszName, IMG_PVOID pvFolder);
 IMG_VOID OSRemoveStatisticFolder(IMG_PVOID pvFolder);
 
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* __OSFUNC_H__ */
 

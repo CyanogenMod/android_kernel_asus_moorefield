@@ -87,7 +87,6 @@ extern "C" {
 #endif
 
 #if defined(__KERNEL__)
-	IMG_IMPORT const IMG_CHAR *PVRSRVGetErrorStringKM(PVRSRV_ERROR eError);
 #	define PVRSRVGETERRORSTRING PVRSRVGetErrorStringKM
 #else
 	IMG_IMPORT const IMG_CHAR *PVRSRVGetErrorString(PVRSRV_ERROR eError);
@@ -234,7 +233,7 @@ IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVDebugAssertFail(const IMG_CHAR *pszFile,
 	#define __PVR_DPF_0x100UL(...) PVRSRVDebugPrintf(DBGPRIV_DEBUG, __VA_ARGS__)
 #else
     /* Use an undefined token here to stop compilation dead in the offending module */
-	#define __PVR_DPF_0x100UL(...) __ERROR__PVR_DBG_DEBUG_is_in_use_but_has_not_been_enabled__Note_Debug_DPF_must_not_be_checked_in__Define_PVR_DPF_ADHOC_DEBUG_ON_for_testing
+	#define __PVR_DPF_0x100UL(...) __ERROR__PVR_DBG_DEBUG_is_in_use_but_has_not_been_enabled__Note_Debug_DPF_must_not_be_checked_in_
 #endif
 
 	/* Some are compiled out completely in release builds */
@@ -389,8 +388,6 @@ IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVDebugPrintfDumpCCB(void);
 #if defined(PVRSRV_NEED_PVR_TRACE)
 
 	#define PVR_TRACE(X)	PVRSRVTrace X    /*!< PowerVR Debug Trace Macro */
-	/* Empty string implementation that is -O0 build friendly */
-	#define PVR_TRACE_EMPTY_LINE()	PVR_TRACE(("%s", ""))
 
 IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVTrace(const IMG_CHAR* pszFormat, ... )
 	IMG_FORMAT_PRINTF(1, 2);

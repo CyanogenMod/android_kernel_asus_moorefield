@@ -48,15 +48,12 @@
 #include "displays/otm1284a_vid.h"
 #include "displays/otm1901a_vid.h"
 #include "displays/nt35596_vid.h"
-#include "displays/samsungFHD_cmd.h"
-#include "displays/samsungWQHD_cmd.h"
-#include "displays/td4300_vid.h"
 #include "psb_drv.h"
 #include "android_hdmi.h"
 
 static struct intel_mid_panel_list panel_list[] = {
 #if 0 /* Marked unused panel driver */
-	{JDI_7x12_VID, MDFLD_DSI_ENCODER_DPI, jdi_vid_init},
+        {JDI_7x12_VID, MDFLD_DSI_ENCODER_DPI, jdi_vid_init},
 	{JDI_7x12_CMD, MDFLD_DSI_ENCODER_DBI, jdi_cmd_init},
 	{CMI_7x12_VID, MDFLD_DSI_ENCODER_DPI, cmi_vid_init},
 	{CMI_7x12_CMD, MDFLD_DSI_ENCODER_DBI, cmi_cmd_init},
@@ -70,25 +67,9 @@ static struct intel_mid_panel_list panel_list[] = {
 	{SDC_16x25_CMD, MDFLD_DSI_ENCODER_DBI, sdc16x25_8_cmd_init},
 	{SDC_25x16_CMD, MDFLD_DSI_ENCODER_DBI, sdc25x16_cmd_init},
 #endif
-#ifdef CONFIG_SUPPORT_MIPI_OTM1284A_DISPLAY
 	{OTM1284A_VID, MDFLD_DSI_ENCODER_DPI, otm1284a_vid_init},
-#endif
-#ifdef CONFIG_SUPPORT_MIPI_OTM1901A_DISPLAY
 	{OTM1901A_VID, MDFLD_DSI_ENCODER_DPI, otm1901a_vid_init},
-#endif
-#ifdef CONFIG_SUPPORT_MIPI_NT35596_DISPLAY
 	{NT35596_VID, MDFLD_DSI_ENCODER_DPI, nt35596_vid_init},
-#endif
-#ifdef CONFIG_SUPPORT_MIPI_SAMSUNG_FHD_DISPLAY
-	{SAMSUNG_FHD_CMD, MDFLD_DSI_ENCODER_DBI, samsungFHD_cmd_init},
-#endif
-#ifdef CONFIG_SUPPORT_MIPI_SAMSUNG_WQHD_DISPLAY
-	{SAMSUNG_WQHD_CMD, MDFLD_DSI_ENCODER_DBI, samsungWQHD_cmd_init},
-#endif
-#ifdef CONFIG_SUPPORT_MIPI_TD4300_DISPLAY
-	{TD4300_VID, MDFLD_DSI_ENCODER_DPI, td4300_vid_init},
-#endif
-
 };
 
 enum panel_type get_panel_type(struct drm_device *dev, int pipe)
@@ -107,9 +88,7 @@ bool is_dual_dsi(struct drm_device *dev)
 		(get_panel_type(dev, 0) == SDC_16x25_CMD) ||
 		(get_panel_type(dev, 0) == SDC_25x16_CMD) ||
 		(get_panel_type(dev, 0) == JDI_25x16_CMD) ||
-		(get_panel_type(dev, 0) == JDI_25x16_VID) ||
-		(get_panel_type(dev, 0) == SAMSUNG_WQHD_CMD))
-
+		(get_panel_type(dev, 0) == JDI_25x16_VID))
 		return true;
 	else return false;
 }

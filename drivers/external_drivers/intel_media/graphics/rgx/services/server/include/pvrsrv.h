@@ -43,15 +43,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef PVRSRV_H
 #define PVRSRV_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-#if defined(__KERNEL__) && defined(ANDROID) && !defined(__GENKSYMS__)
+#if defined(KERNEL) && defined(ANDROID)
 #define __pvrsrv_defined_struct_enum__
 #include <services_kernel_client.h>
 #endif
 
 #include "device.h"
+#include "resman.h"
 #include "power.h"
-#include "sysinfo.h"
+#include "rgxsysinfo.h"
 #include "physheap.h"
 
 typedef struct _SYS_DEVICE_ID_TAG
@@ -86,12 +90,10 @@ typedef struct PVRSRV_DATA_TAG
 	IMG_UINT32					ui32GEOConsecutiveTimeouts;	/*!< OS Global Event Object Timeouts */
 	
 	PVRSRV_CACHE_OP				uiCacheOp;					/*!< Pending cache operations in the system */
+	PRESMAN_DEFER_CONTEXTS_LIST	hResManDeferContext;		/*!< Device driver global deferred resman contexts list */
 
 	IMG_HANDLE					hCleanupThread;				/*!< Cleanup thread */
 	IMG_HANDLE					hCleanupEventObject;		/*!< Event object to drive cleanup thread */
-	POS_LOCK					hCleanupThreadWorkListLock;	/*!< Lock protecting the cleanup thread work list */
-	DLLIST_NODE					sCleanupThreadWorkList;		/*!< List of work to do by the cleanup thread */
-	IMG_PID						cleanupThreadPid;			/*!< Cleanup thread process id */
 
 	IMG_HANDLE					hDevicesWatchdogThread;		/*!< Devices Watchdog thread */
 	IMG_HANDLE					hDevicesWatchdogEvObj;		/*! Event object to drive devices watchdog thread */
@@ -250,24 +252,6 @@ IMG_IMPORT PVRSRV_ERROR IMG_CALLCONV PVRSRVPollForValueKM(volatile IMG_UINT32	*p
 IMG_IMPORT PVRSRV_ERROR IMG_CALLCONV PVRSRVWaitForValueKM(volatile IMG_UINT32	*pui32LinMemAddr,
 														IMG_UINT32			ui32Value,
 														IMG_UINT32			ui32Mask);
-
-/*!
-******************************************************************************
- @Function	PVRSRVWaitForValueKMAndHoldBridgeLockKM
-
- @Description
- Waits without releasing bridge lock (using EventObjects) for a value
- to match a masked read
-
- @Input pui32LinMemAddr			: CPU linear address to poll
- @Input ui32Value				: required value
- @Input ui32Mask				: Mask
-
- @Return   PVRSRV_ERROR :
-******************************************************************************/
-PVRSRV_ERROR IMG_CALLCONV PVRSRVWaitForValueKMAndHoldBridgeLockKM(volatile IMG_UINT32 *pui32LinMemAddr,
-                                                                  IMG_UINT32          ui32Value,
-                                                                  IMG_UINT32          ui32Mask);
 
 /*!
 *****************************************************************************
@@ -489,27 +473,5 @@ PVRSRV_ERROR GetBIFTilingHeapXStride(IMG_UINT32 uiHeapNum, IMG_UINT32 *puiXStrid
 
 *****************************************************************************/
 PVRSRV_ERROR GetNumBifTilingHeapConfigs(IMG_UINT32 *puiNumHeaps);
-
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-/*!
-***********************************************************************************
- @Function				: PopulateLMASubArenas
-
- @Description			: Uses the Apphints passed by the client at initialization
-						  time to add bases and sizes in the various arenas in the
-						  LMA memory
-
- @Input psDeviceNode	: Pointer to the device node struct containing all the
-						  arena information
-
- @Input ui32OSidMin		: Single dimensional array containing the minimum values
-						  for each OSid area
-
- @Input ui32OSidMax		: Single dimensional array containing the maximum values
-						  for each OSid area
-***********************************************************************************/
-
-IMG_VOID PopulateLMASubArenas(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_UINT32 aui32OSidMin[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS], IMG_UINT32 aui32OSidMax[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS]);
-#endif
 
 #endif /* PVRSRV_H */

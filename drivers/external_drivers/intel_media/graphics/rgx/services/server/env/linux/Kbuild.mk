@@ -43,7 +43,7 @@ pvrsrvkm-y += \
  services/server/env/linux/event.o \
  services/server/env/linux/mm.o \
  services/server/env/linux/mmap.o \
- services/server/env/linux/module_common.o \
+ services/server/env/linux/module.o \
  services/server/env/linux/devicemem_mmap_stub.o \
  services/server/env/linux/osfunc.o \
  services/server/env/linux/allocmem.o \
@@ -62,7 +62,6 @@ pvrsrvkm-y += \
  services/shared/common/ra.o \
  services/shared/common/sync.o \
  services/shared/common/dllist.o \
- services/shared/common/mem_utils.o \
  services/server/common/devicemem_server.o \
  services/server/common/handle.o \
  services/server/common/lists.o \
@@ -75,19 +74,15 @@ pvrsrvkm-y += \
  services/server/common/power.o \
  services/server/common/process_stats.o \
  services/server/common/pvrsrv.o \
+ services/server/common/resman.o \
  services/server/common/srvcore.o \
  services/server/common/sync_server.o \
  services/server/common/tlintern.o \
  services/shared/common/tlclient.o \
  services/server/common/tlserver.o \
  services/server/common/tlstream.o \
+ services/server/common/tutils.o \
  services/shared/common/uniq_key_splay_tree.o
-
-ifneq ($(PVR_LOADER),)
-pvrsrvkm-y += services/server/env/linux/$(PVR_LOADER).o
-else
-pvrsrvkm-y += services/server/env/linux/module.o
-endif
 
 ifeq ($(SUPPORT_DISPLAY_CLASS),1)
 pvrsrvkm-y += \
@@ -97,10 +92,6 @@ endif
 
 ifeq ($(PVR_RI_DEBUG),1)
 pvrsrvkm-y += services/server/common/ri_server.o
-endif
-
-ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
-pvrsrvkm-y += services/server/common/devicemem_history_server.o
 endif
 
 ifeq ($(PVR_HANDLE_BACKEND),generic)
@@ -115,15 +106,6 @@ ifeq ($(SUPPORT_GPUTRACE_EVENTS),1)
 pvrsrvkm-y += services/server/env/linux/pvr_gputrace.o
 endif
 
-ifeq ($(PVR_TESTING_UTILS),1)
-pvrsrvkm-y += services/server/common/tutils.o
-endif
-
-ifeq ($(PVR_DVFS),1)
-pvrsrvkm-y += \
- services/server/env/linux/pvr_dvfs_governor.o \
- services/server/env/linux/pvr_dvfs_device.o
-endif
 
 pvrsrvkm-$(CONFIG_X86) += services/server/env/linux/osfunc_x86.o
 pvrsrvkm-$(CONFIG_ARM) += services/server/env/linux/osfunc_arm.o
@@ -136,7 +118,7 @@ pvrsrvkm-$(CONFIG_EVENT_TRACING) += services/server/env/linux/trace_events.o
 ifneq ($(W),1)
 CFLAGS_mm.o := -Werror
 CFLAGS_mmap.o := -Werror
-CFLAGS_module_common.o := -Werror
+CFLAGS_module.o := -Werror
 CFLAGS_mutils.o := -Werror
 CFLAGS_devicemem_mmap_stub.o := -Werror
 CFLAGS_osfunc.o := -Werror
@@ -160,16 +142,19 @@ CFLAGS_mmu_common.o := -Werror
 CFLAGS_connection_server.o := -Werror
 CFLAGS_physmem.o := -Werror
 CFLAGS_physmem_lma.o := -Werror
+CFLAGS_physmem_pmmif.o := -Werror
 CFLAGS_pmr.o := -Werror
 CFLAGS_power.o := -Werror
 CFLAGS_process_stats.o := -Werror
 CFLAGS_pvrsrv.o := -Werror
-CFLAGS_srvcore.o := -Werror
+CFLAGS_resman.o := -Werror
+#CFLAGS_srvcore.o := -Werror
 CFLAGS_sync_server.o := -Werror
 CFLAGS_tlintern.o := -Werror
 CFLAGS_tlclient.o := -Werror
 CFLAGS_tlserver.o := -Werror
 CFLAGS_tlstream.o := -Werror
+CFLAGS_tutils.o := -Werror
 
 ifeq ($(SUPPORT_DISPLAY_CLASS),1)
 CFLAGS_dc_server.o := -Werror
@@ -179,17 +164,8 @@ endif
 ifeq ($(PVR_RI_DEBUG),1)
 CFLAGS_ri_server.o := -Werror
 endif
-ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
-CFLAGS_devicememhistory_server.o := -Werror
-endif
 ifeq ($(SUPPORT_GPUTRACE_EVENTS),1)
 CFLAGS_pvr_gputrace.o := -Werror
-endif
-ifeq ($(SUPPORT_VALIDATION),1)
-CFLAGS_validation.o := -Werror
-endif
-ifeq ($(PVR_TESTING_UTILS),1)
-CFLAGS_tutils.o := -Werror
 endif
 endif
 
@@ -229,8 +205,7 @@ pvrsrvkm-y += \
  services/shared/devices/rgx/rgx_compat_bvnc.o \
  services/server/devices/rgx/rgxregconfig.o \
  services/server/devices/rgx/rgxtimerquery.o \
- services/server/devices/rgx/rgxsync.o \
- services/server/devices/rgx/rgxtimecorr.o
+ services/server/devices/rgx/rgxsync.o
 
 ifeq ($(SUPPORT_RAY_TRACING),1)
 pvrsrvkm-y += services/server/devices/rgx/rgxray.o
@@ -271,12 +246,13 @@ ccflags-y += \
  -I$(bridge_base)/mm_bridge \
  -I$(bridge_base)/cmm_bridge \
  -I$(bridge_base)/pdumpmm_bridge \
+ -I$(bridge_base)/pdumpcmm_bridge \
  -I$(bridge_base)/pdump_bridge \
- -I$(bridge_base)/pdumpctrl_bridge \
  -I$(bridge_base)/rgxtq_bridge \
  -I$(bridge_base)/rgxinit_bridge \
  -I$(bridge_base)/rgxta3d_bridge \
  -I$(bridge_base)/rgxcmp_bridge \
+ -I$(bridge_base)/srvcore_bridge \
  -I$(bridge_base)/dsync_bridge \
  -I$(bridge_base)/sync_bridge \
  -I$(bridge_base)/breakpoint_bridge \
@@ -288,28 +264,10 @@ ccflags-y += \
  -I$(bridge_base)/regconfig_bridge \
  -I$(bridge_base)/timerquery_bridge
 
-ifeq ($(SUPPORT_KERNEL_SRVINIT),1)
-ccflags-y += \
- -I$(bridge_base)/dsrvcore_bridge \
- -I$(bridge_base)/drgxinit_bridge \
- -I$(bridge_base)/dpdumpctrl_bridge \
- -I$(bridge_base)/dpdump_bridge \
- -I$(bridge_base)/drgxpdump_bridge
-endif
-
-ccflags-y += \
- -I$(bridge_base)/srvcore_bridge
-
 ifeq ($(PVR_RI_DEBUG),1)
 ccflags-y += \
  -I$(bridge_base)/ri_bridge \
  -I$(bridge_base)/dri_bridge
-endif
-
-ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
-ccflags-y += \
- -I$(bridge_base)/devicememhistory_bridge \
- -I$(bridge_base)/ddevicememhistory_bridge
 endif
 
 
@@ -346,24 +304,17 @@ ccflags-y += \
  -I$(bridge_base)/syncexport_bridge
 endif
 
+ifeq ($(SUPPORT_PMMIF),1)
+ccflags-y += -I$(bridge_base)/pmmif_bridge
+endif
+
 ifeq ($(SUPPORT_ION),1)
 ccflags-y += -I$(bridge_base)/dmabuf_bridge
 endif
 
-ifeq ($(SUPPORT_ANDROID_PLATFORM),1)
+ifeq ($(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC),1)
 ccflags-y += -I$(TOP)/kernel/drivers/staging/imgtec
-endif
-
-ifeq ($(SUPPORT_NATIVE_FENCE_SYNC),1)
 pvrsrvkm-y += kernel/drivers/staging/imgtec/pvr_sync.o
-endif
-
-ifeq ($(SUPPORT_VALIDATION),1)
-ccflags-y += -I$(bridge_base)/validation_bridge
-endif
-
-ifeq ($(PVR_TESTING_UTILS),1)
-ccflags-y += -I$(bridge_base)/tutils_bridge
 endif
 
 pvrsrvkm-y += \
@@ -372,8 +323,8 @@ pvrsrvkm-y += \
  generated/pdumpmm_bridge/server_pdumpmm_bridge.o \
  generated/dpdumpmm_bridge/client_pdumpmm_bridge.o \
  generated/cmm_bridge/server_cmm_bridge.o \
+ generated/pdumpcmm_bridge/server_pdumpcmm_bridge.o \
  generated/pdump_bridge/server_pdump_bridge.o \
- generated/pdumpctrl_bridge/server_pdumpctrl_bridge.o \
  generated/rgxtq_bridge/server_rgxtq_bridge.o \
  generated/rgxinit_bridge/server_rgxinit_bridge.o \
  generated/rgxta3d_bridge/server_rgxta3d_bridge.o \
@@ -389,25 +340,10 @@ pvrsrvkm-y += \
  generated/rgxhwperf_bridge/server_rgxhwperf_bridge.o \
  generated/regconfig_bridge/server_regconfig_bridge.o \
  generated/timerquery_bridge/server_timerquery_bridge.o
-
-ifeq ($(SUPPORT_KERNEL_SRVINIT),1)
-pvrsrvkm-y += \
- generated/dsrvcore_bridge/client_srvcore_bridge.o \
- generated/drgxinit_bridge/client_rgxinit_bridge.o \
- generated/dpdumpctrl_bridge/client_pdumpctrl_bridge.o \
- generated/dpdump_bridge/client_pdump_bridge.o \
- generated/drgxpdump_bridge/client_rgxpdump_bridge.o
-endif
-
 ifeq ($(PVR_RI_DEBUG),1)
 pvrsrvkm-y += \
  generated/ri_bridge/server_ri_bridge.o \
  generated/dri_bridge/client_ri_bridge.o
-endif
-ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
-pvrsrvkm-y += \
- generated/devicememhistory_bridge/server_devicememhistory_bridge.o \
- generated/ddevicememhistory_bridge/client_devicememhistory_bridge.o
 endif
 
 ifeq ($(SUPPORT_DISPLAY_CLASS),1)
@@ -436,26 +372,23 @@ pvrsrvkm-y += \
  generated/syncexport_bridge/server_syncexport_bridge.o
 endif
 
+ifeq ($(SUPPORT_PMMIF),1)
+pvrsrvkm-y += \
+ services/server/common/physmem_pmmif.o \
+ generated/pmmif_bridge/server_pmmif_bridge.o
+endif
+
 ifeq ($(SUPPORT_ION),1)
 pvrsrvkm-y += generated/dmabuf_bridge/server_dmabuf_bridge.o
 pvrsrvkm-y += services/server/env/linux/physmem_dmabuf.o
 endif # SUPPORT_ION
-
-ifeq ($(SUPPORT_VALIDATION),1)
-pvrsrvkm-y += generated/validation_bridge/server_validation_bridge.o
-pvrsrvkm-y += services/server/common/validation.o
-endif # SUPPORT_VALIDATION
-
-ifeq ($(PVR_TESTING_UTILS),1)
-pvrsrvkm-y += generated/tutils_bridge/server_tutils_bridge.o
-endif
 
 ifneq ($(W),1)
 CFLAGS_server_mm_bridge.o := -Werror
 CFLAGS_server_cmm_bridge.o := -Werror
 CFLAGS_client_mm_bridge.o := -Werror
 CFLAGS_client_pdumpmm_bridge.o := -Werror
-CFLAGS_server_pdumpctrl_bridge.o := -Werror
+CFLAGS_server_pdump_bridge.o := -Werror
 CFLAGS_server_sync_bridge.o := -Werror
 CFLAGS_server_rgxtq_bridge.o := -Werror
 CFLAGS_server_rgxinit_bridge.o := -Werror
@@ -467,14 +400,11 @@ CFLAGS_server_debugmisc_bridge.o := -Werror
 CFLAGS_server_rgxpdump_bridge.o := -Werror
 CFLAGS_server_pdumpmm_bridge.o := -Werror
 CFLAGS_client_pdumpmm_bridge.o := -Werror
-CFLAGS_server_pdump_bridge.o := -Werror
+CFLAGS_server_pdumpcmm_bridge.o := -Werror
 CFLAGS_server_rgxray_bridge.o := -Werror
 CFLAGS_server_regconfig_bridge.o := -Werror
 CFLAGS_server_timerquery_bridge.o := -Werror
 
-ifeq ($(SUPPORT_KERNEL_SRVINIT),1)
-CFLAGS_client_srvcore_bridge.o := -Werror
-endif
 ifeq ($(SUPPORT_DISPLAY_CLASS),1)
 CFLAGS_server_dc_bridge.o := -Werror
 endif
@@ -490,6 +420,10 @@ endif
 ifeq ($(SUPPORT_INSECURE_EXPORT),1)
 CFLAGS_server_syncexport_bridge.o := -Werror
 endif
+ifeq ($(SUPPORT_PMMIF),1)
+CFLAGS_physmem_pmmif.o := -Werror
+CFLAGS_server_pmmif_bridge.o = -Werror
+endif
 CFLAGS_server_pvrtl_bridge.o := -Werror
 CFLAGS_client_pvrtl_bridge.o := -Werror
 CFLAGS_server_rgxhwperf_bridge.o := -Werror
@@ -497,85 +431,29 @@ ifeq ($(PVR_RI_DEBUG),1)
 CFLAGS_server_ri_bridge.o := -Werror
 CFLAGS_client_ri_bridge.o := -Werror
 endif
-ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
-CFLAGS_server_devicememhistory_bridge.o := -Werror
-CFLAGS_client_devicememhistory_bridge.o := -Werror
-endif
 ifeq ($(SUPPORT_ION),1)
 CFLAGS_physmem_dmabuf.o := -Werror
 CFLAGS_server_dmabuf_bridge.o = -Werror
 endif
-ifeq ($(SUPPORT_VALIDATION),1)
-CFLAGS_server_validation_bridge.o := -Werror
-endif
-ifeq ($(PVR_TESTING_UTILS),1)
-CFLAGS_server_tutils_bridge.o := -Werror
-endif
 endif
 
 ifeq ($(SUPPORT_DRM),1)
-ifneq ($(SUPPORT_DRM_EXT),1)
 pvrsrvkm-y += \
- services/server/env/linux/pvr_drm.o
-endif
-
-pvrsrvkm-y += \
+ services/server/env/linux/pvr_drm.o \
  services/server/env/linux/pvr_drm_gem.o \
- services/server/env/linux/pvr_drm_prime.o \
- services/server/env/linux/physmem_dmabuf.o
-
-CFLAGS_physmem_dmabuf.o := -Werror
+ services/server/env/linux/pvr_drm_prime.o
 
 ifeq ($(SUPPORT_DRM_DC_MODULE),1)
 pvrsrvkm-y += \
+ services/server/common/scp.o \
  services/server/env/linux/pvr_drm_display.o
-ifneq ($(SUPPORT_DISPLAY_CLASS),1)
-pvrsrvkm-y += \
- services/server/common/scp.o
+
 CFLAGS_scp.o := -Werror
-endif
 endif
 
 ccflags-y += \
  -Iinclude/drm \
  -I$(TOP)/services/include/env/linux
 endif # SUPPORT_DRM
-
-ifeq ($(SUPPORT_KERNEL_SRVINIT),1)
-SRVINIT := srvinit
-include $(TOP)/services/srvinit/env/linux/srvinit_common.mk
-pvrsrvkm-y += $(patsubst $(TOP)/%.c,%.o,$($(SRVINIT)_src))
-ccflags-y += $(patsubst %,-I$(TOP)/%,$($(SRVINIT)_includes))
-
-pvrsrvkm-y += \
- services/client/common/pvrsrv_devmem.o \
- services/client/common/srvcore.o \
- services/client/common/connection.o \
- services/client/devices/rgx/rgxinit_client.o \
- services/client/env/linux/km/osfunc_km.o \
- services/client/env/linux/km/osfunc_mutex.o \
- services/client/env/linux/km/pvr_bridge_client.o \
- services/client/env/linux/km/pvrtl_client.o
-
-ifeq ($(PDUMP),1)
-pvrsrvkm-y += \
- services/client/common/pvrsrv_devmem_pdump.o \
- services/client/common/pvr_pdump_glue.o \
- services/client/common/devicemem_pdumpc.o
-endif
-
-ifeq ($(SUPPORT_VALIDATION),1)
-pvrsrvkm-y += \
- services/client/common/validation.o
-endif
-
-ccflags-y += \
- -I$(TOP)/services/client/include \
- -I$(TOP)/services/client/common \
- -I$(TOP)/services/client/env/linux
-
-ccflags-y += \
- -I$(OUT)/target_neutral/intermediates/firmware
-endif
 
 include $(TOP)/services/system/$(PVR_SYSTEM)/Kbuild.mk

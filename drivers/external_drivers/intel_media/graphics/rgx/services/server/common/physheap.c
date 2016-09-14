@@ -234,23 +234,19 @@ PVRSRV_ERROR PhysHeapGetSize(PHYS_HEAP *psPhysHeap,
 }
 
 IMG_VOID PhysHeapCpuPAddrToDevPAddr(PHYS_HEAP *psPhysHeap,
-									IMG_UINT32 ui32NumOfAddr,
 									IMG_DEV_PHYADDR *psDevPAddr,
 									IMG_CPU_PHYADDR *psCpuPAddr)
 {
 	psPhysHeap->psMemFuncs->pfnCpuPAddrToDevPAddr(psPhysHeap->hPrivData,
-												 ui32NumOfAddr,
 												 psDevPAddr,
 												 psCpuPAddr);
 }
 
 IMG_VOID PhysHeapDevPAddrToCpuPAddr(PHYS_HEAP *psPhysHeap,
-									IMG_UINT32 ui32NumOfAddr,
 									IMG_CPU_PHYADDR *psCpuPAddr,
 									IMG_DEV_PHYADDR *psDevPAddr)
 {
 	psPhysHeap->psMemFuncs->pfnDevPAddrToCpuPAddr(psPhysHeap->hPrivData,
-												 ui32NumOfAddr,
 												 psCpuPAddr,
 												 psDevPAddr);
 }

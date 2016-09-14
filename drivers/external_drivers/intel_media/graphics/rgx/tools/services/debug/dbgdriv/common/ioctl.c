@@ -38,6 +38,10 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
+#if defined(UNDER_CE)
+#include <windows.h>
+#include <ceddk.h>
+#else
 
 #if defined(_WIN32)
 #pragma  warning(disable:4201)
@@ -49,6 +53,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <windef.h>
 
 #endif /* _WIN32 */
+#endif /* UNDER_CE */
 
 #ifdef LINUX
 #include <asm/uaccess.h>
@@ -162,10 +167,32 @@ static IMG_UINT32 DBGDIOCDrivRead(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer,
 
 	if (psStream != (PDBG_STREAM)IMG_NULL)
 	{
+#ifdef UNDER_WDDM
+		IMG_UINT8	*pui8ClientBuffer;
+		/* WDDM DbgDriv operates at DISPATCH level so it cannot write directly
+		 * to pdump.exe's userspace buffer
+		 */
+
+		pui8ReadBuffer = HostNonPageablePageAlloc(
+			(psInParams->ui32OutBufferSize + HOST_PAGESIZE - 1) / HOST_PAGESIZE);
+		if (!pui8ReadBuffer)
+		{
+			return(IMG_FALSE);
+		}
+		pui8ClientBuffer = WIDEPTR_GET_PTR(psInParams->pui8OutBuffer, bCompat);
+#endif
 		*pui32BytesCopied = ExtDBGDrivRead(psStream,
 									   psInParams->ui32BufID,
 									   psInParams->ui32OutBufferSize,
 									   pui8ReadBuffer);
+#ifdef UNDER_WDDM
+		if(*pui32BytesCopied > 0)
+		{
+			HostMemCopy(pui8ClientBuffer, pui8ReadBuffer, *pui32BytesCopied);
+		}
+
+		HostNonPageablePageFree(pui8ReadBuffer);
+#endif
 		return(IMG_TRUE);
 	}
 	else
@@ -287,7 +314,7 @@ static IMG_UINT32 DBGDIOCDrivGetFrame(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuf
 
 /*
 	ioctl interface jump table.
-	Accessed from the UM debug driver client
+	Accessed from the UM debug driver client and from WDDM KMD server
 */
 IMG_UINT32 (*g_DBGDrivProc[DEBUG_SERVICE_MAX_API])(IMG_VOID *, IMG_VOID *, IMG_BOOL) =
 {

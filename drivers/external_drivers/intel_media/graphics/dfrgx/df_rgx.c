@@ -107,11 +107,7 @@
  *     #define GOVERNOR_TO_USE "userspace"
  *     #define GOVERNOR_TO_USE "powersave"
  */
-#ifdef CONFIG_PLATFORM_BTNS
-#define GOVERNOR_TO_USE "powersave"
-#else
 #define GOVERNOR_TO_USE "simple_ondemand"
-#endif
 #else
 /**
  * Potential governors:
@@ -119,11 +115,7 @@
  *     #define GOVERNOR_TO_USE devfreq_performance
  *     #define GOVERNOR_TO_USE devfreq_powersave
  */
-#ifdef CONFIG_PLATFORM_BTNS
-#define GOVERNOR_TO_USE devfreq_powersave
-#else
 #define GOVERNOR_TO_USE devfreq_simple_ondemand
-#endif
 #endif
 
 
@@ -752,11 +744,6 @@ static int df_rgx_busfreq_probe(struct platform_device *pdev)
 		df->min_freq = DFRGX_FREQ_457_MHZ;
 		df->max_freq = DFRGX_FREQ_533_MHZ;
 	}
-/*if this is BTNS we use powersave governor at 106MHZ fixed*/
-#ifdef CONFIG_PLATFORM_BTNS
-	df->min_freq = DFRGX_FREQ_106_MHZ;
-	df->max_freq = DFRGX_FREQ_200_MHZ;
-#endif
 	DFRGX_DPF(DFRGX_DEBUG_HIGH, "%s: dev_id = 0x%x, min_freq = %lu, max_freq = %lu\n",
 		__func__, RGXGetDRMDeviceID(), df->min_freq, df->max_freq);
 
@@ -852,14 +839,22 @@ static int df_rgx_busfreq_probe(struct platform_device *pdev)
 		goto err_002;
 	}
 
-	/*Set the initial frequency at 457MHZ in B0/ 200MHZ otherwise, 106MHZ if BTNS*/
+	/*Set the initial frequency at 457MHZ in B0/ 200MHZ otherwise*/
 	{
 		int ret = 0;
-		ret = df_rgx_set_freq_khz(bfdata, df->min_freq);
-		if (ret < 0) {
-			DFRGX_DPF(DFRGX_DEBUG_HIGH,
-				"%s: could not initialize freq: %0x error\n",
-				__func__, ret);
+		if (!df_rgx_is_active()) {
+				/*Change the freq once it is active*/
+				bfdata->bf_desired_freq = df->min_freq;
+				mutex_lock(&bfdata->lock);
+				bfdata->b_need_freq_update = 1;
+				mutex_unlock(&bfdata->lock);
+		} else {
+			ret = df_rgx_set_freq_khz(bfdata, df->min_freq);
+			if (ret < 0) {
+				DFRGX_DPF(DFRGX_DEBUG_HIGH,
+					"%s: could not initialize freq: %0x error\n",
+					__func__, ret);
+			}
 		}
 	}
 

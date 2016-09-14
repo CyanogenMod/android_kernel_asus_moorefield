@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/intel_mid_pm.h>
 #include <asm/intel_scu_pmic.h>
+#include <linux/i2c/rt4532.h>
 
 #include "mdfld_dsi_dpi.h"
 #include "mdfld_dsi_pkg_sender.h"
@@ -49,9 +50,6 @@ extern int Read_PROJ_ID(void);
 #define PWMCTRL_SIZE 0x80
 #define PWM_BASE_UNIT 0x1555 //25,000Hz
 
-#define PULL_DOWN_EN			BIT(9)
-#define PULL_UP_EN			BIT(8)
-#define BL_EN_REG 0xFF0C2530
 
 union pwmctrl_reg {
 	struct {
@@ -68,7 +66,7 @@ static int panel_reset_gpio;
 static int panel_en_gpio;
 static int backlight_en_gpio;
 static int backlight_pwm_gpio;
-static int lcm_enp_gpio;
+
 
 struct mipi_dsi_cmd{
 	int delay;
@@ -1388,12 +1386,10 @@ nt35596_vid_dsi_controller_init(struct mdfld_dsi_config *dsi_config)
 		printk("[DISP] AUO Panel initial cmds registered\n");
 		nt35596_power_on_table = ze551ml_AUO_power_on_table;
 		nt35596_power_on_table_size = ARRAY_SIZE(ze551ml_AUO_power_on_table);
-#if !(defined(CONFIG_ZS570ML) || defined(CONFIG_ZS550ML))
 	} else if (Read_HW_ID() == HW_ID_SR1 || Read_HW_ID() == HW_ID_SR2) {
 		printk("[DISP] TM SR Panel initial cmds registered\n");
 		nt35596_power_on_table = ze551ml_power_on_table;
 		nt35596_power_on_table_size = ARRAY_SIZE(ze551ml_power_on_table);
-#endif
 	} else {
 		printk("[DISP] TM ER Panel initial cmds registered\n");
 		nt35596_power_on_table = ze551ml_TM_ER_power_on_table;
@@ -1482,11 +1478,7 @@ static int nt35596_vid_reset(struct mdfld_dsi_config *dsi_config)
 	printk("[DISP] %s\n", __func__);
 
 	/* Open 2V9 power */
-	if (Read_PROJ_ID() == PROJ_ID_ZS550ML) {
-		gpio_set_value_cansleep(lcm_enp_gpio, 1);
-	} else {
-		__vpro3_power_ctrl(true);
-	}
+	__vpro3_power_ctrl(true);
 	usleep_range(15000, 15100);
 /* postpone to drv_ic_init
 	gpio_set_value_cansleep(panel_reset_gpio, 1);
@@ -1505,8 +1497,10 @@ static int nt35596_vid_set_brightness(struct mdfld_dsi_config *dsi_config,
 {
 	u32 reg_level;
 	union pwmctrl_reg pwmctrl;
-	static void __iomem *bl_en_mmio;
 
+#ifdef CONFIG_BACKLIGHT_RT4532
+	rt4532_brightness_set(level);
+#endif
 	reg_level = ~level & 0xFF;
 	pwmctrl.part.pwmswupdate = 0x1;
 	pwmctrl.part.pwmbu = PWM_BASE_UNIT;
@@ -1514,13 +1508,10 @@ static int nt35596_vid_set_brightness(struct mdfld_dsi_config *dsi_config,
 
 	if (!pwmctrl_mmio)
 		pwmctrl_mmio = ioremap_nocache(PWMCTRL_REG, 4);
-	if (!bl_en_mmio)
-		bl_en_mmio = ioremap_nocache(BL_EN_REG, 4);
 
 	if (pwmctrl_mmio) {
 		if (level) {
 			if (!gpio_get_value(backlight_en_gpio)) {
-				writel((readl(bl_en_mmio) | PULL_UP_EN) & (~PULL_DOWN_EN), bl_en_mmio);
 				pmu_set_pwm(PCI_D0);
 				lnw_gpio_set_alt(backlight_pwm_gpio, 1);
 				gpio_set_value_cansleep(backlight_en_gpio, 1);
@@ -1535,7 +1526,6 @@ static int nt35596_vid_set_brightness(struct mdfld_dsi_config *dsi_config,
 			lnw_gpio_set_alt(backlight_pwm_gpio, 0);
 			usleep_range(10000, 10100);
 			gpio_set_value_cansleep(backlight_en_gpio, 0);
-			writel((readl(bl_en_mmio) | PULL_DOWN_EN) & (~PULL_UP_EN), bl_en_mmio);
 			pmu_set_pwm(PCI_D3hot);
 		}
 	} else {
@@ -1637,19 +1627,6 @@ static int nt35596_vid_detect(struct mdfld_dsi_config *dsi_config)
 	pmu_set_pwm(PCI_D0);
 	lnw_gpio_set_alt(backlight_pwm_gpio, 1);
 #endif
-
-	if (Read_PROJ_ID() == PROJ_ID_ZS550ML) {
-		lcm_enp_gpio = get_gpio_by_name("LCM_ENP");
-		if (lcm_enp_gpio < 0) {
-			DRM_ERROR("Faild to get panel reset gpio\n");
-			return -EINVAL;
-		}
-
-		if (gpio_request(lcm_enp_gpio, "lcm_enp")) {
-			DRM_ERROR("Faild to request lcm enp gpio\n");
-			return -EINVAL;
-		}
-	}
 
 	dsi_config->dsi_hw_context.panel_on = false;
 

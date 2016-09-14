@@ -45,7 +45,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "dbgdrvif_srv5.h"
 
-typedef struct  tagIOCTL_PACKAGE
+typedef struct tagIOCTL_PACKAGE
 {
 	IMG_UINT32 ui32Cmd;              // ioctl command
 	IMG_UINT32 ui32Size;			   // needs to be correctly set

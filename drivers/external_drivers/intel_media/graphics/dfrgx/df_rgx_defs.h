@@ -42,28 +42,16 @@
 #define NUMBER_OF_LEVELS_TNG_A0			4
 #define NUMBER_OF_LEVELS_MAX_FUSE		9
 
-#ifdef CONFIG_PLATFORM_BTNS
-#define DF_RGX_FREQ_KHZ_MIN             106000
-#define DF_RGX_FREQ_KHZ_MAX             200000
-
-#define DF_RGX_INITIAL_FREQ_KHZ         DF_RGX_FREQ_KHZ_MIN
-#define DF_RGX_THERMAL_LIMITED_FREQ_KHZ 106000
-#else
 #define DF_RGX_FREQ_KHZ_MIN             200000
 #define DF_RGX_FREQ_KHZ_MAX             640000
 
+#define DF_RGX_FREQ_KHZ_MIN_INITIAL     DF_RGX_FREQ_KHZ_MIN
+
 #define DF_RGX_INITIAL_FREQ_KHZ         320000
+
 #define DF_RGX_THERMAL_LIMITED_FREQ_KHZ 200000
 
-#endif
-
-#define DF_RGX_FREQ_KHZ_MIN_INITIAL     DF_RGX_FREQ_KHZ_MIN
 typedef enum _DFRGX_FREQ_ {
-	DFRGX_FREQ_100_MHZ = 100000,
-	DFRGX_FREQ_106_MHZ = 106000,
-	DFRGX_FREQ_133_MHZ = 133000,
-	DFRGX_FREQ_160_MHZ = 160000,
-	DFRGX_FREQ_177_MHZ = 177000,
 	DFRGX_FREQ_200_MHZ = 200000,
 	DFRGX_FREQ_213_MHZ = 213000,
 	DFRGX_FREQ_266_MHZ = 266000,
@@ -92,19 +80,18 @@ typedef enum _DFRGX_BURST_MODE_ {
 
 struct gpu_util_stats {
 	/* if TRUE, statistict are valid, otherwise
-	* there was not enough data to calculate the times
+	* there was not enough data to calculate the ratios
 	*/
 	unsigned int				bValid;
-	/* GPU active time expressed in ms */
-	unsigned long long			ui64GpuStatActiveHigh;
-	/* GPU active time expressed in ms */
-	unsigned long long			ui64GpuStatActiveLow;
-	/* GPU blocked time expressed in ms */
-	unsigned long long			ui64GpuStatBlocked;
-	/* GPU idle time expressed in ms */
-	unsigned long long			ui64GpuStatIdle;
-	/* GPU time cumulative total in ms */
-	unsigned long long			ui64GpuStatCumulative;
+	unsigned int				bIncompleteData;
+	/* GPU active  ratio expressed in 0,01% units */
+	unsigned int				ui32GpuStatActiveHigh;
+	/* GPU active  ratio expressed in 0,01% units */
+	unsigned int				ui32GpuStatActiveLow;
+	/* GPU blocked ratio expressed in 0,01% units */
+	unsigned int				ui32GpuStatBlocked;
+	/* GPU idle    ratio expressed in 0,01% units */
+	unsigned int				ui32GpuStatIdle;
 };
 
 /**

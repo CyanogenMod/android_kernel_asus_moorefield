@@ -43,11 +43,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __TLINTERN_H__
 #define __TLINTERN_H__
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
 #include "devicemem_typedefs.h"
 #include "pvr_tlcommon.h"
 #include "device.h"
-#include "lock.h"
+//Thread Safety: Not yet implemented	#include "lock.h"
 
 /* Forward declarations */
 typedef struct _TL_SNODE_* PTL_SNODE;
@@ -61,15 +64,6 @@ typedef struct _TL_SNODE_* PTL_SNODE;
  *    ui32Pending number of bytes reserved in last reserve call which have not
  *                  yet been submitted. Therefore these data are not ready to
  *                  be transported.
- *    hStreamLock - provides atomic protection for the ui32Pending & ui32Write
- *                  members of the structure for when they are checked and/or
- *                  updated in the context of a stream writer (producer)
- *                  calling DoTLStreamReserve() & TLStreamCommit().
- *                - Reader context is not multi-threaded, only one client per
- *                  stream is allowed. Also note the read context may be in an
- *                  ISR which prevents a design where locks can be held in the
- *                  AcquireData/ReleaseData() calls. Thus this lock only
- *                  protects the stream members from simultaneous writers.
  *
  *      ui32Read < ui32Write <= ui32Pending 
  *        where < and <= operators are overloaded to make sense in a circular way.
@@ -94,20 +88,21 @@ typedef struct _TL_STREAM_
 	volatile IMG_UINT32 ui32Read; 				/*!< Pointer to the beginning of available data */
 	volatile IMG_UINT32 ui32Write;				/*!< Pointer to already committed data which are ready to be
 													 copied to user space*/
-	IMG_UINT32			ui32BufferUt;			/*!< Buffer utilisation high watermark, see
-	 	 	 	 	 	 	 	 	 	 	 	 * TL_BUFFER_UTILIZATION in tlstream.c */
+	IMG_UINT32          ui32BufferUt;           /*!< Buffer utilisation high watermark, see
+	                                             * TL_BUFFER_UTILIZATION in tlstream.c */
 	IMG_UINT32 			ui32Pending;			/*!< Count pending bytes reserved in buffer */
 	IMG_UINT32 			ui32Size; 				/*!< Buffer size */
 	IMG_BYTE 			*pbyBuffer;				/*!< Actual data buffer */
 
-	PTL_SNODE 			psNode;					/*!< Ptr to parent stream node */
+	PTL_SNODE 			psNode;                 /*!< Ptr to parent stream node */
 	DEVMEM_MEMDESC 		*psStreamMemDesc;		/*!< MemDescriptor used to allocate buffer space through PMR */
 	DEVMEM_EXPORTCOOKIE sExportCookie; 			/*!< Export cookie for stream DEVMEM */
 
 	IMG_HANDLE			hProducerEvent;			/*!< Handle to wait on if there is not enough space */
 	IMG_HANDLE			hProducerEventObj;		/*!< Handle to signal blocked reserve calls */
 
-	POS_LOCK 			hStreamLock;			/*!< Lock for ui32Pending & ui32Write*/
+//Thread Safety: Not yet implemented	POS_LOCK 			hLock;					/*!< lock this structure */
+	IMG_INT				uiRefCount;				/*!< Stream reference count */
 } TL_STREAM, *PTL_STREAM;
 
 /* there need to be enough space reserved in the buffer for 2 minimal packets
@@ -150,11 +145,10 @@ PTL_STREAM_DESC TLMakeStreamDesc(PTL_SNODE f1, IMG_UINT32 f2, IMG_HANDLE f3);
  */
 typedef struct _TL_SNODE_
 {
-	struct _TL_SNODE_*  psNext;				/*!< Linked list next element */
-	IMG_HANDLE			hDataEventObj;		/*!< Readers 'wait for data' event */
-	PTL_STREAM 			psStream;			/*!< TL Stream object */
-	IMG_INT				uiWRefCount;		/*!< Stream writer reference count */
-	PTL_STREAM_DESC 	psRDesc;			/*!< Stream reader 0 or ptr only */
+	struct _TL_SNODE_*  psNext;
+	IMG_HANDLE			hDataEventObj;
+	PTL_STREAM 			psStream;
+	PTL_STREAM_DESC 	psDesc;
 } TL_SNODE;
 
 PTL_SNODE TLMakeSNode(IMG_HANDLE f2, TL_STREAM *f3, TL_STREAM_DESC *f4);
@@ -162,15 +156,6 @@ PTL_SNODE TLMakeSNode(IMG_HANDLE f2, TL_STREAM *f3, TL_STREAM_DESC *f4);
 /*
  * Transport Layer global top types and variables
  * Use access function to obtain pointer.
- *
- * hTLGDLock - provides atomicity over read/check/write operations and
- *             sequence of operations on uiClientCnt, psHead list of SNODEs and
- *             the immediate members in a list element SNODE structure.
- *           - This larger scope of responsibility for this lock helps avoid
- *             the need for a lock in the SNODE structure.
- *           - Lock held in the client (reader) context when streams are
- *             opened/closed and in the server (writer) context when streams
- *             are created/open/closed.
  */
 typedef struct _TL_GDATA_
 {
@@ -178,9 +163,8 @@ typedef struct _TL_GDATA_
 	IMG_HANDLE hTLEventObj;         /* Global TL signal object, new streams, etc */
 
 	IMG_UINT   uiClientCnt;         /* Counter to track the number of client stream connections. */
-	PTL_SNODE  psHead;              /* List of TL streams and associated client handle */
+	PTL_SNODE  psHead;              /* List of Streams, only 1 node supported at present */
 
-	POS_LOCK	hTLGDLock;          /* Lock for structure AND psHead SNODE list */
 } TL_GLOBAL_DATA, *PTL_GLOBAL_DATA;
 
 /*
@@ -196,48 +180,8 @@ PVRSRV_DEVICE_NODE* TLGetGlobalRgxDevice(IMG_VOID);
 IMG_VOID  TLAddStreamNode(PTL_SNODE psAdd);
 PTL_SNODE TLFindStreamNodeByName(IMG_PCHAR pszName);
 PTL_SNODE TLFindStreamNodeByDesc(PTL_STREAM_DESC psDesc);
-
-/****************************************************************************************
- Function Name	: TLTryRemoveStreamAndFreeStreamNode
- 
- Inputs		: PTL_SNODE	Pointer to the TL_SNODE whose stream is requested
- 			to be removed from TL_GLOBAL_DATA's list
- 
- Return Value	: IMG_TRUE	-	If the stream was made NULL and this
- 					TL_SNODE was removed from the
-					TL_GLOBAL_DATA's list
-
- 		  IMG_FALSE	-	If the stream wasn't made NULL as there
-		  			is a client connected to this stream
-
- Description	: If there is no client currently connected to this stream then,
- 		  	This function removes this TL_SNODE from the
-			TL_GLOBAL_DATA's list. The caller is responsible for the
-			cleanup of the TL_STREAM whose TL_SNODE may be removed
-		  
-		  Otherwise, this function does nothing
-*****************************************************************************************/
-IMG_BOOL  TLTryRemoveStreamAndFreeStreamNode(PTL_SNODE psRemove);
-
-/*****************************************************************************************
- Function Name	: TLRemoveDescAndTryFreeStreamNode
- 
- Inputs		: PTL_SNODE	Pointer to the TL_SNODE whose descriptor is
- 			requested to be removed 
- 
- Return Value	: IMG_TRUE	-	If this	TL_SNODE was removed from the
-					TL_GLOBAL_DATA's list
-
- 		  IMG_FALSE	-	Otherwise
-
- Description	: This function removes the stream descriptor from this TL_SNODE
- 		  and,
-		  If there is no writer (producer context) currently bound to this stream,
- 		  	This function removes this TL_SNODE from the
-			TL_GLOBAL_DATA's list. The caller is responsible for the
-			cleanup of the TL_STREAM whose TL_SNODE may be removed
-******************************************************************************************/
-IMG_BOOL  TLRemoveDescAndTryFreeStreamNode(PTL_SNODE psRemove);
+IMG_VOID  TLRemoveStreamAndTryFreeStreamNode(PTL_SNODE psRemove);
+IMG_VOID  TLRemoveDescAndTryFreeStreamNode(PTL_SNODE psRemove);
 
 /*
  * Transport Layer stream interface to server part declared here to avoid
@@ -249,22 +193,15 @@ IMG_VOID TLStreamAdvanceReadPos(PTL_STREAM psStream, IMG_UINT32 uiReadLen);
 DEVMEM_EXPORTCOOKIE* TLStreamGetBufferCookie(PTL_STREAM psStream);
 IMG_BOOL TLStreamEOS(PTL_STREAM psStream);
 
-/****************************************************************************************
- Function Name	: TLStreamDestroy
-  
- Inputs		: PTL_STREAM	Pointer to the TL_STREAM to be destroyed
- 
- Description	: This function performs all the clean-up operations required for
- 			destruction of this stream
-*****************************************************************************************/
-IMG_VOID TLStreamDestroy (PTL_STREAM);
-
 /*
  * Test related functions
  */
 PVRSRV_ERROR TUtilsInit (IMG_VOID);
 PVRSRV_ERROR TUtilsDeinit (IMG_VOID);
 
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* __TLINTERN_H__ */
 /******************************************************************************

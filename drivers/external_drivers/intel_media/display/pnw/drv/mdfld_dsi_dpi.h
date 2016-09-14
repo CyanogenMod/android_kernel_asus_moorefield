@@ -58,6 +58,15 @@ struct mdfld_dsi_dpi_output {
 extern struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 		struct mdfld_dsi_connector *dsi_connector);
 
+#ifdef CONFIG_A500CG
+extern struct drm_encoder *encoder_lcd;
+extern void mdfld_reset_dpi_panel(struct drm_psb_private *dev_priv);
+extern void mdfld_dsi_dpi_set_power(struct drm_encoder *encoder, bool on);
+
+extern struct mdfld_dsi_config *panel_reset_dsi_config;
+#endif
+
+
 /*ASUS_BSP: [DDS] +++*/
 #define OFILM_PANEL 0x50
 #define WINTEK_PANEL_NT35510 0x51

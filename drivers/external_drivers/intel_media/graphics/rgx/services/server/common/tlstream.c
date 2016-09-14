@@ -137,8 +137,9 @@ TLStreamCreate(IMG_HANDLE *phStream,
 								 PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE | 
 								 PVRSRV_MEMALLOCFLAG_GPU_READABLE |
 								 PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE |
-								 PVRSRV_MEMALLOCFLAG_CPU_CACHE_INCOHERENT | /* CPU only */
-								 PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC;
+								 PVRSRV_MEMALLOCFLAG_UNCACHED | /* GPU & CPU */
+								 PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC |
+								 PVRSRV_MEMALLOCFLAG_CPU_WRITE_COMBINE;
 
 	PVR_DPF_ENTERED;
 	/* Sanity checks:  */
@@ -151,25 +152,19 @@ TLStreamCreate(IMG_HANDLE *phStream,
 	{
 		PVR_DPF_RETURN_RC(PVRSRV_ERROR_INVALID_PARAMS);
 	}
-
-	/* Acquire TL_GLOBAL_DATA lock here because, if the following TLFindStreamNodeByName()
-	 * returns NULL, a new TL_SNODE will be added to TL_GLOBAL_DATA's TL_SNODE list */
-	OSLockAcquire (TLGGD()->hTLGDLock);
 	
 	/* Check if there already exists a stream with this name. */
 	psn = TLFindStreamNodeByName( szStreamName );
 	if ( IMG_NULL != psn )
 	{
-		eError = PVRSRV_ERROR_ALREADY_EXISTS;
-		goto e0;
+		PVR_DPF_RETURN_RC(PVRSRV_ERROR_ALREADY_EXISTS);
 	}
 	
 	/* Allocate stream structure container (stream struct) for the new stream */
 	psTmp = OSAllocZMem(sizeof(TL_STREAM)) ;
 	if ( NULL == psTmp ) 
 	{
-		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
-		goto e0;
+		PVR_DPF_RETURN_RC(PVRSRV_ERROR_OUT_OF_MEMORY);
 	}
 
 	OSStringCopy(psTmp->szName, szStreamName);
@@ -186,7 +181,7 @@ TLStreamCreate(IMG_HANDLE *phStream,
 		if ( ui32StreamFlags & TL_FLAG_BLOCKING_RESERVE ) 
 		{
 			eError = PVRSRV_ERROR_INVALID_PARAMS;
-			goto e1;
+			goto e0;
 		}
 		psTmp->bDrop = IMG_TRUE;
 	}
@@ -197,13 +192,13 @@ TLStreamCreate(IMG_HANDLE *phStream,
 		eError = OSEventObjectCreate(NULL, &psTmp->hProducerEventObj);
 		if (eError != PVRSRV_OK)
 		{
-			goto e1;
+			goto e0;
 		}
 		/* Create an event handle for this kind of stream */
 		eError = OSEventObjectOpen(psTmp->hProducerEventObj, &psTmp->hProducerEvent);
 		if (eError != PVRSRV_OK)
 		{
-			goto e2;
+			goto e1;
 		}
     }
 
@@ -227,43 +222,38 @@ TLStreamCreate(IMG_HANDLE *phStream,
 									   uiMemFlags | PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE,
 									   pszBufferLabel,
 									   &psTmp->psStreamMemDesc);
-	PVR_LOGG_IF_ERROR(eError, "DevmemAllocateExportable", e3);
+	PVR_LOGG_IF_ERROR(eError, "DevmemAllocateExportable", e2);
 
 	eError = DevmemAcquireCpuVirtAddr( psTmp->psStreamMemDesc, (IMG_VOID**) &psTmp->pbyBuffer );
-	PVR_LOGG_IF_ERROR(eError, "DevmemAcquireCpuVirtAddr", e4);
+	PVR_LOGG_IF_ERROR(eError, "DevmemAcquireCpuVirtAddr", e3);
 
 	eError = DevmemExport(psTmp->psStreamMemDesc, &(psTmp->sExportCookie));
-	PVR_LOGG_IF_ERROR(eError, "DevmemExport", e5);
+	PVR_LOGG_IF_ERROR(eError, "DevmemExport", e4);
 
 	/* Synchronization object to synchronize with user side data transfers. */
 	eError = OSEventObjectCreate(psTmp->szName, &hEventList);
 	if (eError != PVRSRV_OK)
 	{
-		goto e6;
+		goto e5;
 	}
 
-	eError = OSLockCreate (&psTmp->hStreamLock, LOCK_TYPE_PASSIVE);
-	if (eError != PVRSRV_OK)
-	{
-		goto e7;
-	}
+	/* Stream created, now reset the reference count to 1 */
+	psTmp->uiRefCount = 1;
+
+//Thread Safety: Not yet implemented		eError = OSLockCreate(&psTmp->hLock, LOCK_TYPE_PASSIVE);
+//Thread Safety: Not yet implemented		if (eError != PVRSRV_OK)
+//Thread Safety: Not yet implemented		{
+//Thread Safety: Not yet implemented			goto e6;
+//Thread Safety: Not yet implemented		}
 
 	/* Now remember the stream in the global TL structures */
 	psn = TLMakeSNode(hEventList, (TL_STREAM *)psTmp, 0);
 	if (psn == NULL)
 	{
 		eError=PVRSRV_ERROR_OUT_OF_MEMORY;
-		goto e8;
+		goto e7;
 	}
-
-	/* Stream node created, now reset the write reference count to 1
-	 * (i.e. this context's reference) */
-	psn->uiWRefCount = 1;
-
 	TLAddStreamNode(psn);
-
-	/* Release TL_GLOBAL_DATA lock as the new TL_SNODE is now added to the list */
-	OSLockRelease (TLGGD()->hTLGDLock);
 
 	/* Best effort signal, client wait timeout will ultimately let it find the
 	 * new stream if this fails, acceptable to avoid cleanup as it is tricky
@@ -274,25 +264,22 @@ TLStreamCreate(IMG_HANDLE *phStream,
 	*phStream = (IMG_HANDLE)psTmp;
 	PVR_DPF_RETURN_OK;
 
-e8:
-	OSLockDestroy(psTmp->hStreamLock);
 e7:
+//Thread Safety: Not yet implemented		OSLockDestroy(psTmp->hLock);
+//Thread Safety: Not yet implemented e6:
 	OSEventObjectDestroy(hEventList);
-e6:
-	DevmemUnexport(psTmp->psStreamMemDesc, &(psTmp->sExportCookie));
 e5:
-	DevmemReleaseCpuVirtAddr( psTmp->psStreamMemDesc );
+	DevmemUnexport(psTmp->psStreamMemDesc, &(psTmp->sExportCookie));
 e4:
-	DevmemFree(psTmp->psStreamMemDesc);
+	DevmemReleaseCpuVirtAddr( psTmp->psStreamMemDesc );
 e3:
-	OSEventObjectClose(psTmp->hProducerEvent);
+	DevmemFree(psTmp->psStreamMemDesc);
 e2:
-	OSEventObjectDestroy(psTmp->hProducerEventObj);
+	OSEventObjectClose(psTmp->hProducerEvent);
 e1:
-	OSFREEMEM(psTmp);
+	OSEventObjectDestroy(psTmp->hProducerEventObj);
 e0:
-	OSLockRelease (TLGGD()->hTLGDLock);
-
+	OSFREEMEM(psTmp);
 	PVR_DPF_RETURN_RC(eError);
 }
 
@@ -308,40 +295,30 @@ TLStreamOpen(IMG_HANDLE *phStream,
 	{
 		PVR_DPF_RETURN_RC(PVRSRV_ERROR_INVALID_PARAMS);
 	}
-
-	/* Acquire the TL_GLOBAL_DATA lock first to ensure,
-	 * the TL_STREAM while returned and being modified,
-	 * is not deleted by some other context */
-	OSLockAcquire (TLGGD()->hTLGDLock);
 	
 	/* Search for a stream node with a matching stream name */
 	psTmpSNode = TLFindStreamNodeByName(szStreamName);
 
 	if ( IMG_NULL == psTmpSNode )
 	{
-		OSLockRelease (TLGGD()->hTLGDLock);
 		PVR_DPF_RETURN_RC(PVRSRV_ERROR_NOT_FOUND);
 	}
+	else
+	{ /* Found a stream to open. lock and increase reference count */
 
-	/* The TL_SNODE->uiWRefCount governs the presence of this node in the
-	 * TL_GLOBAL_DATA list i.e. when uiWRefCount falls to zero we try removing
-	 * this node from the TL_GLOBAL_DATA list. Hence, is protected using the
-	 * TL_GLOBAL_DATA lock and not TL_STREAM lock */
-	psTmpSNode->uiWRefCount++;
-	
-	OSLockRelease (TLGGD()->hTLGDLock);
+//Thread Safety: Not yet implemented	OSLockAcquire(psTmpStream->hLock);
+		psTmpSNode->psStream->uiRefCount++;
+		*phStream = (IMG_HANDLE)psTmpSNode->psStream;
+//Thread Safety: Not yet implemented	OSLockRelease(psTmpStream->hLock);
 
-	/* Return the stream handle to the caller */
-	*phStream = (IMG_HANDLE)psTmpSNode->psStream;
-
-	PVR_DPF_RETURN_VAL(PVRSRV_OK);
+		PVR_DPF_RETURN_VAL(PVRSRV_OK);
+	}
 }
 
 IMG_VOID 
 TLStreamClose(IMG_HANDLE hStream)
 {
 	PTL_STREAM	psTmp;
-	IMG_BOOL	bDestroyStream;
 
 	PVR_DPF_ENTERED;
 
@@ -354,57 +331,45 @@ TLStreamClose(IMG_HANDLE hStream)
 
 	psTmp = (PTL_STREAM)hStream;
 
-	/* Acquire TL_GLOBAL_DATA lock for updating the reference count as this will be required 
-	 * in-case this TL_STREAM node is to be deleted */
-	OSLockAcquire (TLGGD()->hTLGDLock);
-	
-	/* Decrement write reference counter of the stream */
-	psTmp->psNode->uiWRefCount--;
+	/* Decrement reference counter */	
+//Thread Safety: Not yet implemented	OSLockAcquire(psTmp->hLock);
+	psTmp->uiRefCount--;
+//Thread Safety: Not yet implemented	OSLockRelease(psTmp->hLock);
 
-	if ( 0 != psTmp->psNode->uiWRefCount )
-	{	/* The stream is still being used in other context(s) do not destroy anything */
-		OSLockRelease (TLGGD()->hTLGDLock);
+	/* The stream is still being used in other context(s) do not destroy anything */
+	if ( 0 != psTmp->uiRefCount )
+	{
 		PVR_DPF_RETURN;
 	}
 	else
 	{
-		/* Now we try removing this TL_STREAM from TL_GLOBAL_DATA */
-
 		if ( psTmp->bWaitForEmptyOnDestroy == IMG_TRUE )
 		{
-			/* We won't require the TL_STREAM lock to be acquired here for accessing its read
-			 * and write offsets. REASON: We are here because there is no producer context
-			 * referencing this TL_STREAM, hence its ui32Write offset won't be changed now.
-			 * Also, the updation of ui32Read offset is not protected by locks */
 			while (psTmp->ui32Read != psTmp->ui32Write)
 			{
-				/* Release lock before sleeping */
-				OSLockRelease (TLGGD()->hTLGDLock);
-				
-				OSEventObjectWaitTimeout(psTmp->hProducerEvent, EVENT_OBJECT_TIMEOUT_MS);
-				
-				OSLockAcquire (TLGGD()->hTLGDLock);
-
-				/* Ensure destruction of stream is still required */
-				if (0 != psTmp->psNode->uiWRefCount)
-				{
-					OSLockRelease (TLGGD()->hTLGDLock);
-					PVR_DPF_RETURN;
-				}
+				OSEventObjectWaitTimeout(psTmp->hProducerEvent,
+										 EVENT_OBJECT_TIMEOUT_MS);
 			}
 		}
+		/* First remove it from the global structures to prevent access
+		 * while it is being free'd. Lock it?
+		 */
+		TLRemoveStreamAndTryFreeStreamNode(psTmp->psNode);
 
-		/* Try removing the stream from TL_GLOBAL_DATA */
-		bDestroyStream = TLTryRemoveStreamAndFreeStreamNode (psTmp->psNode);
-		
-		OSLockRelease (TLGGD()->hTLGDLock);
-		
-		if (bDestroyStream)
+//Thread Safety: Not yet implemented			OSLockDestroy(psTmp->hLock);
+
+		// In block-while-reserve streams those not be NULL 
+		if ( IMG_TRUE == psTmp->bBlock ) 
 		{
-			/* Destroy the stream if it was removed from TL_GLOBAL_DATA */
-			TLStreamDestroy (psTmp);
-			psTmp = IMG_NULL;
+			OSEventObjectClose(psTmp->hProducerEvent);
+			OSEventObjectDestroy(psTmp->hProducerEventObj);
 		}
+
+		DevmemUnexport(psTmp->psStreamMemDesc, &psTmp->sExportCookie);
+		DevmemReleaseCpuVirtAddr(psTmp->psStreamMemDesc);
+		DevmemFree(psTmp->psStreamMemDesc);
+
+		OSFREEMEM(psTmp);
 		PVR_DPF_RETURN;
 	}
 }
@@ -418,7 +383,7 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 				IMG_UINT32* pui32AvSpace)
 {
 	PTL_STREAM psTmp;
-	IMG_UINT32 *pui32Buf, ui32LRead, ui32LWrite, ui32LPending, lReqSizeAligned, lReqSizeActual;
+	IMG_UINT32 *ui32Buf, ui32LRead, ui32LWrite, ui32LPending, lReqSizeAligned, lReqSizeActual;
 	IMG_INT pad, iFreeSpace;
 
 	PVR_DPF_ENTERED;
@@ -437,11 +402,6 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 	/* The buffer is only used in "rounded" (aligned) chunks */
 	lReqSizeAligned = PVRSRVTL_ALIGN(ui32ReqSize);
 
-	/* Lock the stream before reading it's pending value, because if pending is set
-	 * to NOTHING_PENDING, we update the pending value such that subsequent calls to
-	 * this function from other context(s) fail with PVRSRV_ERROR_NOT_READY */
-	OSLockAcquire (psTmp->hStreamLock);
-
 	/* Get a local copy of the stream buffer parameters */
 	ui32LRead  = psTmp->ui32Read ;
 	ui32LWrite = psTmp->ui32Write ;
@@ -450,7 +410,6 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 	/*  Multiple pending reserves are not supported. */
 	if ( NOTHING_PENDING != ui32LPending )
 	{
-		OSLockRelease (psTmp->hStreamLock);
 		PVR_DPF_RETURN_RC(PVRSRV_ERROR_NOT_READY);
 	}
 
@@ -461,17 +420,12 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 		{
 			*pui32AvSpace = suggestAllocSize(ui32LRead, ui32LWrite, psTmp->ui32Size, ui32ReqSizeMin);
 		}
-		OSLockRelease (psTmp->hStreamLock);
 		PVR_DPF_RETURN_RC(PVRSRV_ERROR_STREAM_FULL);
 	}
 
-	/* Prevent other threads from entering this region before we are done updating
-	 * the pending value and write offset (incase of padding). This is not exactly 
-	 * a lock but a signal for other contexts that there is a TLStreamCommit operation
-	 * pending on this stream */
+	/* Prevent other threads from entering this region before we are done.
+	 * Not exactly a lock... */
 	psTmp->ui32Pending = 0;
-
-	OSLockRelease (psTmp->hStreamLock);
 
 	/* If there is enough contiguous space following the current Write
 	 * position then no padding is required */
@@ -491,11 +445,7 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 	{
 		if( psTmp->ui32Size < lReqSizeActual )
 		{
-			/* Acquire stream lock for updating pending value */
-			OSLockAcquire (psTmp->hStreamLock);
 			psTmp->ui32Pending = NOTHING_PENDING;
-			OSLockRelease (psTmp->hStreamLock);
-			
 			PVR_DPF_RETURN_RC(PVRSRV_ERROR_STREAM_MISUSE);
 		}
 		while ( ( cbSpaceLeft(ui32LRead, ui32LWrite, psTmp->ui32Size)
@@ -508,16 +458,16 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 		}
 	}
 
+	/* The easy case: buffer has enough space to hold the requested packet (data + header) 
+	 */
 	iFreeSpace = cbSpaceLeft(ui32LRead, ui32LWrite, psTmp->ui32Size);
-	
-	/* The easy case: buffer has enough space to hold the requested packet (data + header) */
 	if (  iFreeSpace >=(IMG_INT) lReqSizeActual )
 	{
 		if ( pad ) 
 		{ 
 			/* Inserting padding packet. */
-			pui32Buf = (IMG_UINT32*)&psTmp->pbyBuffer[ui32LWrite];
-			*pui32Buf = PVRSRVTL_SET_PACKET_PADDING(pad-sizeof(PVRSRVTL_PACKETHDR)) ;
+			ui32Buf = (IMG_UINT32*)&psTmp->pbyBuffer[ui32LWrite];
+			*ui32Buf = PVRSRVTL_SET_PACKET_PADDING(pad-sizeof(PVRSRVTL_PACKETHDR)) ;
 
 			/* CAUTION: the used pad value should always result in a properly 
 			 *          aligned ui32LWrite pointer, which in this case is 0 */
@@ -526,9 +476,9 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 			PVR_ASSERT( ui32LWrite == 0);
 		}
 		/* Insert size-stamped packet header */
-		pui32Buf = (IMG_UINT32*) &psTmp->pbyBuffer[ui32LWrite];
+		ui32Buf = (IMG_UINT32*)&psTmp->pbyBuffer[ui32LWrite];
 
-		*pui32Buf = PVRSRVTL_SET_PACKET_HDR(ui32ReqSize, ePacketType);
+		*ui32Buf = PVRSRVTL_SET_PACKET_HDR(ui32ReqSize, ePacketType);
 
 		/* return the next position in the buffer to the user */
 		*ppui8Data =  &psTmp->pbyBuffer[ ui32LWrite+sizeof(PVRSRVTL_PACKETHDR) ] ;
@@ -546,9 +496,7 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 		 * no impact to release performance */
 		if ( lReqSizeAligned+sizeof(PVRSRVTL_PACKETHDR) > psTmp->ui32Size )
 		{
-			OSLockAcquire (psTmp->hStreamLock);
 			psTmp->ui32Pending = NOTHING_PENDING;
-			OSLockRelease (psTmp->hStreamLock);
 			PVR_DPF_RETURN_RC(PVRSRV_ERROR_STREAM_MISUSE);
 		}
 #endif
@@ -562,7 +510,7 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 
 			/* This flag should not be inserted two consecutive times, so 
 			 * check the last ui32 in case it was a packet drop packet. */
-			pui32Buf =  ui32LWrite 
+			ui32Buf =  ui32LWrite 
 					  ? 
 					    (IMG_UINT32*)&psTmp->pbyBuffer[ui32LWrite - sizeof(PVRSRVTL_PACKETHDR)]
 					   : // Previous four bytes are not guaranteed to be a packet header...
@@ -570,21 +518,17 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 
 			if ( PVRSRVTL_PACKETTYPE_MOST_RECENT_WRITE_FAILED
 				 != 
-				 GET_PACKET_TYPE( (PVRSRVTL_PACKETHDR*)pui32Buf ) )
+				 GET_PACKET_TYPE( (PVRSRVTL_PACKETHDR*)ui32Buf ) )
 			{
 				/* Insert size-stamped packet header */
-				pui32Buf = (IMG_UINT32*)&psTmp->pbyBuffer[ui32LWrite];
-				*pui32Buf = PVRSRVTL_SET_PACKET_WRITE_FAILED ;
+				ui32Buf = (IMG_UINT32*)&psTmp->pbyBuffer[ui32LWrite];
+				*ui32Buf = PVRSRVTL_SET_PACKET_WRITE_FAILED ;
 				ui32LWrite += sizeof(PVRSRVTL_PACKETHDR);
-				ui32LWrite %= psTmp->ui32Size;
 				iFreeSpace -= sizeof(PVRSRVTL_PACKETHDR);
 			}
 
-			OSLockAcquire (psTmp->hStreamLock);
 			psTmp->ui32Write = ui32LWrite;
 			psTmp->ui32Pending = NOTHING_PENDING;
-			OSLockRelease (psTmp->hStreamLock);
-			
 			if (pui32AvSpace)
 			{
 				*pui32AvSpace = suggestAllocSize(ui32LRead, ui32LWrite, psTmp->ui32Size, ui32ReqSizeMin);
@@ -592,12 +536,9 @@ DoTLStreamReserve(IMG_HANDLE hStream,
 			PVR_DPF_RETURN_RC(PVRSRV_ERROR_STREAM_FULL);
 		} 
 	}
-
-	/* Acquire stream lock for updating stream parameters */
-	OSLockAcquire (psTmp->hStreamLock);
+	/* Update stream. */
 	psTmp->ui32Write = ui32LWrite ;
 	psTmp->ui32Pending = ui32LPending ;
-	OSLockRelease (psTmp->hStreamLock);
 
 	PVR_DPF_RETURN_OK;
 }
@@ -657,7 +598,19 @@ TLStreamCommit(IMG_HANDLE hStream, IMG_UINT32 ui32ReqSize)
 	/* and reset LPending to 0 since data are now submitted  */
 	ui32LPending = NOTHING_PENDING;
 
-	/* Calculate high water mark for debug purposes */
+	/* If  we have transitioned from an empty buffer to a non-empty buffer,
+	 * signal any consumers that may be waiting. */
+	if (ui32OldWrite == ui32LRead && !psTmp->bNoSignalOnCommit)
+	{
+		/* Signal consumers that may be waiting */
+		eError = OSEventObjectSignal(psTmp->psNode->hDataEventObj);
+		if ( eError != PVRSRV_OK)
+		{
+			PVR_DPF_RETURN_RC(eError);
+		}
+	}
+
+    /* Calculate high water mark for debug purposes */
 #if defined(TL_BUFFER_UTILIZATION)
 	{
 		IMG_UINT32 tmp = 0;
@@ -677,29 +630,10 @@ TLStreamCommit(IMG_HANDLE hStream, IMG_UINT32 ui32ReqSize)
 	}
 #endif
 
-	/* Acquire stream lock to ensure other context(s) (if any)
-	 * wait on the lock (in DoTLStreamReserve) for consistent values
-	 * of write offset and pending value */
-	OSLockAcquire (psTmp->hStreamLock);
-
 	/* Update stream buffer parameters to match local copies */
 	psTmp->ui32Write = ui32LWrite ;
 	psTmp->ui32Pending = ui32LPending ;
 
-	OSLockRelease (psTmp->hStreamLock);
-
-	/* If  we have transitioned from an empty buffer to a non-empty buffer,
-	 * signal any consumers that may be waiting */
-	if (ui32OldWrite == ui32LRead && !psTmp->bNoSignalOnCommit)
-	{
-		/* Signal consumers that may be waiting */
-		eError = OSEventObjectSignal(psTmp->psNode->hDataEventObj);
-		if ( eError != PVRSRV_OK)
-		{
-			PVR_DPF_RETURN_RC(eError);
-		}
-	}
-	
 	PVR_DPF_RETURN_OK;
 }
 
@@ -862,8 +796,7 @@ TLStreamAdvanceReadPos(PTL_STREAM psStream, IMG_UINT32 uiReadLen)
 
 	PVR_ASSERT(psStream);
 
-	/* Update the read offset by the length provided in a circular manner.
-	 * Assuming the updation to be atomic hence, avoiding use of locks */
+	/* Get a local copy of the stream buffer parameters */
 	psStream->ui32Read = (psStream->ui32Read + uiReadLen) % psStream->ui32Size;
 
 	/* If this is a blocking reserve stream, 
@@ -884,27 +817,6 @@ TLStreamAdvanceReadPos(PTL_STREAM psStream, IMG_UINT32 uiReadLen)
 			 "TLStreamAdvanceReadPos Read now at: %d",
 			psStream->ui32Read));
 	PVR_DPF_RETURN;
-}
-
-IMG_VOID
-TLStreamDestroy (PTL_STREAM psStream)
-{
-	PVR_ASSERT (psStream);
-	
-	OSLockDestroy (psStream->hStreamLock);
-
-	/* If block-while-reserve stream, the stream's hProducerEvent and hProducerEventObj
-	 * need to be cleaned as well */
-	if ( IMG_TRUE == psStream->bBlock ) 
-	{
-		OSEventObjectClose(psStream->hProducerEvent);
-		OSEventObjectDestroy(psStream->hProducerEventObj);
-	}
-
-	DevmemUnexport(psStream->psStreamMemDesc, &psStream->sExportCookie);
-	DevmemReleaseCpuVirtAddr(psStream->psStreamMemDesc);
-	DevmemFree(psStream->psStreamMemDesc);
-	OSFREEMEM(psStream);
 }
 
 DEVMEM_EXPORTCOOKIE*

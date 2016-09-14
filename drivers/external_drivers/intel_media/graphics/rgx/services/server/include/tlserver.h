@@ -44,6 +44,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __TLSERVER_H_
 #define __TLSERVER_H_
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #include <stddef.h>
 
 #include "img_defs.h"
@@ -74,6 +78,19 @@ PVRSRV_ERROR TLServerReleaseDataKM(PTL_STREAM_DESC psSD,
 				 IMG_UINT32 uiReadOffset,
 				 IMG_UINT32 uiReadLen);
 
+/*
+ * TEST INTERNAL ONLY
+ */
+
+PVRSRV_ERROR TLServerTestIoctlKM(IMG_UINT32  uiCmd,
+				IMG_PBYTE   uiIn1,
+				IMG_UINT32  uiIn2,
+				IMG_UINT32*	puiOut1,
+				IMG_UINT32* puiOut2);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* __TLSERVER_H_ */
 

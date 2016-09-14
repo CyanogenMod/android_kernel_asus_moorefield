@@ -1,8 +1,8 @@
 /*************************************************************************/ /*!
 @File
-@Title          RGX sync kick routines
+@Title          RGX Compute routines
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
-@Description    RGX sync kick routines
+@Description    RGX Compute routines
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.
@@ -74,7 +74,7 @@ PVRSRV_ERROR RGXKickSyncKM(PVRSRV_DEVICE_NODE        *psDeviceNode,
                            IMG_BOOL                  bPDumpContinuous)
 {
 	RGXFWIF_KCCB_CMD		sCmpKCCBCmd;
-	RGX_CCB_CMD_HELPER_DATA	asCmdHelperData[1];
+	RGX_CCB_CMD_HELPER_DATA	sCmdHelperData;
 	IMG_BOOL				bKickRequired;
 	PVRSRV_ERROR			eError;
 	PVRSRV_ERROR			eError2;
@@ -108,14 +108,13 @@ PVRSRV_ERROR RGXKickSyncKM(PVRSRV_DEVICE_NODE        *psDeviceNode,
 									  RGXFWIF_CCB_CMD_TYPE_NULL,
 									  bPDumpContinuous,
 									  pszCommandName,
-									  asCmdHelperData);
+									  &sCmdHelperData);
 	if (eError != PVRSRV_OK)
 	{
 		goto fail_cmdinit;
 	}
 
-	eError = RGXCmdHelperAcquireCmdCCB(IMG_ARR_NUM_ELEMS(asCmdHelperData),
-	                                   asCmdHelperData, &bKickRequired);
+	eError = RGXCmdHelperAcquireCmdCCB(1, &sCmdHelperData, &bKickRequired);
 	if ((eError != PVRSRV_OK) && (!bKickRequired))
 	{
 		/*
@@ -145,7 +144,7 @@ PVRSRV_ERROR RGXKickSyncKM(PVRSRV_DEVICE_NODE        *psDeviceNode,
 			All the required resources are ready at this point, we can't fail so
 			take the required server sync operations and commit all the resources
 		*/
-		RGXCmdHelperReleaseCmdCCB(1, asCmdHelperData, pszCommandName, FWCommonContextGetFWAddress(psServerCommonContext).ui32Addr);
+		RGXCmdHelperReleaseCmdCCB(1, &sCmdHelperData, pszCommandName, FWCommonContextGetFWAddress(psServerCommonContext).ui32Addr);
 	}
 
 	/* Construct the kernel compute CCB command. */

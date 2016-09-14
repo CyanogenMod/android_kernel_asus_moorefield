@@ -65,6 +65,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <linux/slab.h>
 
+/* ***************************************************************************
+ * Bridge proxy functions
+ */
 
 
 
@@ -73,15 +76,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
  
 static IMG_INT
-PVRSRVBridgeCacheOpQueue(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_CACHEOPQUEUE *psCacheOpQueueIN,
-					  PVRSRV_BRIDGE_OUT_CACHEOPQUEUE *psCacheOpQueueOUT,
+PVRSRVBridgeCacheOpQueue(IMG_UINT32 ui32BridgeID,
+					 PVRSRV_BRIDGE_IN_CACHEOPQUEUE *psCacheOpQueueIN,
+					 PVRSRV_BRIDGE_OUT_CACHEOPQUEUE *psCacheOpQueueOUT,
 					 CONNECTION_DATA *psConnection)
 {
 
+	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_CACHEGENERIC_CACHEOPQUEUE);
+
 	PVR_UNREFERENCED_PARAMETER(psConnection);
-
-
 
 
 
@@ -89,7 +92,6 @@ PVRSRVBridgeCacheOpQueue(IMG_UINT32 ui32DispatchTableEntry,
 	psCacheOpQueueOUT->eError =
 		CacheOpQueue(
 					psCacheOpQueueIN->iuCacheOp);
-
 
 
 
@@ -102,21 +104,16 @@ PVRSRVBridgeCacheOpQueue(IMG_UINT32 ui32DispatchTableEntry,
 /* *************************************************************************** 
  * Server bridge dispatch related glue 
  */
-
-
-PVRSRV_ERROR InitCACHEGENERICBridge(IMG_VOID);
-PVRSRV_ERROR DeinitCACHEGENERICBridge(IMG_VOID);
+ 
+PVRSRV_ERROR RegisterCACHEGENERICFunctions(IMG_VOID);
+IMG_VOID UnregisterCACHEGENERICFunctions(IMG_VOID);
 
 /*
  * Register all CACHEGENERIC functions with services
  */
-PVRSRV_ERROR InitCACHEGENERICBridge(IMG_VOID)
+PVRSRV_ERROR RegisterCACHEGENERICFunctions(IMG_VOID)
 {
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_CACHEGENERIC, PVRSRV_BRIDGE_CACHEGENERIC_CACHEOPQUEUE, PVRSRVBridgeCacheOpQueue,
-					IMG_NULL, IMG_NULL,
-					0, 0);
-
+	SetDispatchTableEntry(PVRSRV_BRIDGE_CACHEGENERIC_CACHEOPQUEUE, PVRSRVBridgeCacheOpQueue);
 
 	return PVRSRV_OK;
 }
@@ -124,8 +121,6 @@ PVRSRV_ERROR InitCACHEGENERICBridge(IMG_VOID)
 /*
  * Unregister all cachegeneric functions with services
  */
-PVRSRV_ERROR DeinitCACHEGENERICBridge(IMG_VOID)
+IMG_VOID UnregisterCACHEGENERICFunctions(IMG_VOID)
 {
-	return PVRSRV_OK;
 }
-

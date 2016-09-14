@@ -39,6 +39,9 @@
 #define KEEP_UNUSED_CODE 0
 
 struct mdfld_dsi_config *panel_reset_dsi_config;
+struct mdfld_dsi_dpi_output *dpi_output_reset;
+
+
 static
 u16 mdfld_dsi_dpi_to_byte_clock_count(int pixel_clock_count,
 		int num_lane, int bpp)
@@ -173,6 +176,7 @@ static int __dpi_enter_ulps_locked(struct mdfld_dsi_config *dsi_config, int offs
 	/* set AFE hold value*/
 	REG_WRITE(regs->mipi_reg + offset,
 		REG_READ(regs->mipi_reg + offset) & (~PASS_FROM_SPHY_TO_AFE));
+
 	PSB_DEBUG_ENTRY("entered ULPS state\n");
 	return 0;
 }
@@ -199,6 +203,7 @@ static int __dpi_exit_ulps_locked(struct mdfld_dsi_config *dsi_config, int offse
 
 	REG_WRITE(regs->mipi_reg + tem,
 		REG_READ(regs->mipi_reg + tem) | PASS_FROM_SPHY_TO_AFE);
+
 	/*enter ULPS EXIT state*/
 	ctx->device_ready &= ~DSI_POWER_STATE_ULPS_MASK;
 	ctx->device_ready |= (DSI_POWER_STATE_ULPS_EXIT |
@@ -212,6 +217,7 @@ static int __dpi_exit_ulps_locked(struct mdfld_dsi_config *dsi_config, int offse
 	ctx->device_ready &= ~DSI_POWER_STATE_ULPS_MASK;
 	ctx->device_ready |= DSI_DEVICE_READY;
 	REG_WRITE(regs->device_ready_reg + offset, ctx->device_ready);
+
 	mdelay(1);
 
 	PSB_DEBUG_ENTRY("exited ULPS state\n");
@@ -631,6 +637,7 @@ static int __dpi_panel_power_off(struct mdfld_dsi_config *dsi_config,
 	/* save palette (gamma) */
 	for (i = 0; i < 256; i++)
 		ctx->palette[i] = REG_READ(regs->palette_reg + (i<<2));
+
 	/* save gamma correction max (RGB) */
 	ctx->gamma_red_max = REG_READ(regs->gamma_red_max_reg);
 	ctx->gamma_green_max = REG_READ(regs->gamma_green_max_reg);
@@ -1279,10 +1286,6 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 	dpi_output->dev = dev;
 	dpi_output->p_funcs = p_funcs;
 	dpi_output->first_boot = 1;
-
-	if (pipe == 0)
-		dev_priv->dpi_output = dpi_output;
-
 	/*get fixed mode*/
 	fixed_mode = dsi_config->fixed_mode;
 
@@ -1317,24 +1320,25 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 	dev_priv->b_dsr_enable_config = true;
 #endif /*CONFIG_MDFLD_DSI_DSR*/
 
+	dpi_output_reset = dpi_output;
+
 	PSB_DEBUG_ENTRY("successfully\n");
 
 	return &dpi_output->base;
 }
 
-void mdfld_reset_dpi_panel(struct drm_psb_private *dev_priv)
+void mdfld_reset_dpi_panel_handler_work(struct work_struct *work)
 {
+	struct drm_psb_private *dev_priv =
+		container_of(work, struct drm_psb_private, reset_panel_work);
 	struct mdfld_dsi_config *dsi_config = NULL;
-	struct mdfld_dsi_dpi_output *dpi_output = NULL;
-	struct panel_funcs *p_funcs = NULL;
+	struct panel_funcs *p_funcs  = NULL;
 	struct drm_device *dev;
 
-	dpi_output = dev_priv->dpi_output;
 	dsi_config = dev_priv->dsi_configs[0];
 
-	if (!dsi_config || !dpi_output)
+	if (!dsi_config || !dpi_output_reset)
 		return;
-
 	dev = dsi_config->dev;
 
 	/*disable ESD when HDMI connected*/
@@ -1342,32 +1346,31 @@ void mdfld_reset_dpi_panel(struct drm_psb_private *dev_priv)
 		return;
 
 	PSB_DEBUG_ENTRY("\n");
-	p_funcs = dpi_output->p_funcs;
+
+	p_funcs = dpi_output_reset->p_funcs;
 	if (p_funcs) {
 		mutex_lock(&dsi_config->context_lock);
 
-                if (!dsi_config->dsi_hw_context.panel_on) {
+		if (!dsi_config->dsi_hw_context.panel_on) {
 			DRM_INFO("don't reset panel when panel is off\n");
 			mutex_unlock(&dsi_config->context_lock);
 			return;
 		}
 
-		DRM_INFO("Starts ESD panel reset\n");
+		DRM_INFO("Starts panel reset\n");
 		/*
-		* since panel is in abnormal state,
-		* we do a power off/on first
-		*/
+		 * since panel is in abnormal state,
+		 * we do a power off/on first
+		 */
 		if (__dpi_panel_power_off(dsi_config, p_funcs))
 			DRM_INFO("failed to power off dpi panel\n");
 
-		if (p_funcs && p_funcs->reset)
-			p_funcs->reset(dsi_config);
-
-		if (__dpi_panel_power_on(dsi_config, p_funcs, dpi_output->first_boot)) {
-			DRM_ERROR("failed to power on dbi panel\n");
+		if (__dpi_panel_power_on(dsi_config, p_funcs, dpi_output_reset->first_boot)) {
+			DRM_ERROR("failed to power on dpi panel\n");
 			mutex_unlock(&dsi_config->context_lock);
 			return;
 		}
+
 		mutex_unlock(&dsi_config->context_lock);
 
 		DRM_INFO("%s: End panel reset\n", __func__);
@@ -1375,3 +1378,4 @@ void mdfld_reset_dpi_panel(struct drm_psb_private *dev_priv)
 		DRM_INFO("%s invalid panel init\n", __func__);
 	}
 }
+

@@ -2,7 +2,6 @@
  * file vsp.c
  * VSP IRQ handling and I/O ops
  * Author: Binglin Chen <binglin.chen@intel.com>
- *         Zhangfei Zhang <zhangfei.zhang@intel.com>
  *
  */
 
@@ -80,68 +79,6 @@ static inline void psb_clflush(void *addr)
 {
 	__asm__ __volatile__("wbinvd ");
 }
-
-
-static inline void force_power_down_vsp(void)
-{
-	int count = 0;
-	VSP_DEBUG("Force to power down VSP\n");
-	while (is_island_on(OSPM_VIDEO_VPP_ISLAND) && (count < 255)) {
-		count++;
-		VSP_DEBUG("The VSP is on, power down it, tries %d\n", count);
-		power_island_put(OSPM_VIDEO_VPP_ISLAND);
-	}
-	VSP_DEBUG("The VSP is off now (tried %d times)\n", count);
-}
-
-static inline void power_down_vsp(void)
-{
-	VSP_DEBUG("Try to power down VSP\n");
-
-	if (is_island_on(OSPM_VIDEO_VPP_ISLAND)) {
-		VSP_DEBUG("The VSP is on, power down it\n");
-		power_island_put(OSPM_VIDEO_VPP_ISLAND);
-	} else
-		VSP_DEBUG("The VSP is already off\n");
-}
-
-static inline void power_up_vsp(void)
-{
-	VSP_DEBUG("Try to power up VSP\n");
-
-	if (is_island_on(OSPM_VIDEO_VPP_ISLAND))
-		VSP_DEBUG("The VSP is alraedy on\n");
-	else {
-		VSP_DEBUG("The VSP is off, power up it\n");
-		power_island_get(OSPM_VIDEO_VPP_ISLAND);
-	}
-}
-
-
-static inline int find_filp(struct vsp_private *vsp_priv, struct file *filp)
-{
-        int i = 0;
-        for ( ; i < MAX_VP8_CONTEXT_NUM; i++){
-		if ( filp == vsp_priv->vp8_filp[i]){
-                    return i + 1;
-		}
-	}
-	return 0;
-}
-
-static inline int save_filp(struct vsp_private *vsp_priv ,  struct file *filp )
-{
-	int i = 0;
-        for ( ; i < MAX_VP8_CONTEXT_NUM; i++){
-                if ( NULL == vsp_priv->vp8_filp[i]){
-			VSP_DEBUG("create context[%d]\n", i + 1);
-                        vsp_priv->vp8_filp[i] = filp;
-			return i + 1;
-		}
-        }
-	return 0;
-}
-
 
 int vsp_handle_response(struct drm_psb_private *dev_priv)
 {
@@ -302,16 +239,6 @@ int vsp_handle_response(struct drm_psb_private *dev_priv)
 			DRM_ERROR("VSP: there're %d response remaining\n",
 				  msg_num - idx - 1);
 			ret = false;
-
-			/* For VPP component, wouldn't receive any command
-			 * from user space. Release the fence.
-			 */
-			if (msg->context == CONTEXT_VPP_ID)
-				vsp_priv->vsp_state = VSP_STATE_HANG;
-			else if (msg->context == CONTEXT_COMPOSE_ID) {
-				vsp_priv->vsp_state = VSP_STATE_HANG;
-				sequence = vsp_priv->compose_fence;
-			}
 			break;
 		}
 
@@ -380,24 +307,6 @@ int vsp_cmdbuf_vpp(struct drm_file *priv,
 	struct file *filp = priv->filp;
 	bool need_power_put = 0;
 
-	/* If VSP timeout, don't send cmd to hardware anymore */
-	if (vsp_priv->vsp_state == VSP_STATE_HANG) {
-		int i;
-		DRM_ERROR("The VSP is hang abnormally, try to reset vsp hardware!\n");
-
-		VSP_DEBUG("Force state to DOWN to force power down\n");
-		vsp_priv->ctrl->entry_kind = vsp_exit;
-		vsp_priv->vsp_state = VSP_STATE_DOWN;
-		force_power_down_vsp();
-	        for (i = 0; i < MAX_VP8_CONTEXT_NUM; i++)
-			vsp_priv->vp8_filp[i] = NULL;
-	        vsp_priv->context_vp8_num = 0;
-	        vsp_priv->context_vpp_num = 0;
-
-	        vsp_priv->vp8_cmd_num = 0;
-		//return -EFAULT;
-	}
-
 	memset(&cmd_kmap, 0, sizeof(cmd_kmap));
 	vsp_priv->vsp_cmd_num = 1;
 
@@ -441,9 +350,8 @@ int vsp_cmdbuf_vpp(struct drm_file *priv,
 	if (drm_vsp_vpp_batch_cmd == 0)
 		vsp_priv->force_flush_cmd = 1;
 
-        if ((drm_vsp_pmpolicy != PSB_PMPOLICY_NOPM) &&
-	    (vsp_priv->vsp_state == VSP_STATE_IDLE))
-		power_down_vsp();
+	if (vsp_priv->vsp_state == VSP_STATE_IDLE)
+		ospm_apm_power_down_vsp(dev);
 
 	if (vsp_priv->acc_num_cmd >= 1 || vsp_priv->force_flush_cmd != 0
 	    || vsp_priv->delayed_burst_cnt > 0) {
@@ -484,6 +392,11 @@ int vsp_submit_cmdbuf(struct drm_device *dev,
 	struct vsp_private *vsp_priv = dev_priv->vsp_private;
 	int ret;
 
+	/* If VSP timeout, don't send cmd to hardware anymore */
+	if (vsp_priv->vsp_state == VSP_STATE_HANG) {
+		DRM_ERROR("The VSP is hang abnormally!");
+		return -EFAULT;
+	}
 	if (vsp_priv->acc_num_cmd >= 1 || vsp_priv->force_flush_cmd != 0
 	    || vsp_priv->delayed_burst_cnt > 0) {
 		/* consider to invalidate/flush MMU */
@@ -738,8 +651,13 @@ static int vsp_prehandle_command(struct drm_file *priv,
 
 			cur_cmd->context = VSP_API_GENERIC_CONTEXT_ID;
 			cur_cmd->type = VssGenInitializeContext;
-                        cur_cmd->buffer = find_filp(vsp_priv, priv->filp);
-			if (cur_cmd->buffer == 0) {
+			if (priv->filp == vsp_priv->vp8_filp[0]) {
+				cur_cmd->buffer = 1;
+			} else if (priv->filp == vsp_priv->vp8_filp[1]) {
+				cur_cmd->buffer = 2;
+			} else if (priv->filp == vsp_priv->vp8_filp[2]) {
+				cur_cmd->buffer = 3;
+			} else {
 				DRM_ERROR("got the wrong context_id and exit\n");
 				return -1;
 			}
@@ -770,8 +688,13 @@ static int vsp_prehandle_command(struct drm_file *priv,
 			/* set 1st VP8 process context_vp8_id=1 *
 			 * set 2nd VP8 process context_vp8_id=2 *
 			 * */
-                        cur_cmd->context = find_filp(vsp_priv, priv->filp);
-			if (cur_cmd->context == 0) {
+			if (priv->filp == vsp_priv->vp8_filp[0]) {
+				cur_cmd->context = 1;
+			} else if (priv->filp == vsp_priv->vp8_filp[1]) {
+				cur_cmd->context = 2;
+			} else if (priv->filp == vsp_priv->vp8_filp[2]) {
+				cur_cmd->context = 3;
+			} else {
 				DRM_ERROR("got the wrong context_id and exit\n");
 				return -1;
 			}
@@ -801,8 +724,13 @@ static int vsp_prehandle_command(struct drm_file *priv,
 		}
 
 		if (cur_cmd->type == VssVp8encSetSequenceParametersCommand) {
-                        cur_cmd->context = find_filp(vsp_priv, priv->filp);
-			if (cur_cmd->context == 0) {
+			if (priv->filp == vsp_priv->vp8_filp[0]) {
+				cur_cmd->context = 1;
+			} else if (priv->filp == vsp_priv->vp8_filp[1]) {
+				cur_cmd->context = 2;
+			} else if (priv->filp == vsp_priv->vp8_filp[2]) {
+				cur_cmd->context = 3;
+			} else {
 				DRM_ERROR("got the wrong context_id and exit\n");
 				return -1;
 			}
@@ -1141,12 +1069,24 @@ int vsp_new_context(struct drm_device *dev, struct file *filp, int ctx_type)
 		return -1;
 	}
 
-	mutex_lock(&vsp_priv->vsp_mutex);
 	if (VAEntrypointEncSlice == ctx_type) {
 		vsp_priv->context_vp8_num++;
-                if(!save_filp(vsp_priv, filp)){
-			DRM_ERROR("VSP: Only support %d instances of vp8 encoding!\n", MAX_VP8_CONTEXT_NUM);
-			ret = -1;
+		if (vsp_priv->context_vp8_num > MAX_VP8_CONTEXT_NUM) {
+			DRM_ERROR("VSP: Only support 3 vp8 encoding!\n");
+			/* store the 4th vp8 encoding fd for remove context use */
+			vsp_priv->vp8_filp[3] = filp;
+			return -1;
+		}
+
+		/* store the fd of 3 vp8 encoding processes */
+		if (vsp_priv->vp8_filp[0] == NULL) {
+			vsp_priv->vp8_filp[0] = filp;
+		} else if (vsp_priv->vp8_filp[1] == NULL) {
+			vsp_priv->vp8_filp[1] = filp;
+		} else if (vsp_priv->vp8_filp[2] == NULL) {
+			vsp_priv->vp8_filp[2] = filp;
+		} else {
+			DRM_ERROR("VSP: The current 3 vp8 contexts have not been removed\n");
 		}
 	} else if (ctx_type == VAEntrypointVideoProc) {
 		vsp_priv->context_vpp_num++;
@@ -1160,7 +1100,6 @@ int vsp_new_context(struct drm_device *dev, struct file *filp, int ctx_type)
 		DRM_ERROR("VSP: couldn't support the context %x\n", ctx_type);
 		ret = -1;
 	}
-	mutex_unlock(&vsp_priv->vsp_mutex);
 
 	VSP_DEBUG("context_vp8_num %d, context_vpp_num %d\n",
 			vsp_priv->context_vp8_num, vsp_priv->context_vpp_num);
@@ -1181,6 +1120,7 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct vsp_private *vsp_priv = dev_priv->vsp_private;
+	bool ret = true;
 	int count = 0;
 	struct vss_command_t *cur_cmd;
 	bool tmp = true;
@@ -1198,7 +1138,6 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 		return;
 	}
 
-	mutex_lock(&vsp_priv->vsp_mutex);
 	if (vsp_priv->ctrl == NULL) {
 		for (i = 0; i < MAX_VP8_CONTEXT_NUM + 1; i++) {
 			if (filp == vsp_priv->vp8_filp[i])
@@ -1212,16 +1151,20 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 			if (vsp_priv->context_vpp_num > 0)
 				vsp_priv->context_vpp_num--;
 		}
-		mutex_unlock(&vsp_priv->vsp_mutex);
 		return;
 	}
 
 	VSP_DEBUG("ctx_type=%d\n", ctx_type);
 
-	/* power on the VSP hardware to write registers */
-	power_up_vsp();
+	/* power on again to send VssGenDestroyContext to firmware */
+	if (power_island_get(OSPM_VIDEO_VPP_ISLAND) == false) {
+		DRM_DEBUG_PM("The VSP power on fail!\n");
+		return ;
+	}
 
-	if (VAEntrypointEncSlice == ctx_type && find_filp(vsp_priv, filp) ) {
+	if (VAEntrypointEncSlice == ctx_type && filp != vsp_priv->vp8_filp[3]) {
+		vsp_priv->context_vp8_num--;
+		mutex_lock(&vsp_priv->vsp_mutex);
 		if (vsp_priv->vsp_state == VSP_STATE_SUSPEND) {
 			tmp = vsp_resume_function(dev_priv);
 			VSP_DEBUG("The VSP is on suspend, send resume!\n");
@@ -1264,43 +1207,38 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 			PSB_UDELAY(6);
 		}
 
-		mutex_lock(&vsp_priv->vsp_mutex);
-		vsp_priv->context_vp8_num--;
 		if (count == 20000) {
 			DRM_ERROR("Failed to handle sigint event\n");
 		}
-	} else if(VAEntrypointEncSlice == ctx_type ) {
+	} else if(VAEntrypointEncSlice == ctx_type && filp == vsp_priv->vp8_filp[3]) {
 		/* driver support 3 vp8 encoding simultaneously at most */
 		/* clear the 4th vp8 encoding fd */
-		if (vsp_priv->context_vp8_num > 0)
-			vsp_priv->context_vp8_num--;
+		vsp_priv->context_vp8_num--;
+		vsp_priv->vp8_filp[3] = NULL;
 	} else if (ctx_type == VAEntrypointVideoProc)
-		if (vsp_priv->context_vpp_num > 0)
-			vsp_priv->context_vpp_num--;
+		vsp_priv->context_vpp_num--;
 
 	/* Return if there is any context is running */
 	if (vsp_priv->context_vp8_num > 0 || vsp_priv->context_vpp_num > 0) {
 		VSP_DEBUG("context_vp8_num %d, context_vpp_num %d\n",
 			vsp_priv->context_vp8_num, vsp_priv->context_vpp_num);
-		power_down_vsp();
-		mutex_unlock(&vsp_priv->vsp_mutex);
 		return;
 	}
 
 	vsp_priv->ctrl->entry_kind = vsp_exit;
-	PSB_UDELAY(800);
 
 	/* in case of power mode 0, HW always active,
 	 * * in case got no response from FW, vsp_state=hang but could not be powered off,
 	 * * force state to down */
-	VSP_DEBUG("No context now, set state to DOWN to force power down\n");
 	vsp_priv->vsp_state = VSP_STATE_DOWN;
-	force_power_down_vsp();
+	ospm_apm_power_down_vsp(dev);
+
 	vsp_priv->vsp_state = VSP_STATE_DOWN;
 
-
-	mutex_unlock(&vsp_priv->vsp_mutex);
-	VSP_DEBUG("vsp_rm_context is successful\n");
+	if (ret == false)
+		PSB_DEBUG_PM("Couldn't power down VSP!");
+	else
+		PSB_DEBUG_PM("VSP: OK. Power down the HW!\n");
 
 	/* FIXME: frequency should change */
 	VSP_PERF("the total time spend on VSP is %lld ms\n",
@@ -1441,17 +1379,15 @@ void vsp_irq_task(struct work_struct *work)
 			  sequence, vsp_priv->current_sequence);
 	}
 
-	if (drm_vsp_pmpolicy != PSB_PMPOLICY_NOPM){
-		if (vsp_priv->vsp_state == VSP_STATE_IDLE) {
-			if (vsp_priv->ctrl->cmd_rd == vsp_priv->ctrl->cmd_wr)
-				power_down_vsp();
-			else {
-				force_power_down_vsp();
-
-				VSP_DEBUG("Now power up VSP again to resume\n");
-				power_up_vsp();
-				vsp_resume_function(dev_priv);
-			}
+	if (vsp_priv->vsp_state == VSP_STATE_IDLE) {
+		if (vsp_priv->ctrl->cmd_rd == vsp_priv->ctrl->cmd_wr)
+			ospm_apm_power_down_vsp(dev);
+		else {
+			while (ospm_power_is_hw_on(OSPM_VIDEO_VPP_ISLAND))
+				ospm_apm_power_down_vsp(dev);
+			VSP_DEBUG("successfully power down VSP\n");
+			power_island_get(OSPM_VIDEO_VPP_ISLAND);
+			vsp_resume_function(dev_priv);
 		}
 	}
 	mutex_unlock(&vsp_priv->vsp_mutex);

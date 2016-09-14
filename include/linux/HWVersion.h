@@ -20,6 +20,40 @@
 #define HW_ID_MP_SD		0x00000006
 #endif
 
+#ifdef CONFIG_A500CG
+#define HW_ID_EVB	0x00000007
+#define HW_ID_SR	0x00000001
+#define HW_ID_ER	0x00000003
+#define HW_ID_PR	0x00000006
+#define LCD_ID_TM	0
+#define LCD_ID_HSD	1
+
+#define A502CG_LCD_ID_GIS				0
+#define A502CG_LCD_ID_TM				1
+#define A502CG_LCD_ID_OFILM			2
+#define A502CG_LCD_ID_TXD			3
+
+#define PROJ_ID_A500CG	0x00000000
+#define PROJ_ID_A501CG	0x00000004
+#define PROJ_ID_A600CG	0x00000007
+#define PROJ_ID_A502CG  0x00000006
+
+#else /* CONFIG_MOFD */
+#define HW_ID_EVB			0xffffffff
+#define HW_ID_PR			0x00000000
+#define HW_ID_SR1			0x00000001
+#define HW_ID_SR2			0x00000002
+#define HW_ID_ER			0x00000003
+#define HW_ID_pre_PR			0x00000004
+#define HW_ID_ER1_1			0x00000005
+#define HW_ID_ER1_2			0x00000006
+#define HW_ID_MP			0x00000007
+
+#define ZE500ML_LCD_ID_BOE		3
+#define ZE500ML_LCD_ID_AUO		4
+#define ZE500ML_LCD_ID_HSD		5
+#define ZE500ML_LCD_ID_TM		6
+#define ZE500ML_LCD_ID_CTP		7
 
 #define ZE550ML_LCD_ID_OTM_TM		3
 #define ZE550ML_LCD_ID_OTM_CPT		0
@@ -30,9 +64,11 @@
 #define ZX550ML_LCD_ID_OTM_INX		2
 #define ZS550ML_LCD_ID_SYN_TM		3
 #define ZS550ML_LCD_ID_SYN_BOE		2
-
+#define ZR550ML_LCD_ID_NT_TM		3
+#define ZR550ML_LCD_ID_OTM_INX		0
 
 #define PROJ_ID_ZE500ML		0x0000000e
+#define PROJ_ID_ZR550ML		0x0000001c
 #define PROJ_ID_ZE550ML		0x00000017
 #define PROJ_ID_ZE551ML		0x0000001f
 #define PROJ_ID_ZE551ML_CKD	0x0000001e
@@ -57,3 +93,5 @@
 #define  RF_SKU_ID_SHIFT        12
 #define  RF_SKU_ID_MASK         (0x0f<<RF_SKU_ID_SHIFT)
 
+
+#endif /* CONFIG_MOFD */

@@ -50,9 +50,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_debug.h"
 
 #if defined(CONFIG_OUTER_CACHE)
-  /* If you encounter a 64-bit ARM system with an outer cache, you'll need
-   * to add the necessary code to manage that cache.  See osfunc_arm.c	
-   * for an example of how to do so.
+  /* 32-bit ARM CPUs often have an outer cache controller (e.g. PL310, 
+   * common with Cortex A9 and later).  Hopefully ARM have now followed 
+   * Intel's footsteps and made the cache hierarchy transparent so that 
+   * these never appear on 64-bit ARM CPUs.  But just in case they do, let 
+   * the developer know that there is work to do. 
    */
 	#error "CONFIG_OUTER_CACHE not supported on arm64."
 #endif

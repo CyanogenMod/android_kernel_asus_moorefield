@@ -58,7 +58,7 @@ struct ttm_pl_create_req {
 };
 
 /**
- * struct ttm_pl_create_userptr_req
+ * struct ttm_pl_create_ub_req
  *
  * @size: The buffer object size.
  * @user_address: User-space address of the memory area that
@@ -67,34 +67,14 @@ struct ttm_pl_create_req {
  *  placement.
  * @page_alignment: Required alignment in pages.
  *
- * Input to the TTM_BO_CREATE_USERPTR ioctl.
+ * Input to the TTM_BO_CREATE_UB ioctl.
  */
 
-struct ttm_pl_create_userptr_req {
+struct ttm_pl_create_ub_req {
 	uint64_t size;
 	uint64_t user_address;
 	uint32_t placement;
 	uint32_t page_alignment;
-};
-
-/**
- * struct ttm_pl_create_dmabuf_req
- *
- * @size: The buffer object size.
- * @dmabuf_fd: file descriptor representing the dma-buf.
- * @placement: Flags that indicate initial acceptable
- *  placement.
- * @page_alignment: Required alignment in pages.
- *
- * Input to the TTM_BO_CREATE_DMABUF ioctl.
- */
-
-struct ttm_pl_create_dmabuf_req {
-	uint64_t size;
-	int32_t  dmabuf_fd;
-	uint32_t placement;
-	uint32_t page_alignment;
-	uint32_t pad64;
 };
 
 /**
@@ -201,9 +181,10 @@ struct ttm_pl_reference_req {
 struct ttm_pl_synccpu_arg {
 	uint32_t handle;
 	uint32_t access_mode;
-#define TTM_PL_SYNCCPU_OP_GRAB 0
-#define TTM_PL_SYNCCPU_OP_RELEASE 1
-	uint32_t op;
+	enum {
+		TTM_PL_SYNCCPU_OP_GRAB,
+		TTM_PL_SYNCCPU_OP_RELEASE
+	} op;
 	uint32_t pad64;
 };
 
@@ -251,13 +232,8 @@ union ttm_pl_setstatus_arg {
 	struct ttm_pl_rep rep;
 };
 
-union ttm_pl_create_userptr_arg {
-	struct ttm_pl_create_userptr_req req;
-	struct ttm_pl_rep rep;
-};
-
-union ttm_pl_create_dmabuf_arg {
-	struct ttm_pl_create_dmabuf_req req;
+union ttm_pl_create_ub_arg {
+	struct ttm_pl_create_ub_req req;
 	struct ttm_pl_rep rep;
 };
 
@@ -265,13 +241,12 @@ union ttm_pl_create_dmabuf_arg {
  * Ioctl offsets.
  */
 
-#define TTM_PL_CREATE          0x00
-#define TTM_PL_REFERENCE       0x01
-#define TTM_PL_UNREF           0x02
-#define TTM_PL_SYNCCPU         0x03
-#define TTM_PL_WAITIDLE        0x04
-#define TTM_PL_SETSTATUS       0x05
-#define TTM_PL_CREATE_USERPTR  0x06
-#define TTM_PL_CREATE_DMABUF   0x07
+#define TTM_PL_CREATE      0x00
+#define TTM_PL_REFERENCE   0x01
+#define TTM_PL_UNREF       0x02
+#define TTM_PL_SYNCCPU     0x03
+#define TTM_PL_WAITIDLE    0x04
+#define TTM_PL_SETSTATUS   0x05
+#define TTM_PL_CREATE_UB   0x06
 
 #endif

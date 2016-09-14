@@ -56,6 +56,7 @@ IMG_VOID rgx_bvnc_packed(IMG_UINT32 *pui32OutBNC, IMG_CHAR *pszOutV, IMG_UINT32 
 	IMG_UINT32 i = ui32OutVMaxLen;
 #endif
 	IMG_UINT32 ui32InVLen = 0;
+	IMG_CHAR *pszPointer;
 	IMG_UINT32 ui32V = 0;
 
 	*pui32OutBNC = (((ui32B & 0xFF) << 16) | ((ui32N & 0xFF) << 8) |
@@ -63,10 +64,24 @@ IMG_VOID rgx_bvnc_packed(IMG_UINT32 *pui32OutBNC, IMG_CHAR *pszOutV, IMG_UINT32 
 
 	/* Using dword accesses instead of byte accesses when forming V part of BVNC */
 	ui32OutVMaxLen = ui32OutVMaxLen;
-	while (pszV[ui32InVLen])
+	pszPointer = pszV;
+	while (*pszPointer)
 	{
-		ui32V |= ((((IMG_UINT32)pszV[ui32InVLen]) & 0xFF) << (ui32InVLen*8));
 		ui32InVLen++;
+		pszPointer++;
+	}
+
+	if (ui32InVLen == 1)
+	{
+		ui32V = ((IMG_UINT32)pszV[0]) & 0xFF;
+	}
+	else if (ui32InVLen == 2)
+	{
+		ui32V = ((((IMG_UINT32)pszV[0]) & 0xFF) << 0) | ((((IMG_UINT32)pszV[1]) & 0xFF) << 8);
+	}
+	else if (ui32InVLen == 3)
+	{
+		ui32V = ((((IMG_UINT32)pszV[0]) & 0xFF) << 0) | ((((IMG_UINT32)pszV[1]) & 0xFF) << 8) | ((((IMG_UINT32)pszV[2]) & 0xFF) << 16);
 	}
 
 	*((IMG_UINT32 *)pszOutV) = ui32V;

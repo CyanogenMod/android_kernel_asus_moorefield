@@ -46,6 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Module specific includes */
 #include "devicemem_typedefs.h"
 #include "pvr_tl.h"
+#include "tltestdefs.h"
 
 #include "tlserver.h"
 
@@ -148,6 +149,28 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeTLReleaseData(IMG_HANDLE hBridge,
 					psSDInt,
 					ui32ReadOffset,
 					ui32ReadLen);
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeTLTestIoctl(IMG_HANDLE hBridge,
+							 IMG_UINT32 ui32Cmd,
+							 IMG_BYTE *psIn1,
+							 IMG_UINT32 ui32In2,
+							 IMG_UINT32 *pui32Out1,
+							 IMG_UINT32 *pui32Out2)
+{
+	PVRSRV_ERROR eError;
+	PVR_UNREFERENCED_PARAMETER(hBridge);
+
+
+	eError =
+		TLServerTestIoctlKM(
+					ui32Cmd,
+					psIn1,
+					ui32In2,
+					pui32Out1,
+					pui32Out2);
 
 	return eError;
 }

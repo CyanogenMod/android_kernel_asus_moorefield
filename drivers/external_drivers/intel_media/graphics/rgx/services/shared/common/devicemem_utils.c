@@ -68,31 +68,33 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 IMG_INTERNAL
 IMG_VOID _DevmemImportStructAcquire(DEVMEM_IMPORT *psImport)
 {
-	IMG_INT iRefCount = OSAtomicIncrement(&psImport->hRefCount);
-	PVR_UNREFERENCED_PARAMETER(iRefCount);
-	PVR_ASSERT(iRefCount != 1);
-
+	OSLockAcquire(psImport->hLock);
 	DEVMEM_REFCOUNT_PRINT("%s (%p) %d->%d",
 					__FUNCTION__,
 					psImport,
-					iRefCount-1,
-					iRefCount);
+					psImport->ui32RefCount,
+					psImport->ui32RefCount+1);
+
+	psImport->ui32RefCount++;
+	OSLockRelease(psImport->hLock);
 }
 
 IMG_INTERNAL
 IMG_VOID _DevmemImportStructRelease(DEVMEM_IMPORT *psImport)
 {
-	IMG_INT iRefCount = OSAtomicDecrement(&psImport->hRefCount);
-	PVR_ASSERT(iRefCount >= 0);
+	PVR_ASSERT(psImport->ui32RefCount != 0);
 
+	OSLockAcquire(psImport->hLock);
 	DEVMEM_REFCOUNT_PRINT("%s (%p) %d->%d",
 					__FUNCTION__,
 					psImport,
-					iRefCount+1,
-					iRefCount);
+					psImport->ui32RefCount,
+					psImport->ui32RefCount-1);
 
-	if (iRefCount == 0)
+	if (--psImport->ui32RefCount == 0)
 	{
+		OSLockRelease(psImport->hLock);
+
 		BridgePMRUnrefPMR(psImport->hBridge,
 						  psImport->hPMR);
 		OSLockDestroy(psImport->sCPUImport.hLock);
@@ -100,12 +102,16 @@ IMG_VOID _DevmemImportStructRelease(DEVMEM_IMPORT *psImport)
 		OSLockDestroy(psImport->hLock);
 		OSFreeMem(psImport);
 	}
+	else
+	{
+		OSLockRelease(psImport->hLock);
+	}
 }
 
 IMG_INTERNAL
 IMG_VOID _DevmemImportDiscard(DEVMEM_IMPORT *psImport)
 {
-	PVR_ASSERT(OSAtomicRead(&psImport->hRefCount) == 0);
+	PVR_ASSERT(psImport->ui32RefCount == 0);
 	OSLockDestroy(psImport->sCPUImport.hLock);
 	OSLockDestroy(psImport->sDeviceImport.hLock);
 	OSLockDestroy(psImport->hLock);
@@ -127,7 +133,7 @@ PVRSRV_ERROR _DevmemMemDescAlloc(DEVMEM_MEMDESC **ppsMemDesc)
 	}
 	
 	/* Structure must be zero'd incase it needs to be freed before it is initialised! */
-	OSCachedMemSet(psMemDesc, 0, sizeof(DEVMEM_MEMDESC));
+	OSMemSet(psMemDesc, 0, sizeof(DEVMEM_MEMDESC));
 
 	eError = OSLockCreate(&psMemDesc->hLock, LOCK_TYPE_PASSIVE);
 	if (eError != PVRSRV_OK)
@@ -182,40 +188,40 @@ IMG_VOID _DevmemMemDescInit(DEVMEM_MEMDESC *psMemDesc,
 
 	psMemDesc->sDeviceMemDesc.ui32RefCount = 0;
 	psMemDesc->sCPUMemDesc.ui32RefCount = 0;
-	OSAtomicWrite(&psMemDesc->hRefCount, 1);
+	psMemDesc->ui32RefCount = 1;
 }
 
 IMG_INTERNAL
 IMG_VOID _DevmemMemDescAcquire(DEVMEM_MEMDESC *psMemDesc)
 {
-	IMG_INT iRefCount;
-	PVR_UNREFERENCED_PARAMETER(iRefCount);
-
-	iRefCount = OSAtomicIncrement(&psMemDesc->hRefCount);
+	OSLockAcquire(psMemDesc->hLock);
 	DEVMEM_REFCOUNT_PRINT("%s (%p) %d->%d",
 					__FUNCTION__,
 					psMemDesc,
-					iRefCount-1,
-					iRefCount);
+					psMemDesc->ui32RefCount,
+					psMemDesc->ui32RefCount+1);
+
+	psMemDesc->ui32RefCount++;
+	OSLockRelease(psMemDesc->hLock);
 }
 
 IMG_INTERNAL
 IMG_VOID _DevmemMemDescRelease(DEVMEM_MEMDESC *psMemDesc)
 {
-	IMG_INT iRefCount;
 	PVR_ASSERT(psMemDesc != NULL);
-	
-	iRefCount = OSAtomicDecrement(&psMemDesc->hRefCount);
-	PVR_ASSERT(iRefCount >= 0);
+	PVR_ASSERT(psMemDesc->ui32RefCount != 0);
 
+	OSLockAcquire(psMemDesc->hLock);
 	DEVMEM_REFCOUNT_PRINT("%s (%p) %d->%d",
 					__FUNCTION__,
 					psMemDesc,
-					iRefCount+1,
-					iRefCount);
+					psMemDesc->ui32RefCount,
+					psMemDesc->ui32RefCount-1);
 
-	if (iRefCount == 0)
+	if (--psMemDesc->ui32RefCount == 0)
 	{
+		OSLockRelease(psMemDesc->hLock);
+
 		if (!psMemDesc->psImport->bExportable)
 		{
 			RA_Free(psMemDesc->psImport->sDeviceImport.psHeap->psSubAllocRA,
@@ -232,12 +238,16 @@ IMG_VOID _DevmemMemDescRelease(DEVMEM_MEMDESC *psMemDesc)
 		OSLockDestroy(psMemDesc->hLock);
 		OSFreeMem(psMemDesc);
 	}
+	else
+	{
+		OSLockRelease(psMemDesc->hLock);
+	}
 }
 
 IMG_INTERNAL
 IMG_VOID _DevmemMemDescDiscard(DEVMEM_MEMDESC *psMemDesc)
 {
-	PVR_ASSERT(OSAtomicRead(&psMemDesc->hRefCount) == 0);
+	PVR_ASSERT(psMemDesc->ui32RefCount == 0);
 
 	OSLockDestroy(psMemDesc->sCPUMemDesc.hLock);
 	OSLockDestroy(psMemDesc->sDeviceMemDesc.hLock);
@@ -270,7 +280,7 @@ PVRSRV_ERROR _DevmemValidateParams(IMG_DEVMEM_SIZE_T uiSize,
     }
 
     /* Verify that size is a positive integer multiple of alignment */
-#if 0 // FIXME
+#if 0 // 
     if (uiSize & (uiAlign-1))
     {
         /* Size not a multiple of alignment */
@@ -330,7 +340,7 @@ PVRSRV_ERROR _DevmemImportStructAlloc(IMG_HANDLE hBridge,
 	/* Setup refcounts */
     psImport->sDeviceImport.ui32RefCount = 0;
     psImport->sCPUImport.ui32RefCount = 0;
-    OSAtomicWrite(&psImport->hRefCount, 0);
+    psImport->ui32RefCount = 0;
 
 	/* Create the lock */
 	eError = OSLockCreate(&psImport->hLock, LOCK_TYPE_PASSIVE);
@@ -378,7 +388,7 @@ IMG_VOID _DevmemImportStructInit(DEVMEM_IMPORT *psImport,
 	psImport->uiAlign = uiAlign;
 	psImport->uiFlags = uiFlags;
 	psImport->hPMR = hPMR;
-	OSAtomicWrite(&psImport->hRefCount, 1);
+	psImport->ui32RefCount = 1;
 }
 
 /*
@@ -396,11 +406,6 @@ PVRSRV_ERROR _DevmemImportStructDevMap(DEVMEM_HEAP *psHeap,
     IMG_DEV_VIRTADDR sBase;
     IMG_HANDLE hReservation;
     PVRSRV_ERROR eError;
-	IMG_UINT uiAlign;
-
-	/* Round the provided import alignment to the configured heap alignment */
-	uiAlign = 1ULL << psHeap->uiLog2ImportAlignment;
-	uiAlign = (psImport->uiAlign + uiAlign - 1) & ~(uiAlign-1);
 
 	psDeviceImport = &psImport->sDeviceImport;
 
@@ -415,7 +420,9 @@ PVRSRV_ERROR _DevmemImportStructDevMap(DEVMEM_HEAP *psHeap,
 	{
 		_DevmemImportStructAcquire(psImport);
 
-		OSAtomicIncrement(&psHeap->hImportCount);
+		OSLockAcquire(psHeap->hLock);
+		psHeap->uiImportCount++;
+		OSLockRelease(psHeap->hLock);
 
 		if (psHeap->psCtx->hBridge != psImport->hBridge)
 		{
@@ -431,7 +438,7 @@ PVRSRV_ERROR _DevmemImportStructDevMap(DEVMEM_HEAP *psHeap,
 	    bStatus = RA_Alloc(psHeap->psQuantizedVMRA,
 	                       psImport->uiSize,
 	                       0, /* flags: this RA doesn't use flags*/
-	                       uiAlign,
+	                       psImport->uiAlign,
 	                       &uiAllocatedAddr,
 	                       &uiAllocatedSize,
 	                       IMG_NULL /* don't care about per-import priv data */
@@ -509,7 +516,9 @@ failReserve:
 failVMRAAlloc:
 failCheck:
 	_DevmemImportStructRelease(psImport);
-	OSAtomicDecrement(&psHeap->hImportCount);
+	OSLockAcquire(psHeap->hLock);
+	psHeap->uiImportCount--;
+	OSLockRelease(psHeap->hLock);
 failParams:
 	OSLockRelease(psDeviceImport->hLock);
 	PVR_ASSERT(eError != PVRSRV_OK);
@@ -556,7 +565,9 @@ IMG_VOID _DevmemImportStructDevUnmap(DEVMEM_IMPORT *psImport)
 
 		_DevmemImportStructRelease(psImport);
 
-		OSAtomicDecrement(&psHeap->hImportCount);
+		OSLockAcquire(psHeap->hLock);
+		psHeap->uiImportCount--;
+		OSLockRelease(psHeap->hLock);
 	}
 	else
 	{
@@ -591,14 +602,14 @@ PVRSRV_ERROR _DevmemImportStructCPUMap(DEVMEM_IMPORT *psImport)
 		if (psImport->sCPUImport.iDmaBufFd >= 0)
 		{
 			void *pvCPUVAddr;
-			int iProt = PROT_READ;
 
-			iProt |= (psImport->uiFlags & PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE) ? PROT_WRITE : 0;
 			/* For ion imports, use the ion fd and mmap facility to map the
 			 * buffer to user space. We can bypass the services bridge in
 			 * this case and possibly save some time.
-			 */
-			pvCPUVAddr = mmap(NULL, psImport->uiSize, iProt,
+			 *
+			 * 
+*/
+			pvCPUVAddr = mmap(NULL, psImport->uiSize, PROT_READ | PROT_WRITE,
 			                  MAP_SHARED, psImport->sCPUImport.iDmaBufFd, 0);
 
 			if (pvCPUVAddr == MAP_FAILED)
@@ -617,7 +628,6 @@ PVRSRV_ERROR _DevmemImportStructCPUMap(DEVMEM_IMPORT *psImport)
 			eError = OSMMapPMR(psImport->hBridge,
 							   psImport->hPMR,
 							   psImport->uiSize,
-							   psImport->uiFlags,
 							   &psCPUImport->hOSMMapData,
 							   &psCPUImport->pvCPUVAddr,
 							   &uiMappingLength);
@@ -661,11 +671,7 @@ IMG_VOID _DevmemImportStructCPUUnmap(DEVMEM_IMPORT *psImport)
 
 	if (--psCPUImport->ui32RefCount == 0)
 	{
-		/* FIXME: psImport->uiSize is a 64-bit quantity where as the 5th
-		 * argument to OSUnmapPMR is a 32-bit quantity on 32-bit systems
-		 * hence a compiler warning of implicit cast and loss of data.
-		 * Added explicit cast and assert to remove warning.
-		 */
+		
 #if (defined(_WIN32) && !defined(_WIN64)) || (defined(LINUX) && defined(__i386__))
 		PVR_ASSERT(psImport->uiSize<IMG_UINT32_MAX);
 #endif

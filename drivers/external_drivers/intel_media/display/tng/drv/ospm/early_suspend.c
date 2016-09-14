@@ -32,9 +32,6 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <asm/intel_scu_pmic.h>
-#include <linux/lnw_gpio.h>
-#include <linux/HWVersion.h>
-#include <asm/intel-mid.h>
 #include "psb_drv.h"
 #include "early_suspend.h"
 #include "android_hdmi.h"
@@ -196,15 +193,8 @@ static int display_reboot_notifier_call(struct notifier_block *this, unsigned lo
 		}
 		mutex_unlock(&dev->mode_config.mutex);
 
-		usleep_range(60000, 60600);
-
-		if (Read_PROJ_ID() != PROJ_ID_ZS550ML) {
-			printk("[DISP] turn off the HW reset!\n");
-			gpio_set_value_cansleep(190, 0);
-			usleep_range(5000, 5100);
-		}
-
 		printk("[DISP] turn off the power 2v8!\n");
+		usleep_range(60000, 60600);
 		intel_scu_ipc_ioread8(addr, &value);
 		value &= ~0x1;
 		intel_scu_ipc_iowrite8(addr, value);

@@ -1600,6 +1600,8 @@ static MRST_BOOL MRSTLFBVSyncIHandler(MRSTLFB_DEVINFO *psDevInfo, int iPipe)
 	MRST_BOOL bStatus = MRST_TRUE;
 	unsigned long ulMaxIndex;
 	MRSTLFB_SWAPCHAIN *psSwapChain;
+        struct drm_psb_private *dev_priv;
+        int bhdmiplane_enable = IMG_TRUE;
 
 	mutex_lock(&psDevInfo->sSwapChainMutex);
 
@@ -1608,8 +1610,19 @@ static MRST_BOOL MRSTLFBVSyncIHandler(MRSTLFB_DEVINFO *psDevInfo, int iPipe)
 	if (psSwapChain == NULL)
 		goto ExitUnlock;
 
-	if (psDevInfo->bFlushCommands || psDevInfo->bSuspended || psDevInfo->bLeaveVT)
-		goto ExitUnlock;
+        //if hdmi connect,and hdmi plane disable,not flush commands
+        if(psDevInfo->psDrmDevice){
+                dev_priv =
+                        (struct drm_psb_private *)psDevInfo->psDrmDevice->dev_private;
+
+                if(dev_priv)
+                        bhdmiplane_enable = dev_priv->bhdmi_enable;
+        }
+
+        if ((psDevInfo->bFlushCommands && !(hdmi_state && (bhdmiplane_enable == IMG_FALSE)))
+                || psDevInfo->bSuspended || psDevInfo->bLeaveVT)
+                goto ExitUnlock;
+
 
 	psFlipItem = &psSwapChain->psVSyncFlips[psSwapChain->ulRemoveIndex];
 	ulMaxIndex = psSwapChain->ulSwapChainLength - 1;
@@ -1968,8 +1981,18 @@ static IMG_BOOL ProcessFlip2(IMG_HANDLE hCmdCookie,
 	updatePlaneContexts(psSwapChain, psFlipCmd, psPlaneContexts);
 
 #if defined(MRST_USING_INTERRUPTS)
+
+        /*
+        **HDMI plug-in,Play video in OVERLAY_EXTEND mode
+        **MIPI will off,bFlushCommands will be set to 1
+        **pfnPVRSRVCmdComplete will be called immediately
+        **after DRMLFBFlipBuffer2,Video will decode something
+        **to the buffer which is displaying,so abnormal.
+        **In normal mode,pfnPVRSRVCmdComplete will be called
+        **In next vsync if the new buffer is displaying.
+        */
 	if (!drm_psb_3D_vblank || psFlipCmd->ui32SwapInterval == 0 ||
-		psDevInfo->bFlushCommands) {
+		(psDevInfo->bFlushCommands && !(hdmi_state && (dev_priv->bhdmi_enable == IMG_FALSE)))) {
 #endif
 		/* update sprite plane context*/
 		if (DRMLFBFlipBuffer2(

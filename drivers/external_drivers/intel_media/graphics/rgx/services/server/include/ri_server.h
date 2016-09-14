@@ -55,13 +55,13 @@ IMG_VOID RIDeInitKM(IMG_VOID);
 PVRSRV_ERROR RIWritePMREntryKM(PMR *hPMR,
 					   	   	   IMG_UINT32 ui32TextASize,
 					   	   	   const IMG_CHAR ai8TextA[RI_MAX_TEXT_LEN+1],
-					   	   	   IMG_UINT64 uiLogicalSize);
+					   	   	   IMG_SIZE_T uiLogicalSize);
 
 PVRSRV_ERROR RIWriteMEMDESCEntryKM(PMR *hPMR,
 					   	   	   	   IMG_UINT32 ui32TextBSize,
 					   	   	   	   const IMG_CHAR ai8TextB[RI_MAX_TEXT_LEN+1],
-					   	   	   	   IMG_UINT64 uiOffset,
-					   	   	   	   IMG_UINT64 uiSize,
+					   	   	   	   IMG_SIZE_T uiOffset,
+					   	   	   	   IMG_SIZE_T uiSize,
 					   	   	   	   IMG_BOOL bIsImport,
 					   	   	   	   IMG_BOOL bIsExportable,
 					   	   	   	   RI_HANDLE *phRIHandle);

@@ -136,17 +136,11 @@ PVRSRV_ERROR IMG_CALLCONV RGXHWPerfConfigureAndEnableCounters(
 PVRSRV_ERROR IMG_CALLCONV RGXHWPerfDisableCounters(
 		IMG_HANDLE   hDevData,
 		IMG_UINT32   ui32NumBlocks,
-		IMG_UINT16*   aeBlockIDs);
+		IMG_UINT8*   aeBlockIDs);
 
 
 /******************************************************************************
  * RGX HW Performance Profiling Retrieval API(s)
- *
- * The client must ensure their use of this acquire/release API for a single 
- * connection/stream must not be shared with multiple execution contexts e.g.
- * between a kernel thread and an ISR handler. It is the client’s
- * responsibility to ensure this API is not interrupted by a high priority
- * thread/ISR
  *****************************************************************************/
 
 /**************************************************************************/ /*!

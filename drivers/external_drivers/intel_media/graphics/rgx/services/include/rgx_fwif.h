@@ -65,11 +65,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGXFWIF_LOG_TYPE_GROUP_POW		0x00000200
 #define RGXFWIF_LOG_TYPE_GROUP_HWR		0x00000400
 #define RGXFWIF_LOG_TYPE_GROUP_HWP		0x00000800
-#define RGXFWIF_LOG_TYPE_GROUP_RPM		0x00001000
-#define RGXFWIF_LOG_TYPE_GROUP_DMA		0x00002000
 #define RGXFWIF_LOG_TYPE_GROUP_DEBUG	0x80000000
-#define RGXFWIF_LOG_TYPE_GROUP_MASK		0x80003FFE
-#define RGXFWIF_LOG_TYPE_MASK			0x80003FFF
+#define RGXFWIF_LOG_TYPE_GROUP_MASK		0x80000FFE
+#define RGXFWIF_LOG_TYPE_MASK			0x80000FFF
 
 /* String used in pvrdebug -h output */
 #define RGXFWIF_LOG_GROUPS_STRING_LIST   "main,mts,cleanup,csw,bif,pm,rtd,spm,pow,hwr,hwp"
@@ -95,13 +93,11 @@ typedef struct {
                                          { "pow",     RGXFWIF_LOG_TYPE_GROUP_POW }, \
                                          { "hwr",     RGXFWIF_LOG_TYPE_GROUP_HWR }, \
                                          { "hwp",     RGXFWIF_LOG_TYPE_GROUP_HWP }, \
-                                         { "rpm",	  RGXFWIF_LOG_TYPE_GROUP_RPM }, \
-                                         { "dma",     RGXFWIF_LOG_TYPE_GROUP_DMA }, \
                                          { "debug",   RGXFWIF_LOG_TYPE_GROUP_DEBUG }
 
 
 /* Used in print statements to display log group state, one %s per group defined */
-#define RGXFWIF_LOG_ENABLED_GROUPS_LIST_PFSPEC  "%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+#define RGXFWIF_LOG_ENABLED_GROUPS_LIST_PFSPEC  "%s%s%s%s%s%s%s%s%s%s%s%s"
 
 /* Used in a print statement to display log group state, one per group */
 #define RGXFWIF_LOG_ENABLED_GROUPS_LIST(types)  (((types) & RGXFWIF_LOG_TYPE_GROUP_MAIN)	?("main ")		:("")),		\
@@ -115,14 +111,11 @@ typedef struct {
                                                 (((types) & RGXFWIF_LOG_TYPE_GROUP_POW)		?("pow ")		:("")),		\
                                                 (((types) & RGXFWIF_LOG_TYPE_GROUP_HWR)		?("hwr ")		:("")),		\
                                                 (((types) & RGXFWIF_LOG_TYPE_GROUP_HWP)		?("hwp ")		:("")),		\
-                                                (((types) & RGXFWIF_LOG_TYPE_GROUP_RPM)		?("rpm ")		:("")),		\
-                                                (((types) & RGXFWIF_LOG_TYPE_GROUP_DMA)		?("dma ")		:("")),		\
                                                 (((types) & RGXFWIF_LOG_TYPE_GROUP_DEBUG)	?("debug ")		:(""))
 
 
 /*! Logging function */
 typedef IMG_VOID (*PFN_RGXFW_LOG) (const IMG_CHAR* pszFmt, ...);
-
 
 /*!
  ******************************************************************************
@@ -133,12 +126,11 @@ typedef IMG_VOID (*PFN_RGXFW_LOG) (const IMG_CHAR* pszFmt, ...);
 #define RGXFW_HWPERF_L1_SIZE_MIN		(0x004000)
 #define RGXFW_HWPERF_L1_SIZE_DEFAULT    (0x040000)
 #define RGXFW_HWPERF_L1_SIZE_MAX        (0xC00000)
-/* This padding value must always be greater than or equal to
- * RGX_HWPERF_V2_MAX_PACKET_SIZE for all valid BVNCs. This is asserted in
- * rgxsrvinit.c. This macro is defined with a constant to avoid a KM
+/* This padding value must always be greater than or equal to 
+ * RGX_HWPERF_V2_MAX_PACKET_SIZE for all valid BVNCs. This is asserted in 
+ * rgxsrvinit.c. This macro is defined with a constant to avoid a KM 
  * dependency */
 #define RGXFW_HWPERF_L1_PADDING_DEFAULT (0x800)
-
 
 /*!
  ******************************************************************************
@@ -160,14 +152,14 @@ typedef struct _RGXFWIF_ASSERTBUF_
 	IMG_CHAR	szPath[RGXFW_TRACE_BUFFER_ASSERT_SIZE];
 	IMG_CHAR	szInfo[RGXFW_TRACE_BUFFER_ASSERT_SIZE];
 	IMG_UINT32	ui32LineNum;
-} UNCACHED_ALIGN RGXFWIF_ASSERTBUF;
+}RGXFWIF_ASSERTBUF;
 
 typedef struct _RGXFWIF_TRACEBUF_SPACE_
 {
 	IMG_UINT32			ui32TracePointer;
 	IMG_UINT32			aui32TraceBuffer[RGXFW_TRACE_BUFFER_SIZE];
 	RGXFWIF_ASSERTBUF	sAssertBuf;
-} UNCACHED_ALIGN RGXFWIF_TRACEBUF_SPACE;
+} RGXFWIF_TRACEBUF_SPACE;
 
 #define RGXFWIF_POW_STATES \
   X(RGXFWIF_POW_OFF)			/* idle and handshaked with the host (ready to full power down) */ \
@@ -235,92 +227,96 @@ typedef struct _RGXFWIF_TRACEBUF_
 
 	IMG_UINT32				ui32InterruptCount;
 	IMG_UINT32				ui32KCCBCmdsExecuted;
-	IMG_UINT64 RGXFW_ALIGN			ui64StartIdleTime;
-	IMG_UINT32				ui32PowMonEnergy;	/* Non-volatile power monitor energy count */
-} UNCACHED_ALIGN RGXFWIF_TRACEBUF;
-
+    IMG_UINT64 RGXFW_ALIGN	ui64StartIdleTime;
+} RGXFWIF_TRACEBUF;
 
 /*!
  ******************************************************************************
- * GPU Utilisation
+ * GPU Utilization FW CB
  *****************************************************************************/
-#define RGXFWIF_GPU_STATS_MAX_VALUE_OF_STATE  10000
+#define RGXFWIF_GPU_STATS_WINDOW_SIZE_US			500000			/*!< Time window considered for active/idle/blocked statistics */
+#define RGXFWIF_GPU_STATS_STATE_CHG_PER_SEC			1000			/*!< Expected number of maximum GPU state changes per second */
+#define RGXFWIF_GPU_STATS_MAX_VALUE_OF_STATE		10000
 
-#define RGXFWIF_GPU_UTIL_STATE_ACTIVE_LOW     (0U)
-#define RGXFWIF_GPU_UTIL_STATE_IDLE           (1U)
-#define RGXFWIF_GPU_UTIL_STATE_ACTIVE_HIGH    (2U)
-#define RGXFWIF_GPU_UTIL_STATE_BLOCKED        (3U)
-#define RGXFWIF_GPU_UTIL_STATE_NUM            (4U)
+#define RGXFWIF_GPU_UTIL_FWCB_SIZE	((RGXFWIF_GPU_STATS_WINDOW_SIZE_US * RGXFWIF_GPU_STATS_STATE_CHG_PER_SEC) / 1000000)
 
-#define RGXFWIF_GPU_UTIL_TIME_MASK            IMG_UINT64_C(0xFFFFFFFFFFFFFFFC)
-#define RGXFWIF_GPU_UTIL_STATE_MASK           IMG_UINT64_C(0x0000000000000003)
+#define RGXFWIF_GPU_UTIL_FWCB_TYPE_CRTIME		IMG_UINT64_C(0x0)
+#define RGXFWIF_GPU_UTIL_FWCB_TYPE_POWER_ON		IMG_UINT64_C(0x1)
+#define RGXFWIF_GPU_UTIL_FWCB_TYPE_POWER_OFF	IMG_UINT64_C(0x2)
+#define RGXFWIF_GPU_UTIL_FWCB_TYPE_END_CRTIME	IMG_UINT64_C(0x3)
+#define RGXFWIF_GPU_UTIL_FWCB_TYPE_MASK			IMG_UINT64_C(0xC000000000000000)
+#define RGXFWIF_GPU_UTIL_FWCB_TYPE_SHIFT		(62)
 
-#define RGXFWIF_GPU_UTIL_GET_TIME(word)       ((word) & RGXFWIF_GPU_UTIL_TIME_MASK)
-#define RGXFWIF_GPU_UTIL_GET_STATE(word)      ((word) & RGXFWIF_GPU_UTIL_STATE_MASK)
+#define RGXFWIF_GPU_UTIL_FWCB_STATE_ACTIVE_LOW	IMG_UINT64_C(0x0)
+#define RGXFWIF_GPU_UTIL_FWCB_STATE_IDLE		IMG_UINT64_C(0x1)
+#define RGXFWIF_GPU_UTIL_FWCB_STATE_ACTIVE_HIGH	IMG_UINT64_C(0x2)
+#define RGXFWIF_GPU_UTIL_FWCB_STATE_BLOCKED		IMG_UINT64_C(0x3)
+#define RGXFWIF_GPU_UTIL_FWCB_STATE_MASK		IMG_UINT64_C(0x3000000000000000)
+#define RGXFWIF_GPU_UTIL_FWCB_STATE_SHIFT		(60)
 
-/* The OS timestamps computed by the FW are approximations of the real time,
- * which means they could be slightly behind or ahead the real timer on the Host.
- * In some cases we can perform subtractions between FW approximated
- * timestamps and real OS timestamps, so we need a form of protection against
- * negative results if for instance the FW one is a bit ahead of time.
- */
-#define RGXFWIF_GPU_UTIL_GET_PERIOD(newtime,oldtime) \
-	((newtime) > (oldtime) ? ((newtime) - (oldtime)) : 0)
+#define RGXFWIF_GPU_UTIL_FWCB_ID_MASK			IMG_UINT64_C(0x0FFF000000000000)
+#define RGXFWIF_GPU_UTIL_FWCB_ID_SHIFT			(48)
 
-#define RGXFWIF_GPU_UTIL_MAKE_WORD(time,state) \
-	(RGXFWIF_GPU_UTIL_GET_TIME(time) | RGXFWIF_GPU_UTIL_GET_STATE(state))
+#define RGXFWIF_GPU_UTIL_FWCB_CR_TIMER_MASK		IMG_UINT64_C(0x0000FFFFFFFFFFFF)
+#define RGXFWIF_GPU_UTIL_FWCB_OS_TIMER_MASK		IMG_UINT64_C(0x0FFFFFFFFFFFFFFF)
+#define RGXFWIF_GPU_UTIL_FWCB_TIMER_SHIFT		(0)
 
+#define RGXFWIF_GPU_UTIL_FWCB_ENTRY_TYPE(entry)		(((entry)&RGXFWIF_GPU_UTIL_FWCB_TYPE_MASK)>>RGXFWIF_GPU_UTIL_FWCB_TYPE_SHIFT)
+#define RGXFWIF_GPU_UTIL_FWCB_ENTRY_STATE(entry)	(((entry)&RGXFWIF_GPU_UTIL_FWCB_STATE_MASK)>>RGXFWIF_GPU_UTIL_FWCB_STATE_SHIFT)
+#define RGXFWIF_GPU_UTIL_FWCB_ENTRY_ID(entry)		(((entry)&RGXFWIF_GPU_UTIL_FWCB_ID_MASK)>>RGXFWIF_GPU_UTIL_FWCB_ID_SHIFT)
+#define RGXFWIF_GPU_UTIL_FWCB_ENTRY_CR_TIMER(entry)	(((entry)&RGXFWIF_GPU_UTIL_FWCB_CR_TIMER_MASK)>>RGXFWIF_GPU_UTIL_FWCB_TIMER_SHIFT)
+#define RGXFWIF_GPU_UTIL_FWCB_ENTRY_OS_TIMER(entry)	(((entry)&RGXFWIF_GPU_UTIL_FWCB_OS_TIMER_MASK)>>RGXFWIF_GPU_UTIL_FWCB_TIMER_SHIFT)
 
-/* The timer correlation array must be big enough to ensure old entries won't be
- * overwritten before all the HWPerf events linked to those entries are processed
- * by the MISR. The update frequency of this array depends on how fast the system
- * can change state (basically how small the APM latency is) and perform DVFS transitions.
- *
- * The minimum size is 2 (not 1) to avoid race conditions between the FW reading
- * an entry while the Host is updating it. With 2 entries in the worst case the FW
- * will read old data, which is still quite ok if the Host is updating the timer
- * correlation at that time.
- */
-#define RGXFWIF_TIME_CORR_ARRAY_SIZE            256
-#define RGXFWIF_TIME_CORR_CURR_INDEX(seqcount)  ((seqcount) % RGXFWIF_TIME_CORR_ARRAY_SIZE)
+/* It can never happen that the GPU is reported as powered off and active at the same time,
+ * use this combination to mark the entry as reserved */
+#define RGXFWIF_GPU_UTIL_FWCB_RESERVED	\
+	( (RGXFWIF_GPU_UTIL_FWCB_TYPE_POWER_OFF <<  RGXFWIF_GPU_UTIL_FWCB_TYPE_SHIFT) |	\
+	  (RGXFWIF_GPU_UTIL_FWCB_STATE_ACTIVE_LOW << RGXFWIF_GPU_UTIL_FWCB_STATE_SHIFT) )
 
-/* Make sure the timer correlation array size is a power of 2 */
-BLD_ASSERT(((RGXFWIF_TIME_CORR_ARRAY_SIZE & (RGXFWIF_TIME_CORR_ARRAY_SIZE - 1)) == 0), rgx_fwif_h)
+#define RGXFWIF_GPU_UTIL_FWCB_ENTRY_ADD(cb, crtimer, state) do {														\
+		/* Combine all the information about current state transition into a single 64-bit word */						\
+		(cb)->aui64CB[(cb)->ui32WriteOffset] =												\
+			(((IMG_UINT64)(crtimer) << RGXFWIF_GPU_UTIL_FWCB_TIMER_SHIFT) & RGXFWIF_GPU_UTIL_FWCB_CR_TIMER_MASK) |		\
+			(((IMG_UINT64)(state) << RGXFWIF_GPU_UTIL_FWCB_STATE_SHIFT) & RGXFWIF_GPU_UTIL_FWCB_STATE_MASK) |			\
+			(((IMG_UINT64)(cb)->ui32CurrentDVFSId << RGXFWIF_GPU_UTIL_FWCB_ID_SHIFT) & RGXFWIF_GPU_UTIL_FWCB_ID_MASK);	\
+		/* Make sure the value is written to the memory before advancing write offset */								\
+		RGXFW_MEM_FENCE();																								\
+		/* Advance the CB write offset */																				\
+		(cb)->ui32WriteOffset++;																						\
+		if((cb)->ui32WriteOffset >= RGXFWIF_GPU_UTIL_FWCB_SIZE)															\
+		{																												\
+			(cb)->ui32WriteOffset = 0;																					\
+		}																												\
+		/* Cache current transition in cached memory */																	\
+		(cb)->ui32LastGpuUtilState = (state);																			\
+	} while (0)
+
+typedef IMG_UINT64 RGXFWIF_GPU_UTIL_FWCB_ENTRY;
 
 typedef struct _RGXFWIF_GPU_UTIL_FWCB_
 {
-	RGXFWIF_TIME_CORR sTimeCorr[RGXFWIF_TIME_CORR_ARRAY_SIZE];
-	IMG_UINT32        ui32TimeCorrSeqCount;
+	RGXFWIF_TIME_CORR	sTimeCorr;
+	IMG_UINT32			ui32WriteOffset;
+	IMG_UINT32			ui32LastGpuUtilState;
+	IMG_UINT32			ui32CurrentDVFSId;
+	RGXFWIF_GPU_UTIL_FWCB_ENTRY	RGXFW_ALIGN aui64CB[RGXFWIF_GPU_UTIL_FWCB_SIZE];
+} RGXFWIF_GPU_UTIL_FWCB;
 
-	/* Last GPU state + OS time of the last state update */
-	IMG_UINT64 RGXFW_ALIGN ui64LastWord;
-
-	/* Counters for the amount of time the GPU was active/idle/blocked */
-	IMG_UINT64 RGXFW_ALIGN aui64StatsCounters[RGXFWIF_GPU_UTIL_STATE_NUM];
-} UNCACHED_ALIGN RGXFWIF_GPU_UTIL_FWCB;
-
-
-/*!
- ******************************************************************************
- * HWR Data
- *****************************************************************************/
+/* HWR Data */
 typedef enum _RGX_HWRTYPE_
 {
-	RGX_HWRTYPE_UNKNOWNFAILURE  = 0,
-	RGX_HWRTYPE_OVERRUN         = 1,
-	RGX_HWRTYPE_POLLFAILURE     = 2,
+	RGX_HWRTYPE_UNKNOWNFAILURE 	= 0,
+	RGX_HWRTYPE_OVERRUN 		= 1,
+	RGX_HWRTYPE_POLLFAILURE 	= 2,
 #if !defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE)
-	RGX_HWRTYPE_BIF0FAULT       = 3,
-	RGX_HWRTYPE_BIF1FAULT       = 4,
+	RGX_HWRTYPE_BIF0FAULT	 	= 3,
+	RGX_HWRTYPE_BIF1FAULT	 	= 4,
 #if defined(RGX_FEATURE_CLUSTER_GROUPING)
 	RGX_HWRTYPE_TEXASBIF0FAULT	= 5,
 #endif
-#if defined(RGX_FEATURE_RAY_TRACING)
-	RGX_HWRTYPE_DPXMMUFAULT		= 6,
-#endif
 #else
-	RGX_HWRTYPE_MMUFAULT        = 7,
-	RGX_HWRTYPE_MMUMETAFAULT    = 8,
+	RGX_HWRTYPE_MMUFAULT	 	= 6,
+	RGX_HWRTYPE_MMUMETAFAULT	= 7,
 #endif
 } RGX_HWRTYPE;
 
@@ -335,7 +331,6 @@ typedef struct _RGX_BIFINFO_
 {
 	IMG_UINT64	RGXFW_ALIGN		ui64BIFReqStatus;
 	IMG_UINT64	RGXFW_ALIGN		ui64BIFMMUStatus;
-	IMG_UINT64	RGXFW_ALIGN		ui64PCAddress; /*!< phys address of the page catalogue */
 } RGX_BIFINFO;
 
 typedef struct _RGX_MMUINFO_
@@ -348,7 +343,7 @@ typedef struct _RGX_POLLINFO_
 	IMG_UINT32	ui32ThreadNum;
 	IMG_UINT32 	ui32CrPollAddr;
 	IMG_UINT32 	ui32CrPollMask;
-} UNCACHED_ALIGN RGX_POLLINFO;
+} RGX_POLLINFO;
 
 typedef struct _RGX_HWRINFO_
 {
@@ -367,10 +362,9 @@ typedef struct _RGX_HWRINFO_
 	IMG_UINT32					ui32EventStatus;
 	IMG_UINT32					ui32HWRRecoveryFlags;
 	RGX_HWRTYPE 				eHWRType;
-	RGXFWIF_TIME_CORR			sTimeCorr;
 
 	RGXFWIF_DM					eDM;
-} UNCACHED_ALIGN RGX_HWRINFO;
+} RGX_HWRINFO;
 
 #define RGXFWIF_HWINFO_MAX_FIRST 8							/* Number of first HWR logs recorded (never overwritten by newer logs) */
 #define RGXFWIF_HWINFO_MAX_LAST 8							/* Number of latest HWR logs (older logs are overwritten by newer logs) */
@@ -383,14 +377,10 @@ typedef struct _RGXFWIF_HWRINFOBUF_
 	IMG_UINT32	ui32FirstCrPollAddr[RGXFW_THREAD_NUM];
 	IMG_UINT32	ui32FirstCrPollMask[RGXFW_THREAD_NUM];
 	IMG_UINT32	ui32WriteIndex;
-	IMG_UINT32	ui32DDReqCount;
-} UNCACHED_ALIGN RGXFWIF_HWRINFOBUF;
+	IMG_BOOL	bDDReqIssued;
+} RGXFWIF_HWRINFOBUF;
 
-
-/*!
- ******************************************************************************
- * RGX firmware Init Config Data
- *****************************************************************************/
+/*! RGX firmware Init Config Data */
 #define RGXFWIF_INICFG_CTXSWITCH_TA_EN		(0x1 << 0)
 #define RGXFWIF_INICFG_CTXSWITCH_3D_EN		(0x1 << 1)
 #define RGXFWIF_INICFG_CTXSWITCH_CDM_EN		(0x1 << 2)
@@ -412,11 +402,8 @@ typedef struct _RGXFWIF_HWRINFOBUF_
 #define RGXFWIF_INICFG_RTU_BYPASS_EN		(0x1 << 15)
 #define RGXFWIF_INICFG_REGCONFIG_EN		(0x1 << 16)
 #define RGXFWIF_INICFG_ASSERT_ON_OUTOFMEMORY	(0x1 << 17)
-#define RGXFWIF_INICFG_HWP_DISABLE_FILTER	(0x1 << 18)
-#define RGXFWIF_INICFG_CUSTOM_PERF_TIMER_EN	(0x1 << 19)
-#define RGXFWIF_INICFG_CDM_KILL_MODE_RAND_EN	(0x1 << 20)
-#define RGXFWIF_INICFG_DISABLE_DM_OVERLAP	(0x1 << 21)
-#define RGXFWIF_INICFG_ALL					(0x003FFFDFU)
+#define RGXFWIF_INICFG_HWP_DISABLE_FILTER  (0x1 << 18)
+#define RGXFWIF_INICFG_ALL					(0x0007FFDFU)
 #define RGXFWIF_SRVCFG_DISABLE_PDP_EN 		(0x1 << 31)
 #define RGXFWIF_SRVCFG_ALL					(0x80000000U)
 #define RGXFWIF_FILTCFG_TRUNCATE_HALF		(0x1 << 3)
@@ -435,15 +422,18 @@ typedef enum
 {
 	RGX_ACTIVEPM_FORCE_OFF = 0,
 	RGX_ACTIVEPM_FORCE_ON = 1,
-	RGX_ACTIVEPM_DEFAULT = 2
+	RGX_ACTIVEPM_DEFAULT = 3
 } RGX_ACTIVEPM_CONF;
 
-typedef enum
-{
-	RGX_RD_POWER_ISLAND_FORCE_OFF = 0,
-	RGX_RD_POWER_ISLAND_FORCE_ON = 1,
-	RGX_RD_POWER_ISLAND_DEFAULT = 2
-} RGX_RD_POWER_ISLAND_CONF;
+/*!
+* Active Power Latency default in ms
+*/
+#define RGX_APM_LATENCY_DEFAULT			(500)
+
+/*!
+* Core Clock Speed in Hz
+*/
+#define RGX_CORE_CLOCK_SPEED_DEFAULT		(400000000)
 
 
 /*!

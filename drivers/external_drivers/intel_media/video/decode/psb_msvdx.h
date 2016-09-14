@@ -264,11 +264,6 @@ struct msvdx_private {
 	struct ttm_buffer_object *term_buf;
 	uint32_t term_buf_addr;
 #endif
-#ifdef CONFIG_ION
-	struct list_head ion_buffers_list;
-	struct mutex ion_buf_list_lock;
-#endif
-
 };
 
 struct psb_msvdx_cmd_queue {

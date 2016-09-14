@@ -48,12 +48,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_memallocflags.h"
 #include "devicemem_server_utils.h"
 
-#include <linux/version.h>
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
- #if defined(CONFIG_ARM)
-  #define ioremap_cache(x,y) ioremap_cached(x,y)
- #endif
+#if defined(CONFIG_ARM)
+#define ioremap_cache(x,y) ioremap_cached(x,y)
 #endif
 
 void *
@@ -90,6 +86,7 @@ _IORemapWrapper(IMG_CPU_PHYADDR BasePAddr,
 				break;
 	}
 
+
     PVR_UNREFERENCED_PARAMETER(pszFileName);
     PVR_UNREFERENCED_PARAMETER(ui32Line);
 
@@ -102,6 +99,7 @@ _IOUnmapWrapper(void *pvIORemapCookie, IMG_CHAR *pszFileName, IMG_UINT32 ui32Lin
 {
     PVR_UNREFERENCED_PARAMETER(pszFileName);
     PVR_UNREFERENCED_PARAMETER(ui32Line);
+
 
     iounmap(pvIORemapCookie);
 }

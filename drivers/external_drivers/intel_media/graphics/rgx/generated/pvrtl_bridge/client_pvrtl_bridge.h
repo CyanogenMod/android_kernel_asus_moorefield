@@ -72,5 +72,12 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeTLReleaseData(IMG_HANDLE hBridge,
 							   IMG_UINT32 ui32ReadOffset,
 							   IMG_UINT32 ui32ReadLen);
 
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeTLTestIoctl(IMG_HANDLE hBridge,
+							 IMG_UINT32 ui32Cmd,
+							 IMG_BYTE *psIn1,
+							 IMG_UINT32 ui32In2,
+							 IMG_UINT32 *pui32Out1,
+							 IMG_UINT32 *pui32Out2);
+
 
 #endif /* CLIENT_PVRTL_BRIDGE_H */

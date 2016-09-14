@@ -425,10 +425,8 @@ static int __dpi_panel_power_on(struct mdfld_dsi_config *dsi_config,
 	if (p_funcs->dsi_controller_init)
 		p_funcs->dsi_controller_init(dsi_config);
 
-	if (p_funcs->get_config_mode){
-		kfree(dsi_config->fixed_mode);
+	if (p_funcs->get_config_mode)
 		dsi_config->fixed_mode = p_funcs->get_config_mode();
-	}
 
 	printk("[DISPLAY][DDS] %s: panel_id = %d, panel_turn_on = %d\n", __func__, panel_id, panel_turn_on);
 

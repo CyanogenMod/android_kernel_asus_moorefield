@@ -66,6 +66,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <linux/slab.h>
 
+/* ***************************************************************************
+ * Bridge proxy functions
+ */
 
 
 
@@ -74,14 +77,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
  
 static IMG_INT
-PVRSRVBridgePhysmemImportDmaBuf(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_PHYSMEMIMPORTDMABUF *psPhysmemImportDmaBufIN,
-					  PVRSRV_BRIDGE_OUT_PHYSMEMIMPORTDMABUF *psPhysmemImportDmaBufOUT,
+PVRSRVBridgePhysmemImportDmaBuf(IMG_UINT32 ui32BridgeID,
+					 PVRSRV_BRIDGE_IN_PHYSMEMIMPORTDMABUF *psPhysmemImportDmaBufIN,
+					 PVRSRV_BRIDGE_OUT_PHYSMEMIMPORTDMABUF *psPhysmemImportDmaBufOUT,
 					 CONNECTION_DATA *psConnection)
 {
 	PMR * psPMRPtrInt = IMG_NULL;
+	IMG_HANDLE hPMRPtrInt2 = IMG_NULL;
 
-
+	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_DMABUF_PHYSMEMIMPORTDMABUF);
 
 
 
@@ -100,25 +104,40 @@ PVRSRVBridgePhysmemImportDmaBuf(IMG_UINT32 ui32DispatchTableEntry,
 		goto PhysmemImportDmaBuf_exit;
 	}
 
-
+	/* Create a resman item and overwrite the handle with it */
+	hPMRPtrInt2 = ResManRegisterRes(psConnection->hResManContext,
+												RESMAN_TYPE_PMR,
+												psPMRPtrInt,
+												(RESMAN_FREE_FN)&PMRUnrefPMR);
+	if (hPMRPtrInt2 == IMG_NULL)
+	{
+		psPhysmemImportDmaBufOUT->eError = PVRSRV_ERROR_UNABLE_TO_REGISTER_RESOURCE;
+		goto PhysmemImportDmaBuf_exit;
+	}
 	psPhysmemImportDmaBufOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
 							&psPhysmemImportDmaBufOUT->hPMRPtr,
-							(IMG_VOID *) psPMRPtrInt,
+							(IMG_HANDLE) hPMRPtrInt2,
 							PVRSRV_HANDLE_TYPE_PHYSMEM_PMR,
-							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
-							,(PFN_HANDLE_RELEASE)&PMRUnrefPMR);
+							PVRSRV_HANDLE_ALLOC_FLAG_NONE
+							);
 	if (psPhysmemImportDmaBufOUT->eError != PVRSRV_OK)
 	{
 		goto PhysmemImportDmaBuf_exit;
 	}
 
 
-
-
 PhysmemImportDmaBuf_exit:
 	if (psPhysmemImportDmaBufOUT->eError != PVRSRV_OK)
 	{
-		if (psPMRPtrInt)
+		/* If we have a valid resman item we should undo the bridge function by freeing the resman item */
+		if (hPMRPtrInt2)
+		{
+			PVRSRV_ERROR eError = ResManFreeResByPtr(hPMRPtrInt2);
+
+			/* Freeing a resource should never fail... */
+			PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
+		}
+		else if (psPMRPtrInt)
 		{
 			PMRUnrefPMR(psPMRPtrInt);
 		}
@@ -133,21 +152,16 @@ PhysmemImportDmaBuf_exit:
 /* *************************************************************************** 
  * Server bridge dispatch related glue 
  */
-
-
-PVRSRV_ERROR InitDMABUFBridge(IMG_VOID);
-PVRSRV_ERROR DeinitDMABUFBridge(IMG_VOID);
+ 
+PVRSRV_ERROR RegisterDMABUFFunctions(IMG_VOID);
+IMG_VOID UnregisterDMABUFFunctions(IMG_VOID);
 
 /*
  * Register all DMABUF functions with services
  */
-PVRSRV_ERROR InitDMABUFBridge(IMG_VOID)
+PVRSRV_ERROR RegisterDMABUFFunctions(IMG_VOID)
 {
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_DMABUF, PVRSRV_BRIDGE_DMABUF_PHYSMEMIMPORTDMABUF, PVRSRVBridgePhysmemImportDmaBuf,
-					IMG_NULL, IMG_NULL,
-					0, 0);
-
+	SetDispatchTableEntry(PVRSRV_BRIDGE_DMABUF_PHYSMEMIMPORTDMABUF, PVRSRVBridgePhysmemImportDmaBuf);
 
 	return PVRSRV_OK;
 }
@@ -155,8 +169,6 @@ PVRSRV_ERROR InitDMABUFBridge(IMG_VOID)
 /*
  * Unregister all dmabuf functions with services
  */
-PVRSRV_ERROR DeinitDMABUFBridge(IMG_VOID)
+IMG_VOID UnregisterDMABUFFunctions(IMG_VOID)
 {
-	return PVRSRV_OK;
 }
-

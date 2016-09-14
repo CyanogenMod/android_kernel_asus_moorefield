@@ -44,43 +44,36 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _PVR_SYNC_H
 #define _PVR_SYNC_H
 
-#include "pvr_fd_sync_kernel.h"
+#include "pvr_fd_sync_user.h"
 #include "rgx_fwif_shared.h"
 
 /* Services internal interface */
 enum PVRSRV_ERROR pvr_sync_init(void);
 void pvr_sync_deinit(void);
 
-struct pvr_sync_append_data;
+/* to keep track of the intermediate allocations done for the FD merge */
+struct pvr_sync_fd_merge_data
+{
+	PRGXFWIF_UFO_ADDR *pauiFenceUFOAddress;
+	__u32             *paui32FenceValue;
+	PRGXFWIF_UFO_ADDR *pauiUpdateUFOAddress;
+	__u32             *paui32UpdateValue;
+};
 
-enum PVRSRV_ERROR
-pvr_sync_append_fences(
-	const char			*name,
-	const u32			nr_check_fences,
-	const s32			*check_fence_fds,
-	const s32                       update_fence_fd,
-	const u32			nr_updates,
-	const PRGXFWIF_UFO_ADDR		*update_ufo_addresses,
-	const u32			*update_values,
-	const u32			nr_checks,
-	const PRGXFWIF_UFO_ADDR		*check_ufo_addresses,
-	const u32			*check_values,
-	struct pvr_sync_append_data	**append_sync_data);
+enum PVRSRV_ERROR 
+pvr_sync_merge_fences(__u32                         *pui32ClientFenceCountOut,
+		      PRGXFWIF_UFO_ADDR             **ppauiFenceUFOAddressOut,
+		      __u32                         **ppaui32FenceValueOut,
+		      __u32                         *pui32ClientUpdateCountOut,
+		      PRGXFWIF_UFO_ADDR             **ppauiUpdateUFOAddressOut,
+		      __u32                         **ppaui32UpdateValueOut,
+		      const char                    *pszName,
+		      bool                          bUpdate,
+		      const __u32                   ui32NumFDs,
+		      const __s32                   *paui32FDs,
+		      struct pvr_sync_fd_merge_data *psFDMergeData);
 
-void pvr_sync_get_updates(const struct pvr_sync_append_data *sync_data,
-	u32 *nr_fences,
-	PRGXFWIF_UFO_ADDR **ufo_addrs,
-	u32 **values);
-void pvr_sync_get_checks(const struct pvr_sync_append_data *sync_data,
-	u32 *nr_fences,
-	PRGXFWIF_UFO_ADDR **ufo_addrs,
-	u32 **values);
-
-void pvr_sync_rollback_append_fences(
-	struct pvr_sync_append_data	*sync_check_data);
-void pvr_sync_nohw_complete_fences(
-	struct pvr_sync_append_data	*sync_check_data);
-void pvr_sync_free_append_fences_data(
-	struct pvr_sync_append_data	*sync_check_data);
+IMG_VOID pvr_sync_merge_fences_cleanup(struct pvr_sync_fd_merge_data *psFDMergeData);
+enum PVRSRV_ERROR pvr_sync_nohw_update_fence(__s32 i32FDFence);
 
 #endif /* _PVR_SYNC_H */

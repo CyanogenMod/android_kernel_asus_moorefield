@@ -79,7 +79,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __TLSTREAM_H__
 #define __TLSTREAM_H__
 
-
+#if defined (__cplusplus)
+extern "C" {
+#endif
 #include "img_types.h"
 
 /*! Flags specifying stream and circular buffer behaviour */
@@ -323,6 +325,9 @@ TLStreamMarkEOS(IMG_HANDLE hStream);
 IMG_VOID 
 TLStreamInfo(PTL_STREAM_INFO psInfo);
 
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* __TLSTREAM_H__ */
 /*****************************************************************************

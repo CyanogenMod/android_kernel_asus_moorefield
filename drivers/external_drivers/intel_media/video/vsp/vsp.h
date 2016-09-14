@@ -85,10 +85,6 @@
 #define MAX_VP8_CONTEXT_NUM 3
 #define MAX_VPP_CONTEXT_NUM 1
 
-#define CONTEXT_VPP_ID      0
-#define CONTEXT_VP8_ID      1
-#define CONTEXT_COMPOSE_ID  5
-
 static const unsigned int vsp_processor_base[] = {
 				SP0_SP_REG_BASE,
 				SP1_SP_REG_BASE,
@@ -303,6 +299,7 @@ extern int vsp_deinit(struct drm_device *dev);
 extern int vsp_reset(struct drm_psb_private *dev_priv);
 
 extern int vsp_init_fw(struct drm_device *dev);
+extern int vsp_setup_fw(struct drm_psb_private *dev_priv);
 
 extern void vsp_enableirq(struct drm_device *dev);
 extern void vsp_disableirq(struct drm_device *dev);

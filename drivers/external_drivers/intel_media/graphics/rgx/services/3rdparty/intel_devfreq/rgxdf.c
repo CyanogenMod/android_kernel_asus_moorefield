@@ -58,16 +58,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 extern struct drm_device *gpsPVRDRMDev;
 
-static PVRSRV_DEVICE_NODE* pDevNode = NULL;
+static PVRSRV_DEVICE_NODE* pDevNode = IMG_NULL;
 
 static PVRSRV_DEVICE_NODE* RGXGetDeviceNode(void)
 {
-	if(pDevNode == NULL)
+	if(pDevNode == IMG_NULL)
 	{
-		PVRSRV_DEVICE_TYPE *peDeviceTypeInt = NULL;
-		PVRSRV_DEVICE_CLASS *peDeviceClassInt = NULL;
-		IMG_UINT32 *pui32DeviceIndexInt = NULL;
-		IMG_HANDLE hDevCookie = NULL;
+		PVRSRV_DEVICE_TYPE *peDeviceTypeInt = IMG_NULL;
+		PVRSRV_DEVICE_CLASS *peDeviceClassInt = IMG_NULL;
+		IMG_UINT32 *pui32DeviceIndexInt = IMG_NULL;
+		IMG_HANDLE hDevCookie = IMG_NULL;
 		IMG_UINT32 numDevices = 0;
 		IMG_UINT32 i = 0;
 		IMG_UINT32 rgxIndex = IMG_UINT32_MAX;
@@ -155,7 +155,7 @@ unsigned int RGXUpdateClockSpeed(unsigned int ui32ClockSpeed)
 {
 	PVRSRV_ERROR	eError = PVRSRV_OK;
 	PVRSRV_DEVICE_NODE* psDeviceNode = RGXGetDeviceNode();
-	RGX_DATA	*psRGXData = NULL;
+	RGX_DATA	*psRGXData = IMG_NULL;
 
 	if(!psDeviceNode){
 		eError = PVRSRV_ERROR_INVALID_DEVICE;
@@ -180,7 +180,7 @@ unsigned int RGXPreClockSpeed(void){
 		goto out;
 	}
 
-	eError = PVRSRVDevicePreClockSpeedChange(psDeviceNode->sDevId.ui32DeviceIndex, IMG_FALSE, NULL);
+	eError = PVRSRVDevicePreClockSpeedChange(psDeviceNode->sDevId.ui32DeviceIndex, IMG_FALSE, IMG_NULL);
 out:
 	return eError;
 }
@@ -197,7 +197,7 @@ unsigned int RGXPostClockSpeed(void){
 	}
 
 
-	PVRSRVDevicePostClockSpeedChange(psDeviceNode->sDevId.ui32DeviceIndex, IMG_FALSE, NULL);
+	PVRSRVDevicePostClockSpeedChange(psDeviceNode->sDevId.ui32DeviceIndex, IMG_FALSE, IMG_NULL);
 
 out:
 	return eError;

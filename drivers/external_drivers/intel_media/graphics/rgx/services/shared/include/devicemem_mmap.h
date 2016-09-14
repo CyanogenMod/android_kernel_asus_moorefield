@@ -76,7 +76,6 @@ extern PVRSRV_ERROR
 OSMMapPMR(IMG_HANDLE hBridge,
           IMG_HANDLE hPMR,
           IMG_DEVMEM_SIZE_T uiPMRLength,
-          IMG_UINT32 uiFlags,
           IMG_HANDLE *phOSMMapPrivDataOut,
           IMG_VOID **ppvMappingAddressOut,
           IMG_SIZE_T *puiMappingLengthOut);
@@ -92,12 +91,7 @@ OSMMapPMR(IMG_HANDLE hBridge,
  * OSMMapPMR
  *
  */
-/* 
-   FIXME:
-   perhaps this function should take _only_ the hOSMMapPrivData arg,
-   and the implementation is required to store any of the other data
-   items that it requires to do the unmap?
-*/
+
 extern IMG_VOID
 OSMUnmapPMR(IMG_HANDLE hBridge,
             IMG_HANDLE hPMR,

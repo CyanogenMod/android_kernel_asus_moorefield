@@ -84,7 +84,7 @@ static int pnw_topaz_save_command(struct drm_device *dev, void *cmd,
 static void topaz_mtx_kick(struct drm_psb_private *dev_priv, uint32_t core_id,
 			   uint32_t kick_count);
 
-IMG_BOOL pnw_topaz_interrupt(void *pvData)
+IMG_BOOL pnw_topaz_interrupt(IMG_VOID *pvData)
 {
 	struct drm_device *dev;
 	struct drm_psb_private *dev_priv;
@@ -92,11 +92,10 @@ IMG_BOOL pnw_topaz_interrupt(void *pvData)
 	struct pnw_topaz_private *topaz_priv;
 	uint32_t topaz_stat;
 	uint32_t cur_seq, cmd_id;
-	unsigned long irq_flags;
 
 	PSB_DEBUG_IRQ("Got an TopazSC interrupt\n");
 
-	if (pvData == NULL) {
+	if (pvData == IMG_NULL) {
 		DRM_ERROR("ERROR: TOPAZ %s, Invalid params\n", __func__);
 		return IMG_FALSE;
 	}
@@ -133,11 +132,10 @@ IMG_BOOL pnw_topaz_interrupt(void *pvData)
 		      cur_seq, dev_priv->sequence[LNC_ENGINE_ENCODE]);
 
 	psb_fence_handler(dev, LNC_ENGINE_ENCODE);
-	spin_lock_irqsave(&topaz_priv->topaz_lock, irq_flags);
+
 	topaz_priv->topaz_busy = 1;
 	pnw_topaz_dequeue_send(dev);
-	spin_unlock_irqrestore(&topaz_priv->topaz_lock, irq_flags);
-	
+
 	if (drm_topaz_pmpolicy != PSB_PMPOLICY_NOPM \
 			&& topaz_priv->topaz_busy == 0) {
 		PSB_DEBUG_IRQ("TOPAZ:Schedule a work to power down Topaz\n");
@@ -202,7 +200,7 @@ static int pnw_submit_encode_cmdbuf(struct drm_device *dev,
 
 	if (!topaz_priv->topaz_busy) {
 		/* # direct map topaz command if topaz is free */
-		PSB_DEBUG_TOPAZ("TOPAZ:direct send command,sequence %08x\n",
+		PSB_DEBUG_GENERAL("TOPAZ:direct send command,sequence %08x\n",
 				  sequence);
 
 		topaz_priv->topaz_busy = 1;
@@ -216,8 +214,8 @@ static int pnw_submit_encode_cmdbuf(struct drm_device *dev,
 			return ret;
 		}
 	} else {
-		PSB_DEBUG_TOPAZ("TOPAZ: queue command,sequence %08x \n",
-				sequence);
+		PSB_DEBUG_GENERAL("TOPAZ: queue command,sequence %08x \n",
+				  sequence);
 		cmd = NULL;
 
 		spin_unlock_irqrestore(&topaz_priv->topaz_lock, irq_flags);
@@ -755,7 +753,7 @@ int pnw_topaz_dequeue_send(struct drm_device *dev)
 	if (dev_priv->topaz_ctx) {
 		topaz_priv->topaz_busy = 1;
 
-		PSB_DEBUG_TOPAZ("TOPAZ: queue has id %08x, to send\n",
+		PSB_DEBUG_GENERAL("TOPAZ: queue has id %08x\n",
 			topaz_cmd->sequence);
 		ret = pnw_topaz_send(dev, topaz_cmd->cmd, topaz_cmd->cmd_size,
 			topaz_cmd->sequence);
@@ -823,12 +821,10 @@ int pnw_check_topaz_idle(struct drm_device *dev)
 void pnw_topaz_flush_cmd_queue(struct pnw_topaz_private *topaz_priv)
 {
 	struct pnw_topaz_cmd_queue *entry, *next;
-	unsigned long irq_flags;
 
 	if (list_empty(&topaz_priv->topaz_queue))
 		return;
 
-	spin_lock_irqsave(&topaz_priv->topaz_lock, irq_flags);
 	/* flush all command in queue */
 	list_for_each_entry_safe(entry, next,
 				 &topaz_priv->topaz_queue,
@@ -837,7 +833,6 @@ void pnw_topaz_flush_cmd_queue(struct pnw_topaz_private *topaz_priv)
 		kfree(entry->cmd);
 		kfree(entry);
 	}
-	spin_unlock_irqrestore(&topaz_priv->topaz_lock, irq_flags);
 
 	return;
 }

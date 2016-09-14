@@ -59,17 +59,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *  Memory types which can be tracked...
  */
 typedef enum {
-    PVRSRV_MEM_ALLOC_TYPE_KMALLOC,				/* memory allocated by kmalloc() */
-    PVRSRV_MEM_ALLOC_TYPE_VMALLOC,				/* memory allocated by kmalloc() */
+    PVRSRV_MEM_ALLOC_TYPE_KMALLOC,
+    PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
     PVRSRV_MEM_ALLOC_TYPE_ALLOC_PAGES_PT_UMA,	/* pages allocated from UMA to hold page table information */
     PVRSRV_MEM_ALLOC_TYPE_VMAP_PT_UMA,			/* ALLOC_PAGES_PT_UMA mapped to kernel address space */
     PVRSRV_MEM_ALLOC_TYPE_ALLOC_PAGES_PT_LMA,	/* pages allocated from LMA to hold page table information */
     PVRSRV_MEM_ALLOC_TYPE_IOREMAP_PT_LMA,		/* ALLOC_PAGES_PT_LMA mapped to kernel address space */
     PVRSRV_MEM_ALLOC_TYPE_ALLOC_LMA_PAGES,		/* pages allocated from LMA */
     PVRSRV_MEM_ALLOC_TYPE_ALLOC_UMA_PAGES,		/* pages allocated from UMA */
-    PVRSRV_MEM_ALLOC_TYPE_MAP_UMA_LMA_PAGES,	/* mapped UMA/LMA pages  */
-    PVRSRV_MEM_ALLOC_TYPE_UMA_POOL_PAGES,		/* pages in the page pool */
-
+    PVRSRV_MEM_ALLOC_TYPE_MAP_UMA_LMA_PAGES,		/* mapped UMA/LMA pages  */
+    
 	/* Must be the last enum...*/
     PVRSRV_MEM_ALLOC_TYPE_COUNT
 } PVRSRV_MEM_ALLOC_TYPE;
@@ -102,6 +101,7 @@ IMG_VOID  PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE eAllocType,
 
 IMG_VOID PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE eAllocType,
         							IMG_SIZE_T uiBytes);
+
 /*
  * Increases the memory stat for eAllocType. Tracks the allocation size value
  * by inserting a value into a hash table with uiCpuVAddr as key.
@@ -114,21 +114,12 @@ IMG_VOID PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
 IMG_VOID PVRSRVStatsDecrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE eAllocType,
         							IMG_SIZE_T uiBytes);
 
-IMG_VOID PVRSRVStatsDecrMemKAllocStat(IMG_SIZE_T uiBytes,
-        							IMG_PID decrPID);
-
 /*
  * Decrease the memory stat for eAllocType. Takes the allocation size value from the
  * hash table with uiCpuVAddr as key. Pair with PVRSRVStatsIncrMemAllocStatAndTrack().
  */
 IMG_VOID PVRSRVStatsDecrMemAllocStatAndUntrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
         							IMG_UINT64 uiCpuVAddr);
-
-IMG_VOID
-PVRSRVStatsIncrMemAllocPoolStat(IMG_SIZE_T uiBytes);
-
-IMG_VOID
-PVRSRVStatsDecrMemAllocPoolStat(IMG_SIZE_T uiBytes);
 
 IMG_VOID  PVRSRVStatsUpdateRenderContextStats(IMG_UINT32 ui32TotalNumPartialRenders,
                                               IMG_UINT32 ui32TotalNumOutOfMemory,
@@ -149,6 +140,19 @@ IMG_VOID  PVRSRVStatsUpdateFreelistStats(IMG_UINT32 ui32NumGrowReqByApp,
                                          IMG_PID	ownerPid);
 
 
+/*
+ *  Functions for obtaining the information stored...
+ */
+IMG_BOOL  PVRSRVStatsObtainElement(IMG_PVOID pvStatPtr,
+                                   IMG_UINT32 ui32StatNumber,
+                                   IMG_INT32* pi32StatData,
+                                   IMG_CHAR** ppszStatFmtText);
+
+IMG_BOOL PVRSRVPowerStatsObtainElement(IMG_PVOID pvStatPtr,
+									   IMG_UINT32 ui32StatNumber,
+									   IMG_INT32* pi32StatData,
+									   IMG_CHAR** ppszStatFmtText);
+
 typedef enum
 {
     PVRSRV_POWER_ENTRY_TYPE_PRE,
@@ -160,9 +164,6 @@ IMG_VOID InsertPowerTimeStatistic(PVRSRV_POWER_ENTRY_TYPE bType,
                                 IMG_UINT64 ui64SysStartTime, IMG_UINT64 ui64SysEndTime,
 								IMG_UINT64 ui64DevStartTime, IMG_UINT64 ui64DevEndTime,
 								IMG_BOOL bForced);
-
-IMG_VOID InsertPowerTimeStatisticExtraPre(IMG_UINT64 ui64StartTimer, IMG_UINT64 ui64Stoptimer);
-IMG_VOID InsertPowerTimeStatisticExtraPost(IMG_UINT64 ui64StartTimer, IMG_UINT64 ui64StopTimer);
 
 IMG_VOID SetFirmwareStartTime(IMG_UINT32 ui32TimeStamp);
 

@@ -47,14 +47,6 @@
 #include <linux/wakelock.h>
 #include <linux/pm_qos.h>
 
-/*  Name changed with kernel 3.10 gen graphics patches. */
-#if !defined DRM_MODE_ENCODER_DSI
-#define DRM_MODE_ENCODER_DSI DRM_MODE_ENCODER_MIPI
-#endif
-#if !defined DRM_MODE_CONNECTOR_DSI
-#define DRM_MODE_CONNECTOR_DSI DRM_MODE_CONNECTOR_MIPI
-#endif
-
 /*Append new drm mode definition here, align with libdrm definition*/
 #define DRM_MODE_SCALE_NO_SCALE   4
 
@@ -368,11 +360,11 @@ enum enum_ports {
 #define IS_TNG_A0(dev) ((intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER) && (intel_mid_soc_stepping() == 0))
 
 #if defined(CONFIG_DRM_CTP)
-#define IS_TNG(dev)		0
+#define IS_TNG_B0(dev)		0
 #elif defined(CONFIG_DRM_VXD_BYT)
-#define IS_TNG(dev)		0
+#define IS_TNG_B0(dev)		0
 #else
-#define IS_TNG(dev) ((intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER) && (intel_mid_soc_stepping() >= 1))
+#define IS_TNG_B0(dev) ((intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER) && (intel_mid_soc_stepping() == 1))
 #endif
 
 #define IS_ANN(dev) (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_ANNIEDALE)
@@ -774,7 +766,6 @@ struct drm_psb_private {
 	uint32_t Reserved2:27;
 	struct mdfld_dsi_dbi_output *dbi_output;
 	struct mdfld_dsi_dbi_output *dbi_output2;
-	struct mdfld_dsi_dpi_output *dpi_output;
 	/* MDFLD_DSI private date end */
 
 	/* wait queue for write_mem_status complete (EOF interrupt) */
@@ -1205,7 +1196,6 @@ void psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
 
 void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe);
 
-void psb_enable_esd(struct drm_device *dev, int pipe);
 extern u32 psb_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int intel_get_vblank_timestamp(struct drm_device *dev, int pipe,
 		int *max_error, struct timeval *vblank_time, unsigned flags);

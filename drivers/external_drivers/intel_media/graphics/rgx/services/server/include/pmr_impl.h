@@ -80,9 +80,9 @@ typedef struct {
                                          IMG_UINT32 uiLog2DevPageSize);
     PVRSRV_ERROR (*pfnUnlockPhysAddresses)(PMR_IMPL_PRIVDATA pvPriv);
     /*
-     * called iteratively or once to obtain page(s) physical address
-     * ("page" might be device mmu page, or host cpu mmu page, or
-     * something else entirely... the PMR implementation should
+     * called iteratively to obtain the physical address of each page
+     * in turn ("page" might be device mmu page, or host cpu mmu page,
+     * or something else entirely... the PMR implementation should
      * make no assumption, and honour the request for a physical
      * address of any byte in the PMR)
      *
@@ -99,9 +99,7 @@ typedef struct {
      * implementations.
      */
     PVRSRV_ERROR (*pfnDevPhysAddr)(PMR_IMPL_PRIVDATA pvPriv,
-                                   IMG_UINT32 ui32NumOfAddr,
-                                   IMG_DEVMEM_OFFSET_T *puiOffset,
-								   IMG_BOOL *pbValid,
+                                   IMG_DEVMEM_OFFSET_T uiOffset,
                                    IMG_DEV_PHYADDR *psDevAddrPtr);
     /*
      * called iteratively to obtain PDump symbolic addresses.  Behaves

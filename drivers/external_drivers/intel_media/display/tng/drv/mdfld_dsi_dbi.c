@@ -1390,7 +1390,6 @@ void mdfld_reset_panel_handler_work(struct work_struct *work)
 	struct mdfld_dsi_dbi_output *dbi_output = NULL;
 	struct panel_funcs *p_funcs  = NULL;
 	struct drm_device *dev;
-	u32 power_island = 0;
 
 	dbi_output = dev_priv->dbi_output;
 	dsi_config = dev_priv->dsi_configs[0];
@@ -1403,9 +1402,6 @@ void mdfld_reset_panel_handler_work(struct work_struct *work)
 	if (hdmi_state)
 		return;
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	return;
-#else
 	PSB_DEBUG_ENTRY("\n");
 
 	p_funcs = dbi_output->p_funcs;
@@ -1423,16 +1419,12 @@ void mdfld_reset_panel_handler_work(struct work_struct *work)
 		 * since panel is in abnormal state,
 		 * we do a power off/on first
 		 */
-
-		power_island = pipe_to_island(dsi_config->pipe);
-		if (is_dual_dsi(dev))
-			power_island |= OSPM_DISPLAY_C;
-
-		if (power_island & (OSPM_DISPLAY_A | OSPM_DISPLAY_C))
-				power_island |= OSPM_DISPLAY_MIO;
-
-		power_island_put(power_island);
-		power_island_get(power_island);
+		power_island_put(OSPM_DISPLAY_A |
+				 OSPM_DISPLAY_C |
+				 OSPM_DISPLAY_MIO);
+		power_island_get(OSPM_DISPLAY_A |
+				 OSPM_DISPLAY_C |
+				 OSPM_DISPLAY_MIO);
 
 		if (__dbi_panel_power_off(dsi_config, p_funcs))
 			DRM_INFO("failed to power off dbi panel\n");
@@ -1456,7 +1448,6 @@ void mdfld_reset_panel_handler_work(struct work_struct *work)
 	} else {
 		DRM_INFO("%s invalid panel init\n", __func__);
 	}
-#endif
 }
 
 /*

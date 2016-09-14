@@ -135,7 +135,6 @@ void drm_ut_debug_printk(unsigned int request_level,
 			 const char *format, ...);
 extern __printf(2, 3)
 int drm_err(const char *func, const char *format, ...);
-int drm_err_ratelimited(const char *func, const char *format, ...);
 
 /***********************************************************************/
 /** \name DRM template customization defaults */
@@ -195,13 +194,6 @@ int drm_err_ratelimited(const char *func, const char *format, ...);
  */
 #define DRM_ERROR(fmt, ...)				\
 	drm_err(__func__, fmt, ##__VA_ARGS__)
-
-/**
- * Error output.
- * limited the error output to avoid print storm
- */
-#define DRM_ERROR_RATELIMITED(fmt, ...)				\
-	drm_err_ratelimited(__func__, fmt, ##__VA_ARGS__)
 
 #define DRM_INFO(fmt, ...)				\
 	printk(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)

@@ -305,14 +305,6 @@ bool power_island_get_dummy(struct drm_device *dev);
 
 bool power_island_put_dummy(struct drm_device *dev);
 
-int tng_topaz_power_up(
-	struct drm_device *dev,
-	enum drm_tng_topaz_codec codec);
-
-int tng_topaz_power_off(struct drm_device *dev);
-int Is_Secure_Fw(void);
-
-
 #define TNG_TOPAZ_NEW_PMSTATE(drm_dev, topaz_priv, new_state)		\
 do { \
 	topaz_priv->pmstate = new_state;				\

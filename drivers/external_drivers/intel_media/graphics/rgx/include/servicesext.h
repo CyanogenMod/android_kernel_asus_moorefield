@@ -48,7 +48,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* include/ */
 #include "pvrsrv_error.h"
 #include "img_types.h"
-#include "img_3dtypes.h"
 #include "pvrsrv_device_types.h"
 
 
@@ -125,6 +124,7 @@ typedef PVRSRV_ERROR (*PFN_POST_POWER) (IMG_HANDLE				hDevHandle,
   from one clockspeed to another. See also PFN_POST_CLOCKSPEED_CHANGE.
  */
 typedef PVRSRV_ERROR (*PFN_PRE_CLOCKSPEED_CHANGE) (IMG_HANDLE				hDevHandle,
+												   IMG_BOOL					bIdleDevice,
 												   PVRSRV_DEV_POWER_STATE	eCurrentPowerState);
 
 /*!
@@ -132,23 +132,8 @@ typedef PVRSRV_ERROR (*PFN_PRE_CLOCKSPEED_CHANGE) (IMG_HANDLE				hDevHandle,
   from one clockspeed to another. See also PFN_PRE_CLOCKSPEED_CHANGE.
  */
 typedef PVRSRV_ERROR (*PFN_POST_CLOCKSPEED_CHANGE) (IMG_HANDLE				hDevHandle,
+													IMG_BOOL				bIdleDevice,
 													PVRSRV_DEV_POWER_STATE	eCurrentPowerState);
-
-/*!
-  Typedef for a pointer to a function that will be called to transition the device
-  to a forced idle state. Used in unison with (forced) power requests, DVFS and cluster count changes.
- */
-typedef PVRSRV_ERROR (*PFN_FORCED_IDLE_REQUEST) (IMG_HANDLE				hDevHandle,
-							IMG_BOOL			bDeviceOffPermitted);
-
-/*!
-  Typedef for a pointer to a function that will be called to cancel a forced idle state
-  and return the firmware back to a state where the hardware can be scheduled.
- */
-typedef PVRSRV_ERROR (*PFN_FORCED_IDLE_CANCEL_REQUEST) (IMG_HANDLE			hDevHandle);
-
-typedef PVRSRV_ERROR (*PFN_DUST_COUNT_REQUEST) (IMG_HANDLE			hDevHandle,
-						IMG_UINT32			ui32DustCount);
 
 /*!
  *****************************************************************************
@@ -165,14 +150,14 @@ typedef enum _PVRSRV_COLOURSPACE_FORMAT_ {
 /*!
  * Drawable orientation (in degrees clockwise).
  */
-typedef enum _IMG_ROTATION_ PVRSRV_ROTATION;
+typedef enum _PVRSRV_ROTATION_ {
+	PVRSRV_ROTATE_0		=	0,  /*!< Rotate by 0 degres */
+	PVRSRV_ROTATE_90	=	1,  /*!< Rotate by 90 degrees */
+	PVRSRV_ROTATE_180	=	2,  /*!< Rotate by 180 degrees */
+	PVRSRV_ROTATE_270	=	3,  /*!< Rotate by 270 degrees */
+	PVRSRV_FLIP_Y		=	4,  /*!< Flip in Y axis */
 
-#define PVRSRV_ROTATE_0 IMG_ROTATION_0DEG
-#define PVRSRV_ROTATE_90 IMG_ROTATION_90DEG
-#define PVRSRV_ROTATE_180 IMG_ROTATION_180DEG
-#define PVRSRV_ROTATE_270 IMG_ROTATION_270DEG
-#define PVRSRV_FLIP_Y IMG_ROTATION_FLIP_Y
-
+} PVRSRV_ROTATION;
 
 /*!
  *****************************************************************************

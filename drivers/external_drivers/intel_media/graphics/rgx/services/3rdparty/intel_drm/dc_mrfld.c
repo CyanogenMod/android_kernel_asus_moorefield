@@ -58,26 +58,6 @@ static DC_MRFLD_DEVICE *gpsDevice;
 /* Timeout for Flip Watchdog */
 #define FLIP_TIMEOUT (HZ/4)
 
-/* Time Delay for Last Flip */
-#define LAST_FLIP_DELAY 50
-
-/* Maxfifo mode set */
-
-#define PRIMARY_BIT  0
-#define OVERLARY_BIT 1
-#define CURSOR_BIT   2
-
-enum {
-	NONE_MAXFIFO		= 0X00,
-	PRIMARY_ONLY		= 0x01,
-	OVERLANY_ONLY		= 0x02,
-	PRIMARY_OVERLARY	= 0X03,
-	CURSOR_ONLY		= 0x04,
-	PRIMARY_CURSOR		= 0x05,
-	OVERLARY_CURSOR		= 0x06,
-	PRIMARY_OVERLARY_CURSOR	= 0x07
-};
-
 struct power_off_req {
 	struct delayed_work work;
 	struct plane_state *pstate;
@@ -590,22 +570,12 @@ static void timer_flip_handler(struct work_struct *work)
 	bool bHasUpdatedFlip[MAX_PIPE_NUM] = { false };
 	bool bHasDisplayedFlip[MAX_PIPE_NUM] = { false };
 	bool bHasPendingCommand[MAX_PIPE_NUM] = { false };
-	struct timeval now;
-	int msec = 0;;
 
 	if (!gpsDevice)
 		return;
 
 	/* acquire flip queue mutex */
 	mutex_lock(&gpsDevice->sFlipQueueLock);
-
-	do_gettimeofday(&now);
-	msec = now.tv_sec*1000 + now.tv_usec/1000 - gpsDevice->timestamp;
-	if (msec < LAST_FLIP_DELAY) {
-		DRM_INFO("flip timer don`t trigger\n");
-		mutex_unlock(&gpsDevice->sFlipQueueLock);
-		return;
-	}
 
 	/* check flip queue state */
 	for (iPipe=DC_PIPE_A; iPipe<=DC_PIPE_B; iPipe++) {
@@ -636,9 +606,6 @@ static void timer_flip_handler(struct work_struct *work)
 		if ((bHasUpdatedFlip[iPipe]) ||
 		    (bHasDisplayedFlip[iPipe] && bHasPendingCommand[iPipe]))
 			free_flip_states_on_pipe(gpsDevice->psDrmDevice, iPipe);
-
-		if (bHasUpdatedFlip[iPipe])
-			psb_enable_esd(gpsDevice->psDrmDevice, iPipe);
 
 		if (list_empty_careful(psFlipQueue))
 			INIT_LIST_HEAD(&gpsDevice->sFlipQueues[iPipe]);
@@ -678,9 +645,7 @@ static int get_maxfifo_s0i1_mode(DC_MRFLD_FLIP *psFlip)
 {
 	bool overlay_a_only;
 	bool primary_a_only;
-	bool has_cursor;
 	int mode = -1;
-	unsigned char mode_select = NONE_MAXFIFO;
 
 	if (need_exit_maxfifo_mode(psFlip))
 		return -1;
@@ -688,30 +653,15 @@ static int get_maxfifo_s0i1_mode(DC_MRFLD_FLIP *psFlip)
 	/* get maxfifo entry mode for different flip combinations */
 	primary_a_only = (psFlip->uiPrimaryFlip == 1);
 	overlay_a_only = (psFlip->uiOverlayFlip == 1);
-	has_cursor = (psFlip->uiCursorFlip > 0);
 
-	mode_select = ( primary_a_only << PRIMARY_BIT )
-		      | ( overlay_a_only << OVERLARY_BIT )
-		      | ( has_cursor << CURSOR_BIT );
-
-	switch( mode_select ){
-	case PRIMARY_ONLY:
-		mode = 0x00;
-		break;
-	case PRIMARY_OVERLARY:
-	case PRIMARY_CURSOR:
-	case OVERLARY_CURSOR:
-		mode = 0x01;
-		break;
-	case OVERLANY_ONLY:
+	if (primary_a_only && !overlay_a_only)
+		mode = 0x0;
+	else if (primary_a_only && overlay_a_only)
+		mode = 0x1;
+	else if (!primary_a_only && overlay_a_only)
 		mode = 0x02;
-		break;
-	default:
-		mode = -1;
-		break;
-	}
 
-	PSB_DEBUG_MAXFIFO("can enter maxfifo mode_select:%d mode: %d\n", mode_select, mode);
+	PSB_DEBUG_MAXFIFO("can enter maxfifo mode: %d\n", mode);
 	return mode;
 }
 
@@ -724,7 +674,6 @@ static IMG_BOOL _Do_Flip(DC_MRFLD_FLIP *psFlip, int iPipe)
 	IMG_BOOL bUpdated;
 	int maxfifo_state;
 	unsigned long flags;
-	struct timeval now;
 
 	if (!gpsDevice || !psFlip) {
 		DRM_ERROR("%s: Invalid Flip\n", __func__);
@@ -833,8 +782,6 @@ static IMG_BOOL _Do_Flip(DC_MRFLD_FLIP *psFlip, int iPipe)
 	disable_unused_planes(iPipe);
 
 	psFlip->eFlipStates[iPipe] = DC_MRFLD_FLIP_DC_UPDATED;
-	do_gettimeofday(&now);
-	gpsDevice->timestamp = now.tv_sec*1000 + now.tv_usec/1000;
 	psFlip->uiVblankCounters[iPipe] =
 			drm_vblank_count(gpsDevice->psDrmDevice, iPipe);
 
@@ -988,7 +935,6 @@ static void _Dispatch_Flip(DC_MRFLD_FLIP *psFlip)
 			case DC_CURSOR_PLANE:
 				index = psSurfCustom->ctx.cs_ctx.index;
 				pipe = psSurfCustom->ctx.cs_ctx.pipe;
-				psFlip->uiCursorFlip |= 1 << index;
 				break;
 			default:
 				DRM_ERROR("Unknown plane type %d\n",

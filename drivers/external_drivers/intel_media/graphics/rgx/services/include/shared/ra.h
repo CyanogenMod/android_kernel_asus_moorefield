@@ -73,6 +73,10 @@ typedef IMG_UINT64 RA_BASE_T;
 typedef IMG_UINT32 RA_LOG2QUANTUM_T;
 typedef IMG_UINT64 RA_LENGTH_T;
 
+#define RA_BASE_FMTSPEC "0x%010llx"
+#define RA_ALIGN_FMTSPEC "0x%llx"
+#define RA_LENGTH_FMTSPEC "0x%llx"
+
 /* Lock classes: describes the level of nesting between different arenas. */
 #define RA_LOCKCLASS_0 0
 #define RA_LOCKCLASS_1 1
@@ -104,7 +108,6 @@ typedef struct _RA_SEGMENT_DETAILS_ RA_SEGMENT_DETAILS;
  *  @Input alloc - a resource allocation callback or 0.
  *  @Input free - a resource de-allocation callback or 0.
  *  @Input per_arena_handle - user private handle passed to alloc and free or 0.
- *  @Input bNoSplit - Disable splitting up imports.
  *  @Return pointer to arena, or IMG_NULL.
  */
 RA_ARENA *
@@ -121,8 +124,7 @@ RA_Create (IMG_CHAR *name,
            IMG_VOID (*imp_free) (RA_PERARENA_HANDLE,
                                  RA_BASE_T,
                                  RA_PERISPAN_HANDLE),
-           RA_PERARENA_HANDLE per_arena_handle,
-		   IMG_BOOL bNoSplit);
+           RA_PERARENA_HANDLE per_arena_handle);
 
 /**
  *  @Function   RA_Delete

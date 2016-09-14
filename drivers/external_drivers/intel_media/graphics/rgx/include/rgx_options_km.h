@@ -101,79 +101,90 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif /* SUPPORT_MMU_FREELIST */
 
 
-#if defined(SUPPORT_RGX) || defined (INTERNAL_TEST)
-	#define SUPPORT_RGX_SET_OFFSET	OPTIONS_BIT4
+#if defined(SUPPORT_PMMIF) || defined (INTERNAL_TEST)
+	#define SUPPORT_PMMIF_SET_OFFSET	OPTIONS_BIT4
 	#define OPTIONS_BIT4		(0x1ul << 4)
 	#if OPTIONS_BIT4 > RGX_BUILD_OPTIONS_MASK_KM
 	#error "Bit exceeds reserved range"
 	#endif
 #else
 	#define OPTIONS_BIT4		0x0
-#endif /* SUPPORT_RGX */
+#endif /* SUPPORT_PMMIF */
 
 
-#if defined(SUPPORT_SECURE_EXPORT) || defined (INTERNAL_TEST)
-	#define SUPPORT_SECURE_EXPORT_SET_OFFSET	OPTIONS_BIT5
+#if defined(SUPPORT_RGX) || defined (INTERNAL_TEST)
+	#define SUPPORT_RGX_SET_OFFSET	OPTIONS_BIT5
 	#define OPTIONS_BIT5		(0x1ul << 5)
 	#if OPTIONS_BIT5 > RGX_BUILD_OPTIONS_MASK_KM
 	#error "Bit exceeds reserved range"
 	#endif
 #else
 	#define OPTIONS_BIT5		0x0
-#endif /* SUPPORT_SECURE_EXPORT */
+#endif /* SUPPORT_RGX */
 
 
-#if defined(SUPPORT_INSECURE_EXPORT) || defined (INTERNAL_TEST)
-	#define SUPPORT_INSECURE_EXPORT_SET_OFFSET	OPTIONS_BIT6
+#if defined(SUPPORT_SECURE_EXPORT) || defined (INTERNAL_TEST)
+	#define SUPPORT_SECURE_EXPORT_SET_OFFSET	OPTIONS_BIT6
 	#define OPTIONS_BIT6		(0x1ul << 6)
 	#if OPTIONS_BIT6 > RGX_BUILD_OPTIONS_MASK_KM
 	#error "Bit exceeds reserved range"
 	#endif
 #else
-	#define OPTIONS_BIT6	0x0
-#endif /* SUPPORT_INSECURE_EXPORT */
+	#define OPTIONS_BIT6		0x0
+#endif /* SUPPORT_SECURE_EXPORT */
 
 
-#if defined(SUPPORT_VFP) || defined (INTERNAL_TEST)
-	#define SUPPORT_VFP_SET_OFFSET	OPTIONS_BIT7
+#if defined(SUPPORT_INSECURE_EXPORT) || defined (INTERNAL_TEST)
+	#define SUPPORT_INSECURE_EXPORT_SET_OFFSET	OPTIONS_BIT7
 	#define OPTIONS_BIT7		(0x1ul << 7)
 	#if OPTIONS_BIT7 > RGX_BUILD_OPTIONS_MASK_KM
 	#error "Bit exceeds reserved range"
 	#endif
 #else
 	#define OPTIONS_BIT7		0x0
-#endif /* SUPPORT_VFP */
+#endif /* SUPPORT_INSECURE_EXPORT */
 
 
-#if defined(SUPPORT_DRM) || defined (INTERNAL_TEST)
-	#define SUPPORT_DRM_SET_OFFSET	OPTIONS_BIT8
+#if defined(SUPPORT_VFP) || defined (INTERNAL_TEST)
+	#define SUPPORT_VFP_SET_OFFSET	OPTIONS_BIT8
 	#define OPTIONS_BIT8		(0x1ul << 8)
 	#if OPTIONS_BIT8 > RGX_BUILD_OPTIONS_MASK_KM
 	#error "Bit exceeds reserved range"
 	#endif
 #else
 	#define OPTIONS_BIT8		0x0
-#endif /* SUPPORT_DRM */
+#endif /* SUPPORT_VFP */
 
 
-#if defined(SUPPORT_ION) || defined (INTERNAL_TEST)
-	#define SUPPORT_ION_SET_OFFSET	OPTIONS_BIT9
+#if defined(SUPPORT_DRM) || defined (INTERNAL_TEST)
+	#define SUPPORT_DRM_SET_OFFSET	OPTIONS_BIT9
 	#define OPTIONS_BIT9		(0x1ul << 9)
 	#if OPTIONS_BIT9 > RGX_BUILD_OPTIONS_MASK_KM
 	#error "Bit exceeds reserved range"
 	#endif
 #else
 	#define OPTIONS_BIT9		0x0
-#endif /* SUPPORT_ION */
+#endif /* SUPPORT_DRM */
 
-#if defined(DEBUG) || defined (INTERNAL_TEST)
-	#define DEBUG_SET_OFFSET	OPTIONS_BIT10
+
+#if defined(SUPPORT_ION) || defined (INTERNAL_TEST)
+	#define SUPPORT_ION_SET_OFFSET	OPTIONS_BIT10
 	#define OPTIONS_BIT10		(0x1ul << 10)
 	#if OPTIONS_BIT10 > RGX_BUILD_OPTIONS_MASK_KM
 	#error "Bit exceeds reserved range"
 	#endif
 #else
 	#define OPTIONS_BIT10		0x0
+#endif /* SUPPORT_ION */
+
+#if defined(DEBUG) || defined (INTERNAL_TEST)
+	#define DEBUG_SET_OFFSET	OPTIONS_BIT11
+	#define OPTIONS_BIT11		(0x1ul << 11)
+	#if OPTIONS_BIT11 > RGX_BUILD_OPTIONS_MASK_KM
+	#error "Bit exceeds reserved range"
+	#endif
+#else
+	#define OPTIONS_BIT11		0x0
 #endif /* DEBUG */
 
 
@@ -187,6 +198,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	OPTIONS_BIT7  |\
 	OPTIONS_BIT8  |\
 	OPTIONS_BIT9  |\
-	OPTIONS_BIT10
+	OPTIONS_BIT10 |\
+	OPTIONS_BIT11
 
 

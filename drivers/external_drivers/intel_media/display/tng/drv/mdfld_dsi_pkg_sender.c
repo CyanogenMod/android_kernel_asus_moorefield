@@ -121,11 +121,6 @@ static inline int wait_for_gen_fifo_empty(struct mdfld_dsi_pkg_sender *sender,
 	u32 gen_fifo_stat_reg = sender->mipi_gen_fifo_stat_reg;
 	int retry = 10000;
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1)
-		return 0;
-#endif
-
 	if (sender->work_for_slave_panel)
 		gen_fifo_stat_reg += MIPIC_REG_OFFSET;
 	while (retry--) {
@@ -318,11 +313,6 @@ static inline int dbi_cmd_sent(struct mdfld_dsi_pkg_sender *sender)
 	u32 dbi_cmd_addr_reg = sender->mipi_cmd_addr_reg;
 	int ret = 0;
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1)
-		return 0;
-#endif
-
 	/*query the command execution status*/
 	while (retry--) {
 		if (!(REG_READ(dbi_cmd_addr_reg) & BIT0))
@@ -353,11 +343,6 @@ static int send_dcs_pkg(struct mdfld_dsi_pkg_sender *sender,
 	u8 *cb = (u8 *)sender->dbi_cb_addr;
 	int i;
 	int ret;
-
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1)
-		return 0;
-#endif
 
 	if (!sender->dbi_pkg_support) {
 		DRM_ERROR("Trying to send DCS on a non DBI output, abort!\n");
@@ -401,11 +386,6 @@ static int __send_short_pkg(struct mdfld_dsi_pkg_sender *sender,
 	u32 lp_gen_ctrl_reg = sender->mipi_lp_gen_ctrl_reg;
 	u32 gen_ctrl_val = 0;
 	struct mdfld_dsi_gen_short_pkg *short_pkg = &pkg->pkg.short_pkg;
-
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1)
-		return 0;
-#endif
 
 	if (sender->work_for_slave_panel) {
 		hs_gen_ctrl_reg += MIPIC_REG_OFFSET;
@@ -452,12 +432,6 @@ static int __send_long_pkg(struct mdfld_dsi_pkg_sender *sender,
 	int i;
 	int dword_count = 0, remain_byte_count = 0;
 	struct mdfld_dsi_gen_long_pkg *long_pkg = &pkg->pkg.long_pkg;
-
-
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1)
-		return 0;
-#endif
 
 	dp = long_pkg->data;
 	if (sender->work_for_slave_panel) {
@@ -585,11 +559,6 @@ static int send_dpi_spk_pkg(struct mdfld_dsi_pkg_sender *sender,
 	u32 dpi_control_current_setting = 0;
 	struct mdfld_dsi_dpi_spk_pkg *spk_pkg = &pkg->pkg.spk_pkg;
 	int retry = 10000;
-
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1)
-		return 0;
-#endif
 
 	dpi_control_val = spk_pkg->cmd;
 
@@ -1079,13 +1048,6 @@ static int __read_panel_data(struct mdfld_dsi_pkg_sender *sender,
 	u8 transmission = pkg->transmission_type;
 	int dword_count = 0, remain_byte_count = 0;
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1) {
-		memset(data, 0, len);
-		return 0;
-	}
-#endif
-
 	/*Check the len. Max value is 0x40
 	based on the generic read FIFO size*/
 	if (len * sizeof(*data) > 0x40) {
@@ -1335,11 +1297,6 @@ int mdfld_dsi_check_fifo_empty(struct mdfld_dsi_pkg_sender *sender)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1)
-		return BIT27;
-#endif
-
 	dev = sender->dev;
 
 	if (!sender->dbi_pkg_support) {
@@ -1371,11 +1328,6 @@ int mdfld_dsi_send_dcs(struct mdfld_dsi_pkg_sender *sender,
 		DRM_ERROR("Invalid parameter\n");
 		return -EINVAL;
 	}
-
-#ifdef CONFIG_SUPPORT_HDMI_NO_DISPLAY
-	if (sender->pipe != 1)
-		return 0;
-#endif
 
 	cb_phy = sender->dbi_cb_phy;
 	dev = sender->dev;

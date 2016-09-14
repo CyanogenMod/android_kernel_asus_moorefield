@@ -51,8 +51,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_error.h"
 #include "services.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-#if defined(__KERNEL__) && defined(ANDROID) && !defined(__GENKSYMS__)
+#if defined(KERNEL) && defined(ANDROID)
 #define __pvrsrv_defined_struct_enum__
 #include <services_kernel_client.h>
 #endif
@@ -106,7 +109,6 @@ typedef PVRSRV_ERROR (*PFN_PDUMP_TRANSITION)(IMG_PVOID *pvData, IMG_BOOL bInto, 
 									const IMG_CHAR **ppszZeroPageFilename);
 
 	IMG_VOID PDumpConnectionNotify(IMG_VOID);
-	void PDumpDisconnectionNotify(void);
 
 	PVRSRV_ERROR PDumpStartInitPhaseKM(IMG_VOID);
 	PVRSRV_ERROR PDumpStopInitPhaseKM(IMG_MODULE_ID eModuleID);
@@ -262,10 +264,24 @@ typedef PVRSRV_ERROR (*PFN_PDUMP_TRANSITION)(IMG_PVOID *pvData, IMG_BOOL bInto, 
 	PVRSRV_ERROR PDumpElseKM(IMG_CHAR	*pszPDumpCond);
 	PVRSRV_ERROR PDumpFiKM(IMG_CHAR		*pszPDumpCond);
 
-	IMG_VOID PDumpPowerTransitionStart(IMG_VOID);
-	IMG_VOID PDumpPowerTransitionEnd(IMG_VOID);
-	IMG_BOOL PDumpInPowerTransition(IMG_VOID);
-	IMG_BOOL PDumpIsDumpSuspended(IMG_VOID);
+	IMG_VOID   PDumpCtrlInit(IMG_UINT32 ui32InitCapMode);
+	IMG_VOID   PDumpCtrlSetDefaultCaptureParams(IMG_UINT32 ui32Mode, IMG_UINT32 ui32Start, IMG_UINT32 ui32End, IMG_UINT32 ui32Interval);
+	IMG_BOOL   PDumpCtrlCapModIsFramed(IMG_VOID);
+	IMG_BOOL   PDumpCtrlCapModIsContinuous(IMG_VOID);
+	IMG_UINT32 PDumpCtrlGetCurrentFrame(IMG_VOID);
+	IMG_VOID   PDumpCtrlSetCurrentFrame(IMG_UINT32 ui32Frame);
+	IMG_BOOL   PDumpCtrlCaptureOn(IMG_VOID);
+	IMG_BOOL   PDumpCtrlCaptureRangePast(IMG_VOID);
+	IMG_BOOL   PDumpCtrlCaptureRangeUnset(IMG_VOID);
+	IMG_BOOL   PDumpCtrIsLastCaptureFrame(IMG_VOID);
+	IMG_BOOL   PDumpCtrlInitPhaseComplete(IMG_VOID);
+	IMG_VOID   PDumpCtrlSetInitPhaseComplete(IMG_BOOL bIsComplete);
+	IMG_VOID   PDumpCtrlSuspend(IMG_VOID);
+	IMG_VOID   PDumpCtrlResume(IMG_VOID);
+	IMG_BOOL   PDumpCtrlIsDumpSuspended(IMG_VOID);
+	IMG_VOID   PDumpCtrlPowerTransitionStart(IMG_VOID);
+	IMG_VOID   PDumpCtrlPowerTransitionEnd(IMG_VOID);
+	IMG_BOOL   PDumpCtrlInPowerTransition(IMG_VOID);
 
 	/*!
 	 * @name	PDumpWriteParameter
@@ -376,9 +392,9 @@ extern PVRSRV_ERROR PDumpTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionData
 	#define PDUMPENDINITPHASE		PDumpStopInitPhaseKM
 	#define PDUMPIDLWITHFLAGS		PDumpIDLWithFlags
 	#define PDUMPIDL				PDumpIDL
-	#define PDUMPPOWCMDSTART		PDumpPowerTransitionStart
-	#define PDUMPPOWCMDEND			PDumpPowerTransitionEnd
-	#define PDUMPPOWCMDINTRANS		PDumpInPowerTransition
+	#define PDUMPPOWCMDSTART		PDumpCtrlPowerTransitionStart
+	#define PDUMPPOWCMDEND			PDumpCtrlPowerTransitionEnd
+	#define PDUMPPOWCMDINTRANS		PDumpCtrlInPowerTransition
 	#define PDUMPIF					PDumpIfKM
 	#define PDUMPELSE				PDumpElseKM
 	#define PDUMPFI					PDumpFiKM
@@ -407,14 +423,6 @@ PDumpConnectionNotify(IMG_VOID)
 	return;
 }
 
-#ifdef INLINE_IS_PRAGMA
-#pragma inline(PDumpDisconnectionNotify)
-#endif
-static INLINE void
-PDumpDisconnectionNotify(void)
-{
-	return;
-}
 
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(PDumpCreateLockKM)
@@ -658,7 +666,7 @@ PVRSRV_ERROR PDumpTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionData, IMG_B
 	return PVRSRV_OK;
 }
 
-	#if defined WIN32
+	#if defined WIN32 || defined UNDER_WDDM
 		#define PDUMPINIT			PDumpInitCommon
 		#define PDUMPDEINIT(...)		/ ## * PDUMPDEINIT(__VA_ARGS__) * ## /
 		#define PDUMPREG32(...)			/ ## * PDUMPREG32(__VA_ARGS__) * ## /
@@ -723,6 +731,9 @@ PVRSRV_ERROR PDumpTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionData, IMG_B
 	#endif
 #endif
 
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* _PDUMP_KM_H_ */
 

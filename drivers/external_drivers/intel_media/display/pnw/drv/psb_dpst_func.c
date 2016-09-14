@@ -66,6 +66,11 @@ static struct drm_device *g_dev;   /* hack for the queue */
 static int blc_adj2;
 static u32 lut_adj[256];
 
+#ifdef CONFIG_A500CG
+int init_done = 0;
+static int current_level = -1;
+#endif
+
 void dpst_disable_post_process(struct drm_device *dev);
 
 int send_hist(void)
@@ -84,6 +89,31 @@ int send_hist(void)
 
 	return 0;
 }
+
+#ifdef CONFIG_A500CG
+   /*
+    * Implement the workaround for DIET when HDMI plugin.
+    * If HDMI not plugin then enable the DIET for dpst ,others disable the dpst
+    */
+void disable_diet(int disable)
+{
+	if(init_done) {
+		if(disable){ //HDMI plug in
+			if(dpst_level > 0)
+				current_level = dpst_level;
+			dpst_level = 0;
+			psb_irq_disable_dpst(g_dev);
+		}else {
+			if(current_level != -1) {
+			dpst_level = current_level; //restore the level last time
+				current_level = -1;
+			}
+			psb_irq_enable_dpst(g_dev);
+		}
+                psb_diet_enable(g_dev, 0);
+	}
+}
+#endif
 
 /* IOCTL - moved to standard calls for Kernel Integration */
 
@@ -605,6 +635,9 @@ void dpst_execute_recv_command(struct dispmgr_command_hdr *cmd_hdr)
 				uint32_t enable = value;
 				psb_init_comm(g_dev, &enable);
 			}
+#ifdef CONFIG_A500CG
+			init_done = 1;
+#endif
 		}
 		break;
 	case DISPMGR_DPST_UPDATE_GUARD:
@@ -671,8 +704,10 @@ int dpst_init(struct drm_device *dev, int level)
 {
 	g_dev = dev;
 	/* hack for now - the work queue does not have the device */
-
-	dpst_level = level;
+#ifdef CONFIG_A500CG
+	if (dpst_level < 1 || dpst_level > 5)
+#endif
+		dpst_level = level;
 
 	dpst_save_bl_adj_factor(dev);
 	dpst_save_gamma_settings(dev);

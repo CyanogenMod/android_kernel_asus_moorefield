@@ -60,6 +60,6 @@ extern struct mdfld_dsi_config *panel_reset_dsi_config;
 extern struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 				struct mdfld_dsi_connector *dsi_connector,
 				struct panel_funcs *p_funcs);
-extern void mdfld_reset_dpi_panel(struct drm_psb_private *dev_priv);
+extern void mdfld_reset_dpi_panel_handler_work(struct work_struct *work);
 
 #endif /*__MDFLD_DSI_DPI_H__*/

@@ -44,10 +44,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __DEVICE_H__
 #define __DEVICE_H__
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #include "devicemem_heapcfg.h"
 #include "mmu_common.h"	
 #include "ra.h"  		/* RA_ARENA */
+#include "resman.h"		/* PRESMAN_ITEM */
 #include "pvrsrv_device.h"
 #include "srvkm.h"
 #include "devicemem.h"
@@ -57,10 +61,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "cache_external.h"
 
 #include "lock.h"
-
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-#include "services.h"
-#endif
 
 /* BM context forward reference */
 typedef struct _BM_CONTEXT_ BM_CONTEXT;
@@ -142,22 +142,14 @@ typedef enum _PVRSRV_DEVICE_STATE_
 	PVRSRV_DEVICE_STATE_DEINIT,
 } PVRSRV_DEVICE_STATE;
 
-typedef enum _PVRSRV_DEVICE_HEALTH_STATUS_
+typedef enum _PVRSRV_DEVICE_HEALTH_
 {
 	PVRSRV_DEVICE_HEALTH_STATUS_OK = 0,
 	PVRSRV_DEVICE_HEALTH_STATUS_NOT_RESPONDING,
 	PVRSRV_DEVICE_HEALTH_STATUS_DEAD
 } PVRSRV_DEVICE_HEALTH_STATUS;
 
-typedef enum _PVRSRV_DEVICE_HEALTH_REASON_
-{
-	PVRSRV_DEVICE_HEALTH_REASON_NONE = 0,
-	PVRSRV_DEVICE_HEALTH_REASON_ASSERTED,
-	PVRSRV_DEVICE_HEALTH_REASON_POLL_FAILING,
-	PVRSRV_DEVICE_HEALTH_REASON_TIMEOUTS,
-	PVRSRV_DEVICE_HEALTH_REASON_QUEUE_CORRUPT,
-	PVRSRV_DEVICE_HEALTH_REASON_QUEUE_STALLED
-} PVRSRV_DEVICE_HEALTH_REASON;
+#define PRVSRV_DEVICE_FLAGS_LMA		(1 << 0)
 
 typedef PVRSRV_ERROR (*FN_CREATERAMBACKEDPMR)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
 										IMG_DEVMEM_SIZE_T uiSize,
@@ -171,10 +163,10 @@ typedef PVRSRV_ERROR (*FN_CREATERAMBACKEDPMR)(struct _PVRSRV_DEVICE_NODE_ *psDev
 typedef struct _PVRSRV_DEVICE_NODE_
 {
 	PVRSRV_DEVICE_IDENTIFIER	sDevId;
+	IMG_UINT32					ui32RefCount;
 
 	PVRSRV_DEVICE_STATE			eDevState;
 	PVRSRV_DEVICE_HEALTH_STATUS eHealthStatus;
-	PVRSRV_DEVICE_HEALTH_REASON eHealthReason;
 
 	/* device specific MMU attributes */
     MMU_DEVICEATTRIBS      *psMMUDevAttrs;
@@ -222,24 +214,26 @@ typedef struct _PVRSRV_DEVICE_NODE_
 
 	PVRSRV_ERROR (*pfnDeviceClockSpeed)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, IMG_PUINT32 pui32RGXClockSpeed);
 
-	PVRSRV_ERROR (*pfnSoftReset)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, IMG_UINT64 ui64ResetValue1, IMG_UINT64 ui64ResetValue2);
+	PVRSRV_ERROR (*pfnSoftReset)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, IMG_UINT64 ui64ResetValue);
 
 	PVRSRV_DEVICE_CONFIG	*psDevConfig;
 
 	/* device post-finalise compatibility check */
 	PVRSRV_ERROR			(*pfnInitDeviceCompatCheck) (struct _PVRSRV_DEVICE_NODE_*,IMG_UINT32 ui32ClientBuildOptions);
 
+	/* Flag indicating that command complete callback needs to be reprocessed */
+	IMG_BOOL				bReProcessDeviceCommandComplete;
+	
 	/* information about the device's address space and heaps */
 	DEVICE_MEMORY_INFO		sDevMemoryInfo;
 
 	/* private device information */
 	IMG_VOID				*pvDevice;
+	IMG_UINT32				ui32pvDeviceSize; /* required by GetClassDeviceInfo API */
+	
+	IMG_UINT32				ui32Flags;
 
 	IMG_CHAR				szRAName[50];
-
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-	RA_ARENA                *psOSidSubArena[GPUVIRT_VALIDATION_NUM_OS];
-#endif
 
 	RA_ARENA				*psLocalDevMemArena;
 
@@ -274,6 +268,8 @@ typedef struct _PVRSRV_DEVICE_NODE_
 
 	PVRSRV_CLIENT_SYNC_PRIM *psSyncPrim;
 
+	PVRSRV_CLIENT_SYNC_PRIM *psSyncPrimPreKick;
+
 	IMG_HANDLE				hCmdCompNotify;
 	IMG_HANDLE				hDbgReqNotify;
 
@@ -293,6 +289,9 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVFinaliseSystem(IMG_BOOL bInitSuccesful,
 PVRSRV_ERROR IMG_CALLCONV PVRSRVDevInitCompatCheck(PVRSRV_DEVICE_NODE *psDeviceNode,
 														IMG_UINT32 ui32ClientBuildOptions);
 
+#if defined(__cplusplus)
+}
+#endif
 	
 #endif /* __DEVICE_H__ */
 

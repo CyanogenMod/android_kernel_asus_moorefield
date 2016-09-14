@@ -64,14 +64,15 @@ PVRSRV_ERROR RGXRunScript(PVRSRV_RGXDEV_INFO	*psDevInfo,
 						 DUMPDEBUG_PRINTF_FUNC  *pfnDumpDebugPrintf)
 {
 	IMG_UINT32 ui32PC;
+	RGX_INIT_COMMAND *psComm;
 #if !defined(NO_HARDWARE)
 	IMG_UINT32 ui32LastLoopPoint = 0xFFFFFFFF;
 #endif /* NO_HARDWARE */
 
-	for (ui32PC = 0;  ui32PC < ui32NumCommands;  ui32PC++)
+	for (ui32PC = 0, psComm = psScript;
+		ui32PC < ui32NumCommands;
+		ui32PC++, psComm++)
 	{
-		RGX_INIT_COMMAND *psComm = &psScript[ui32PC];
-
 		switch (psComm->eOp)
 		{
 			case RGX_INIT_OP_DBG_READ32_HW_REG:

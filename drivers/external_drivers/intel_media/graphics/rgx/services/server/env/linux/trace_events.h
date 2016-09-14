@@ -49,23 +49,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * defines for us.
  */
 #ifdef CONFIG_EVENT_TRACING
-void trace_rogue_fence_updates(const char *cmd, const char *dm,
-							   IMG_UINT32 ui32FWContext,
+void trace_rogue_fence_updates(const char *dm, IMG_UINT32 ui32FWContext,
 							   IMG_UINT32 ui32Offset,
 							   IMG_UINT uCount,
 							   PRGXFWIF_UFO_ADDR *pauiAddresses,
 							   IMG_UINT32 *paui32Values);
 
-void trace_rogue_fence_checks(const char *cmd, const char *dm,
-							  IMG_UINT32 ui32FWContext,
+void trace_rogue_fence_checks(const char *dm, IMG_UINT32 ui32FWContext,
 							  IMG_UINT32 ui32Offset,
 							  IMG_UINT uCount,
 							  PRGXFWIF_UFO_ADDR *pauiAddresses,
 							  IMG_UINT32 *paui32Values);
 #else  /* CONFIG_TRACE_EVENTS */
 static inline
-void trace_rogue_fence_updates(const char *cmd, const char *dm,
-							   IMG_UINT32 ui32FWContext,
+void trace_rogue_fence_updates(const char *dm, IMG_UINT32 ui32FWContext,
 							   IMG_UINT32 ui32Offset,
 							   IMG_UINT uCount,
 							   PRGXFWIF_UFO_ADDR *pauiAddresses,
@@ -74,8 +71,7 @@ void trace_rogue_fence_updates(const char *cmd, const char *dm,
 }
 
 static inline
-void trace_rogue_fence_checks(const char *cmd, const char *dm,
-							  IMG_UINT32 ui32FWContext,
+void trace_rogue_fence_checks(const char *dm, IMG_UINT32 ui32FWContext,
 							  IMG_UINT32 ui32Offset,
 							  IMG_UINT uCount,
 							  PRGXFWIF_UFO_ADDR *pauiAddresses,

@@ -45,32 +45,31 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef COMMON_CACHEGENERIC_BRIDGE_H
 #define COMMON_CACHEGENERIC_BRIDGE_H
 
-#include "img_types.h"
-#include "pvrsrv_error.h"
-
 #include "cache_external.h"
 
 
-#define PVRSRV_BRIDGE_CACHEGENERIC_CMD_FIRST			0
-#define PVRSRV_BRIDGE_CACHEGENERIC_CACHEOPQUEUE			PVRSRV_BRIDGE_CACHEGENERIC_CMD_FIRST+0
+#include "pvr_bridge_io.h"
+
+#define PVRSRV_BRIDGE_CACHEGENERIC_CMD_FIRST			(PVRSRV_BRIDGE_CACHEGENERIC_START)
+#define PVRSRV_BRIDGE_CACHEGENERIC_CACHEOPQUEUE			PVRSRV_IOWR(PVRSRV_BRIDGE_CACHEGENERIC_CMD_FIRST+0)
 #define PVRSRV_BRIDGE_CACHEGENERIC_CMD_LAST			(PVRSRV_BRIDGE_CACHEGENERIC_CMD_FIRST+0)
 
 
 /*******************************************
-            CacheOpQueue          
+            CacheOpQueue
  *******************************************/
 
 /* Bridge in structure for CacheOpQueue */
 typedef struct PVRSRV_BRIDGE_IN_CACHEOPQUEUE_TAG
 {
 	PVRSRV_CACHE_OP iuCacheOp;
-} __attribute__((packed)) PVRSRV_BRIDGE_IN_CACHEOPQUEUE;
+} PVRSRV_BRIDGE_IN_CACHEOPQUEUE;
 
 
 /* Bridge out structure for CacheOpQueue */
 typedef struct PVRSRV_BRIDGE_OUT_CACHEOPQUEUE_TAG
 {
 	PVRSRV_ERROR eError;
-} __attribute__((packed)) PVRSRV_BRIDGE_OUT_CACHEOPQUEUE;
+} PVRSRV_BRIDGE_OUT_CACHEOPQUEUE;
 
 #endif /* COMMON_CACHEGENERIC_BRIDGE_H */

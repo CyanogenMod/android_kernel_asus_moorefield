@@ -36,20 +36,11 @@
 #else
 #include <uapi/drm/drm.h>
 #endif
-#include "psb_drv.h"
 
-#define PSB_TTM_DMA_BIT_MASK 32
 
 struct ttm_bo_user_object {
 	struct ttm_base_object base;
 	struct ttm_buffer_object bo;
-	struct page **pages;
-	struct {
-		/* dma-buf exported from this object, NULL if not exported */
-		struct dma_buf *export;
-		/* dma-buf attachment backing this object, NULL if not dma-buf backed */
-		struct dma_buf_attachment *import;
-	} dmabuf;
 };
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0))
@@ -132,9 +123,7 @@ static void ttm_tt_free_user_pages(struct ttm_buffer_object *bo)
 	struct page *page;
 	struct page **pages = NULL;
 	int i, ret;
-	struct ttm_bo_user_object *user_bo =
-		container_of(bo, struct ttm_bo_user_object, bo);
-#if 0
+/*
 	struct page **pages_to_wb;
 
 	pages_to_wb = kmalloc(ttm->num_pages * sizeof(struct page *),
@@ -158,12 +147,17 @@ static void ttm_tt_free_user_pages(struct ttm_buffer_object *bo)
 		       "Failed to allocate memory for set wb operation.\n");
 	}
 
-#endif
-	pages = user_bo->pages;
+*/
+	pages = kzalloc(bo->num_pages * sizeof(struct page *), GFP_KERNEL);
+	if (unlikely(pages == NULL)) {
+		printk(KERN_ERR "TTM bo free: kzalloc failed\n");
+		return ;
+	}
+
 	ret = drm_prime_sg_to_page_addr_arrays(bo->sg, pages,
 						 NULL, bo->num_pages);
-	if (WARN_ON(ret)) {
-		printk(KERN_ERR "sg to pages failed\n");
+	if (ret) {
+		printk(KERN_ERR "sg to pages: kzalloc failed\n");
 		return ;
 	}
 
@@ -174,6 +168,8 @@ static void ttm_tt_free_user_pages(struct ttm_buffer_object *bo)
 
 		put_page(page);
 	}
+	/* kfree(pages_to_wb); */
+	kfree(pages);
 }
 
 /* This is used for sg_table which is derived from user-pointer */
@@ -183,27 +179,14 @@ static void ttm_ub_bo_user_destroy(struct ttm_buffer_object *bo)
 		container_of(bo, struct ttm_bo_user_object, bo);
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 3, 0))
-	if (user_bo->dmabuf.import) {
-		struct dma_buf_attachment *attachment = user_bo->dmabuf.import;
-		struct dma_buf *dmabuf = attachment->dmabuf;
-		dma_buf_unmap_attachment(attachment,
-					bo->sg, DMA_NONE);
-		dma_buf_detach(dmabuf, attachment);
-		dma_buf_put(dmabuf);
-		drm_free_large(user_bo->pages);
-		bo->sg= NULL;
-	}
-	else if (bo->sg) {
+	if (bo->sg) {
 		ttm_tt_free_user_pages(bo);
 		sg_free_table(bo->sg);
 		kfree(bo->sg);
-		drm_free_large(user_bo->pages);
 		bo->sg = NULL;
 	}
-	else
-		DRM_ERROR("invalid user_bo: neither dmabuf or userptr type\n");
-
 #endif
+
 	ttm_mem_global_free(bo->glob->mem_glob, bo->acc_size);
 	kfree(user_bo);
 }
@@ -390,16 +373,7 @@ int ttm_buffer_object_create(struct ttm_bo_device *bdev,
 }
 #endif
 
-static bool ttm_pfn_sanity_check(struct page **pages, int npages, int dma_bit_mask)
-{
-	int i;
-	for (i = 0; i < npages; ++i) {
-		unsigned long phyaddr = page_to_pfn(pages[i]) << PAGE_SHIFT;
-		if (phyaddr > DMA_BIT_MASK(dma_bit_mask))
-			return false;
-	}
-	return true;
-}
+
 int ttm_pl_create_ioctl(struct ttm_object_file *tfile,
 			struct ttm_bo_device *bdev,
 			struct ttm_lock *lock, void *data)
@@ -489,233 +463,17 @@ out_err:
 	return ret;
 }
 
-int ttm_pl_dmabuf_create_ioctl(struct ttm_object_file *tfile,
+int ttm_pl_ub_create_ioctl(struct ttm_object_file *tfile,
 			   struct ttm_bo_device *bdev,
 			   struct ttm_lock *lock, void *data)
 {
-	union ttm_pl_create_dmabuf_arg *arg = data;
-	struct ttm_pl_create_dmabuf_req *req = &arg->req;
-	struct ttm_pl_rep *rep = &arg->rep;
-	struct ttm_buffer_object *bo;
-	struct ttm_buffer_object *tmp;
-	struct ttm_bo_user_object *user_bo;
-	struct drm_psb_private *dev_priv;
-	struct dma_buf *psDmaBuf;
-	struct dma_buf_attachment *psAttachment;
-	struct page **pages;
-	int npages;
-	size_t bo_size;
-	int32_t fd = req->dmabuf_fd;
-	uint32_t flags;
-	int ret = 0;
-	bool pfn_check = true;
-	size_t acc_size;
-	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
-	struct ttm_placement placement = default_placement;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 3, 0))
-	struct sg_table *sg = NULL;
-#endif
-
-	if (req->dmabuf_fd < 0) {
-		printk(KERN_ERR "Dma-buf FD invalid: %d\n", req->dmabuf_fd);
-		return -ENOENT;
-	}
-
-	dev_priv = container_of(bdev, struct drm_psb_private, bdev);
-	if ((dev_priv == NULL) || (dev_priv->dev == NULL)) {
-		printk(KERN_ERR "failed to get dev_priv\n");
-		return -ENODEV;
-	}
-
-	flags = req->placement;
-	user_bo = kzalloc(sizeof(*user_bo), GFP_KERNEL);
-	if (unlikely(user_bo == NULL)) {
-		dev_err(dev_priv->dev->dev, "%s: Failed to allocate dmabuf_bo\n", __func__);
-		return -ENOMEM;
-	}
-
-	ret = ttm_read_lock(lock, true);
-	if (unlikely(ret != 0)) {
-		dev_err(dev_priv->dev->dev, "%s: Failed to read_lock: %d\n", __func__, ret);
-		goto out_err_kfree;
-	}
-	bo = &user_bo->bo;
-
-	placement.num_placement = 1;
-	placement.placement = &flags;
-
-	psDmaBuf = dma_buf_get(fd);
-	if (IS_ERR(psDmaBuf)) {
-		ret = PTR_ERR(psDmaBuf);
-		dev_err(dev_priv->dev->dev, "failed to get DMA_BUF from Fd: %d\n", ret);
-		ttm_read_unlock(lock);
-		goto out_err_kfree;
-	}
-	psAttachment = dma_buf_attach(psDmaBuf, dev_priv->dev->dev);
-	if (IS_ERR(psAttachment)) {
-		ret = PTR_ERR(psAttachment);
-		dev_err(dev_priv->dev->dev, "failed to get attachment from dma_buf: %d\n", ret);
-		ttm_read_unlock(lock);
-		goto out_err_put_dmabuf;
-	}
-	sg = dma_buf_map_attachment(psAttachment, DMA_NONE);
-	if (IS_ERR(sg)) {
-		ret = PTR_ERR(sg);
-		dev_err(dev_priv->dev->dev, "failed to get sg from DMA_BUF: %d\n", ret);
-		ttm_read_unlock(lock);
-		goto out_err_detach_dmabuf;
-	}
-
-	/* don't trust app privided size, use dmabuf actual size
-	 */
-	if (req->size < psDmaBuf->size) {
-		dev_warn(dev_priv->dev->dev, "%s: DMABUF actual size %zu is larger "
-			"than requested %llu, use actual size\n",
-			__func__, psDmaBuf->size, req->size);
-		bo_size = psDmaBuf->size;
-	}
-	else
-		bo_size = req->size;
-	npages = (bo_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0))
-	acc_size = ttm_pl_size(bdev, npages);
-#else
-	acc_size = ttm_bo_acc_size(bdev, bo_size,
-		sizeof(struct ttm_buffer_object));
-#endif
-	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
-	if (unlikely(ret != 0)) {
-		dev_err(dev_priv->dev->dev, "failed ttm_mem_global_alloc: %d\n", ret);
-		ttm_read_unlock(lock);
-		goto out_err_unmap_dmabuf;
-	}
-
-	pages = drm_malloc_ab(npages, sizeof(struct page*));
-	if (!pages) {
-		dev_err(dev_priv->dev->dev, "failed to malloc page pointer array\n");
-		ret = -ENOMEM;
-		ttm_read_unlock(lock);
-		goto out_err_ttm_free;
-	}
-	user_bo->pages = pages;
-
-	if (pfn_check) {
-		if (pages) {
-			ret = drm_prime_sg_to_page_addr_arrays(sg, pages, NULL, npages);
-			if (!ret) {
-				if (!ttm_pfn_sanity_check(pages, npages, PSB_TTM_DMA_BIT_MASK)) {
-					dev_warn(dev_priv->dev->dev, "%s: PFN check failed!\n", __func__);
-					ttm_read_unlock(lock);
-					goto out_free_pages;
-				}
-			}
-			else
-				dev_warn(dev_priv->dev->dev, "%s: skipped PFN check due to err\n", __func__);
-		}
-		else
-			dev_warn(dev_priv->dev->dev, "%s: skipped PFN check due to err\n", __func__);
-
-	}
-
-	user_bo->dmabuf.import = psAttachment;
-	user_bo->dmabuf.export = NULL;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0))
-	ret = ttm_bo_init(bdev,
-			  bo,
-			  bo_size,
-			  TTM_HACK_WORKAROUND_ttm_bo_type_user,
-			  &placement,
-			  req->page_alignment,
-			  req->user_address,
-			  true,
-			  NULL,
-			  acc_size,
-			  NULL,
-			  &ttm_bo_user_destroy);
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
-	ret = ttm_bo_init(bdev,
-			  bo,
-			  bo_size,
-			  ttm_bo_type_sg,
-			  &placement,
-			  req->page_alignment,
-			  req->user_address,
-			  true,
-			  NULL,
-			  acc_size,
-			  sg,
-			  &ttm_ub_bo_user_destroy);
-#else
-	ret = ttm_bo_init(bdev,
-			  bo,
-			  bo_size,
-			  ttm_bo_type_sg,
-			  &placement,
-			  req->page_alignment,
-			  true,
-			  NULL,
-			  acc_size,
-			  sg,
-			  &ttm_ub_bo_user_destroy);
-#endif
-
-	/*
-	 * Note that the ttm_buffer_object_init function
-	 * would've called the destroy function on failure!!
-	 */
-	ttm_read_unlock(lock);
-	if (unlikely(ret != 0)) {
-		goto out_free_pages;
-	}
-
-	tmp = ttm_bo_reference(bo);
-	ret = ttm_base_object_init(tfile, &user_bo->base,
-				   flags & TTM_PL_FLAG_SHARED,
-				   ttm_buffer_type,
-				   &ttm_bo_user_release,
-				   &ttm_bo_user_ref_release);
-	if (unlikely(ret != 0))
-		goto out_err_unref;
-
-	ret = ttm_bo_reserve(bo, true, false, false, 0);
-	if (unlikely(ret != 0))
-		goto out_err_unref;
-	ttm_pl_fill_rep(bo, rep);
-	ttm_bo_unreserve(bo);
-	ttm_bo_unref(&bo);
-	return 0;
-
-out_err_unref:
-	ttm_bo_unref(&tmp);
-	ttm_bo_unref(&bo);
-out_free_pages:
-	drm_free_large(pages);
-out_err_ttm_free:
-	ttm_mem_global_free(mem_glob, acc_size);
-out_err_unmap_dmabuf:
-	dma_buf_unmap_attachment(psAttachment, sg, DMA_NONE);
-out_err_detach_dmabuf:
-	dma_buf_detach(psDmaBuf, psAttachment);
-out_err_put_dmabuf:
-	dma_buf_put(psDmaBuf);
-out_err_kfree:
-	kfree(user_bo);
-	return ret;
-}
-
-int ttm_pl_userptr_create_ioctl(struct ttm_object_file *tfile,
-			   struct ttm_bo_device *bdev,
-			   struct ttm_lock *lock, void *data)
-{
-	union ttm_pl_create_userptr_arg *arg = data;
-	struct ttm_pl_create_userptr_req *req = &arg->req;
+	union ttm_pl_create_ub_arg *arg = data;
+	struct ttm_pl_create_ub_req *req = &arg->req;
 	struct ttm_pl_rep *rep = &arg->rep;
 	struct ttm_buffer_object *bo;
 	struct ttm_buffer_object *tmp;
 	struct ttm_bo_user_object *user_bo;
 	uint32_t flags;
-	bool pfn_check = true;
 	int ret = 0;
 	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
 	struct ttm_placement placement = default_placement;
@@ -747,71 +505,80 @@ int ttm_pl_userptr_create_ioctl(struct ttm_object_file *tfile,
 	flags = req->placement;
 	user_bo = kzalloc(sizeof(*user_bo), GFP_KERNEL);
 	if (unlikely(user_bo == NULL)) {
-		ret = -ENOMEM;
-		goto out_err_ttm_free;
+		ttm_mem_global_free(mem_glob, acc_size);
+		return -ENOMEM;
 	}
-	user_bo->dmabuf.import = NULL;
-	user_bo->dmabuf.export = NULL;
 	ret = ttm_read_lock(lock, true);
 	if (unlikely(ret != 0)) {
-		goto out_err_kfree_bo;
+		ttm_mem_global_free(mem_glob, acc_size);
+		kfree(user_bo);
+		return ret;
 	}
 	bo = &user_bo->bo;
 
 	placement.num_placement = 1;
 	placement.placement = &flags;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
-	num_pages = (req->size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	pages = drm_malloc_ab(num_pages, sizeof(struct page*));
-	if (unlikely(pages == NULL)) {
-		ret = -ENOMEM;
-		printk(KERN_ERR "kzalloc pages failed\n");
-		ttm_read_unlock(lock);
-		goto out_err_kfree_bo;
-	}
-	user_bo->pages = pages;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0))
 
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, req->user_address);
-	if (unlikely(vma == NULL)) {
-		printk(KERN_ERR "find_vma failed\n");
+/*  For kernel 3.0, use the desired type. */
+#define TTM_HACK_WORKAROUND_ttm_bo_type_user ttm_bo_type_user
+
+#else
+/*  TTM_HACK_WORKAROUND_ttm_bo_type_user -- Hack for porting,
+    as ttm_bo_type_user is no longer implemented.
+    This will not result in working code.
+    FIXME - to be removed. */
+
+#warning warning: ttm_bo_type_user no longer supported
+
+/*  For kernel 3.3+, use the wrong type, which will compile but not work. */
+#define TTM_HACK_WORKAROUND_ttm_bo_type_user ttm_bo_type_kernel
+
+#endif
+
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 3, 0))
+		/* Handle frame buffer allocated in user space, Convert
+		  user space virtual address into pages list */
+		num_pages = (req->size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		pages = kzalloc(num_pages * sizeof(struct page *), GFP_KERNEL);
+		if (unlikely(pages == NULL)) {
+			printk(KERN_ERR "kzalloc pages failed\n");
+			return -ENOMEM;
+		}
+
+		down_read(&current->mm->mmap_sem);
+		vma = find_vma(current->mm, req->user_address);
+		if (unlikely(vma == NULL)) {
+			up_read(&current->mm->mmap_sem);
+			kfree(pages);
+			printk(KERN_ERR "find_vma failed\n");
+			return -EFAULT;
+		}
+		before_flags = vma->vm_flags;
+		if (vma->vm_flags & (VM_IO | VM_PFNMAP))
+			vma->vm_flags = vma->vm_flags & ((~VM_IO) & (~VM_PFNMAP));
+		page_nr = get_user_pages(current, current->mm,
+					 req->user_address,
+					 (int)(num_pages), 1, 0, pages,
+					 NULL);
+		vma->vm_flags = before_flags;
 		up_read(&current->mm->mmap_sem);
-		drm_free_large(pages);
-		ttm_read_unlock(lock);
-		goto out_err_kfree_bo;
-	}
-	before_flags = vma->vm_flags;
-	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
-		vma->vm_flags = vma->vm_flags & ((~VM_IO) & (~VM_PFNMAP));
-	page_nr = get_user_pages(current, current->mm,
-				 req->user_address,
-				 (int)(num_pages), 1, 0, pages,
-				 NULL);
-	vma->vm_flags = before_flags;
-	up_read(&current->mm->mmap_sem);
 
-	/* can be written by caller, not forced */
-	if (unlikely(page_nr < num_pages)) {
-		printk(KERN_ERR "get_user_pages err.\n");
-		drm_free_large(pages);
-		ttm_read_unlock(lock);
-		goto out_err_kfree_bo;
-	}
-	sg = drm_prime_pages_to_sg(pages, num_pages);
-	if (IS_ERR(sg)) {
-		printk(KERN_ERR "drm_prime_pages_to_sg err.\n");
-		drm_free_large(pages);
-		ttm_read_unlock(lock);
-		goto out_err_kfree_bo;
-	}
-
-	if (pfn_check && !ttm_pfn_sanity_check(pages, num_pages, PSB_TTM_DMA_BIT_MASK)) {
-		printk(KERN_ERR "PFN check failed!\n");
-		ttm_read_unlock(lock);
-		drm_free_large(pages);
-		goto out_err_kfree_bo;
-	}
+		/* can be written by caller, not forced */
+		if (unlikely(page_nr < num_pages)) {
+			kfree(pages);
+			pages = 0;
+			printk(KERN_ERR "get_user_pages err.\n");
+			return -ENOMEM;
+		}
+		sg = drm_prime_pages_to_sg(pages, num_pages);
+		if (unlikely(sg == NULL)) {
+			kfree(pages);
+			printk(KERN_ERR "drm_prime_pages_to_sg err.\n");
+			return -ENOMEM;
+		}
+		kfree(pages);
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0))
@@ -860,7 +627,7 @@ int ttm_pl_userptr_create_ioctl(struct ttm_object_file *tfile,
 	 */
 	ttm_read_unlock(lock);
 	if (unlikely(ret != 0))
-		goto out_err_kfree_bo;
+		goto out;
 
 	tmp = ttm_bo_reference(bo);
 	ret = ttm_base_object_init(tfile, &user_bo->base,
@@ -869,22 +636,19 @@ int ttm_pl_userptr_create_ioctl(struct ttm_object_file *tfile,
 				   &ttm_bo_user_release,
 				   &ttm_bo_user_ref_release);
 	if (unlikely(ret != 0))
-		goto out_err_unref;
+		goto out_err;
 
 	ret = ttm_bo_reserve(bo, true, false, false, 0);
 	if (unlikely(ret != 0))
-		goto out_err_unref;
+		goto out_err;
 	ttm_pl_fill_rep(bo, rep);
 	ttm_bo_unreserve(bo);
 	ttm_bo_unref(&bo);
+out:
 	return 0;
-out_err_unref:
+out_err:
 	ttm_bo_unref(&tmp);
 	ttm_bo_unref(&bo);
-out_err_kfree_bo:
-	kfree(user_bo);
-out_err_ttm_free:
-	ttm_mem_global_free(mem_glob, acc_size);
 	return ret;
 }
 

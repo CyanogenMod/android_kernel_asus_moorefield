@@ -50,12 +50,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct _PHYS_HEAP_ PHYS_HEAP;
 
 typedef IMG_VOID (*CpuPAddrToDevPAddr)(IMG_HANDLE hPrivData,
-									   IMG_UINT32 ui32NumOfAddr,
 									   IMG_DEV_PHYADDR *psDevPAddr,
 									   IMG_CPU_PHYADDR *psCpuPAddr);
 
 typedef IMG_VOID (*DevPAddrToCpuPAddr)(IMG_HANDLE hPrivData,
-									   IMG_UINT32 ui32NumOfAddr,
 									   IMG_CPU_PHYADDR *psCpuPAddr,
 									   IMG_DEV_PHYADDR *psDevPAddr);
 
@@ -108,11 +106,9 @@ PVRSRV_ERROR PhysHeapGetSize(PHYS_HEAP *psPhysHeap,
 						     IMG_UINT64 *puiSize);
 
 IMG_VOID PhysHeapCpuPAddrToDevPAddr(PHYS_HEAP *psPhysHeap,
-									IMG_UINT32 ui32NumOfAddr,
 									IMG_DEV_PHYADDR *psDevPAddr,
 									IMG_CPU_PHYADDR *psCpuPAddr);
 IMG_VOID PhysHeapDevPAddrToCpuPAddr(PHYS_HEAP *psPhysHeap,
-									IMG_UINT32 ui32NumOfAddr,
 									IMG_CPU_PHYADDR *psCpuPAddr,
 									IMG_DEV_PHYADDR *psDevPAddr);
 

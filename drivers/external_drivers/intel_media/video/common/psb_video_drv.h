@@ -138,9 +138,7 @@ int psb_pl_reference_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 int psb_pl_create_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
-int psb_pl_userptr_create_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file_priv);
-int psb_pl_dmabuf_create_ioctl(struct drm_device *dev, void *data,
+int psb_pl_ub_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 int psb_extension_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);

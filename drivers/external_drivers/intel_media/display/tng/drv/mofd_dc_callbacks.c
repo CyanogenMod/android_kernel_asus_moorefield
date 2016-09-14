@@ -892,7 +892,7 @@ void DCCBWaitForDbiFifoEmpty(struct drm_device *dev, int pipe)
 		return;
 
 	/* shall we use FLIP_DONE on ANN? */
-	if (IS_TNG(dev)) {
+	if (IS_TNG_B0(dev)) {
 		retry = wait_event_interruptible_timeout(dev_priv->eof_wait,
 				(REG_READ(MIPIA_GEN_FIFO_STAT_REG) & BIT27),
 				msecs_to_jiffies(1000));

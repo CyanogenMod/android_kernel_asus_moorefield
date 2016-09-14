@@ -407,21 +407,6 @@ PVRSRVAllocSparseDevMem(const PVRSRV_DEV_DATA *psDevData,
 IMG_UINT32 PVRSRVGetLog2PageSize(void);
 
 /**************************************************************************/ /*!
-@Function       PVRSRVGetHeapLog2ImportAlignment
-@Description    Queries the import alignment of a passed heap.
-
-@Input          hHeap                   Heap that is queried
-@Output         puiLog2ImportAlignment  Log2 import alignment will be
-                                        returned in this
-
-@Return         PVRSRV_OK on success. Otherwise, a PVRSRV error code
-*/ /***************************************************************************/
-PVRSRV_ERROR
-PVRSRVGetHeapLog2ImportAlignment(PVRSRV_HEAP hHeap,
-                                 IMG_UINT32* puiLog2ImportAlignment);
-
-
-/**************************************************************************/ /*!
 @Function       PVRSRVExport
 @Description    Given a memory allocation allocated with Devmem_Allocate(),
                 create a "cookie" that can be passed intact by the caller's own
@@ -508,18 +493,6 @@ PVRSRV_ERROR PVRSRVImportDevMem(const PVRSRV_CONNECTION *psConnection,
 								PVRSRV_DEVMEM_EXPORTCOOKIE *phExportCookie,
 								PVRSRV_MEMMAP_FLAGS_T uiFlags,
 								PVRSRV_MEMDESC *phMemDescOut);
-
-/**************************************************************************/ /*!
-@Function       PVRSRVIsDeviceMemAddrValid
-@Description    Checks if given device virtual memory address is valid
-                from the GPU's point of view.
-@Input          hContext handle to memory context
-@Input          sDevVAddr device 40bit virtual memory address
-@Return         PVRSRV_OK if address is valid or
-                PVRSRV_ERROR_INVALID_GPU_ADDR when address is invalid
-*/ /***************************************************************************/
-PVRSRV_ERROR PVRSRVIsDeviceMemAddrValid(PVRSRV_DEVMEMCTX hContext,
-                                        IMG_DEV_VIRTADDR sDevVAddr);
 
 #if defined (SUPPORT_EXPORTING_MEMORY_CONTEXT)
 /**************************************************************************/ /*!

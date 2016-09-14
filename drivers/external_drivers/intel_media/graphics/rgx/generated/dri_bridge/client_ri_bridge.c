@@ -53,7 +53,7 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIWritePMREntry(IMG_HANDLE hBridge,
 							     IMG_HANDLE hPMRHandle,
 							     IMG_UINT32 ui32TextASize,
 							     const IMG_CHAR *puiTextA,
-							     IMG_UINT64 ui64LogicalSize)
+							     IMG_SIZE_T uiLogicalSize)
 {
 	PVRSRV_ERROR eError;
 	PMR * psPMRHandleInt;
@@ -66,7 +66,7 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIWritePMREntry(IMG_HANDLE hBridge,
 					psPMRHandleInt,
 					ui32TextASize,
 					puiTextA,
-					ui64LogicalSize);
+					uiLogicalSize);
 
 	return eError;
 }
@@ -75,8 +75,8 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIWriteMEMDESCEntry(IMG_HANDLE hBri
 								 IMG_HANDLE hPMRHandle,
 								 IMG_UINT32 ui32TextBSize,
 								 const IMG_CHAR *puiTextB,
-								 IMG_UINT64 ui64Offset,
-								 IMG_UINT64 ui64Size,
+								 IMG_SIZE_T uiOffset,
+								 IMG_SIZE_T uiSize,
 								 IMG_BOOL bIsImport,
 								 IMG_BOOL bIsExportable,
 								 IMG_HANDLE *phRIHandle)
@@ -93,8 +93,8 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIWriteMEMDESCEntry(IMG_HANDLE hBri
 					psPMRHandleInt,
 					ui32TextBSize,
 					puiTextB,
-					ui64Offset,
-					ui64Size,
+					uiOffset,
+					uiSize,
 					bIsImport,
 					bIsExportable,
 					&psRIHandleInt);

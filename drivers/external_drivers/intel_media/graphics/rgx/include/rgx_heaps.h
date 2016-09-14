@@ -63,9 +63,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_DOPPLER_HEAP_ID						10				/*!< Doppler Heap ID */
 #define RGX_DOPPLER_OVERFLOW_HEAP_ID			11				/*!< Doppler Overflow Heap ID */
 
-/* FIXME: work out what this ought to be.  In the old days it was
-   typically bigger than it needed to be.  Is the correct thing
-   "max + 1" ?? */
+/* 
+*/
 #define RGX_MAX_HEAP_ID     	(RGX_DOPPLER_OVERFLOW_HEAP_ID + 1)		/*!< Max Valid Heap ID */
 
 /*
@@ -81,18 +80,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_BIF_TILING_HEAP_4_IDENT	    "BIF Tiling Heap 4"	    /*!< RGX BIF Tiling Heap 4 identifier */
 #define RGX_DOPPLER_HEAP_IDENT			"Doppler"				/*!< Doppler Heap Identifier */
 #define RGX_DOPPLER_OVERFLOW_HEAP_IDENT	"Doppler Overflow"				/*!< Doppler Heap Identifier */
-
-/* BIF tiling heaps have specific buffer requirements based on their XStride
- * configuration. This is detailed in the BIF tiling documentation and ensures
- * that the bits swapped by the BIF tiling algorithm do not result in addresses
- * outside the allocated buffer. The representation here reflects the diagram
- * in the BIF tiling documentation.
- * XStride is defined for a platform in sysconfig.h, but the resulting alignment
- * can be queried through the PVRSRVGetHeapLog2ImportAlignment() API.
- */
-#define RGX_BIF_TILING_HEAP_STRIDE_LOG2_FROM_XSTRIDE(X)        (X+1+8)
-#define RGX_BIF_TILING_HEAP_ALIGN_LOG2_FROM_XSTRIDE(X)       (4+X+1+8)
-#define RGX_BIF_TILING_HEAP_STRIDE_LOG2_FROM_ALIGN_LOG2(A)       (A-4)
 
 #endif /* __RGX_HEAPS_H__ */
 

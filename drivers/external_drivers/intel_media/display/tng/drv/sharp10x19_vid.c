@@ -140,33 +140,11 @@ int mdfld_dsi_sharp10x19_detect(struct mdfld_dsi_config *dsi_config)
 {
 	int status;
 	int pipe = dsi_config->pipe;
-	struct drm_device *dev = dsi_config->dev;
-	struct mdfld_dsi_hw_registers *regs = &dsi_config->regs;
-	u32 dpll_val, device_ready_val;
-	u32 power_island = 0;
 
 	PSB_DEBUG_ENTRY("\n");
 
 	if (pipe == 0) {
-		power_island = pipe_to_island(pipe);
-
-		if (!power_island_get(power_island)) {
-			DRM_ERROR("Failed to turn on power island\n");
-			return -EAGAIN;
-		}
-
-		dpll_val = REG_READ(regs->dpll_reg);
-		device_ready_val = REG_READ(regs->device_ready_reg);
-		if ((device_ready_val & DSI_DEVICE_READY) &&
-				(dpll_val & DPLL_VCO_ENABLE)) {
-			dsi_config->dsi_hw_context.panel_on = true;
-		} else {
-			dsi_config->dsi_hw_context.panel_on = false;
-			DRM_INFO("%s: panel is not detected!\n", __func__);
-		}
-
 		status = MDFLD_DSI_PANEL_CONNECTED;
-		power_island_put(power_island);
 	} else {
 		DRM_INFO("%s: do NOT support dual panel\n",
 		__func__);

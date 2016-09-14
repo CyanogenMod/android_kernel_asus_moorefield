@@ -44,14 +44,6 @@
 #include "mdfld_hdmi_audio_if.h"
 #include <linux/pm_qos.h>
 
-/*  Name changed with kernel 3.10 gen graphics patches. */
-#if !defined DRM_MODE_ENCODER_DSI
-#define DRM_MODE_ENCODER_DSI DRM_MODE_ENCODER_MIPI
-#endif
-#if !defined DRM_MODE_CONNECTOR_DSI
-#define DRM_MODE_CONNECTOR_DSI DRM_MODE_CONNECTOR_MIPI
-#endif
-
 /*Append new drm mode definition here, align with libdrm definition*/
 #define DRM_MODE_SCALE_NO_SCALE   4
 
@@ -126,7 +118,11 @@ enum {
 #define PANEL_PROC_ENTRY "panel_status"
 #define CSC_PROC_ENTRY "csc_control"
 #define GPIO_PROC_ENTRY "hdmi_gpio_control"
-
+#ifdef CONFIG_A500CG
+#define DPST_LEVEL_PROC_ENTRY "dpst_level"
+#define PANEL_ID_PROC_ENTRY "asus_panel_id"
+#define LCD_UNIQUE_ID_PROC_ENTRY "lcd_unique_id"
+#endif
 
 #define PSB_DRM_DRIVER_DATE "2009-03-10"
 #define PSB_DRM_DRIVER_MAJOR 8

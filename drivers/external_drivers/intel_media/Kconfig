@@ -104,15 +104,6 @@ config SUPPORT_HDMI
         help
           Choose this option to support HDMI.
 
-config SUPPORT_HDMI_NO_DISPLAY
-        bool "SUPPORT_HDMI_NO_DISPLAY"
-        depends on SUPPORT_HDMI
-        default n
-        help
-          Choose this option to support HDMI without DISPLAY.
-	  Brighon Shores platform does not have display but use
-	  HDMI port only on CDB HW.
-
 config CTP_DPST
         bool "CTP_DPST"
         depends on DRM_MDFLD || DRM_CTP
@@ -220,6 +211,22 @@ config SUPPORT_MIPI_H8C7_CMD_DISPLAY
        help
          xxxxxx
 
+if A500CG
+config SUPPORT_MIPI_HX8394_DISPLAY
+       bool "Support Himax HX8394 720x1280 MIPI interface Panel"
+       depends on DRM_MDFLD || DRM_CTP
+       default n
+       help
+         xxxxxx
+
+config SUPPORT_MIPI_ORISE1283A_DISPLAY
+       bool "Support Orise OTM1283A 720x1280 MIPI interface Panel"
+       depends on DRM_MDFLD || DRM_CTP
+       default n
+       help
+         xxxxxx
+endif
+
 config SUPPORT_MIPI_OTM1284A_DISPLAY
        bool "Support Orise OTM1284A 720x1280 4-lanes MIPI interface Panel"
        default n
@@ -232,26 +239,14 @@ config SUPPORT_MIPI_OTM1901A_DISPLAY
        help
          xxxxxx
 
+config SUPPORT_MIPI_OTM1284A_TWO_LANES_DISPLAY
+       bool "Support Orise OTM1284A 720x1280 2-lanes MIPI interface Panel"
+       default n
+       help
+         xxxxxx
+
 config SUPPORT_MIPI_NT35596_DISPLAY
        bool "Support Novatek NT35596 1080x1920 4-lanes MIPI interface Panel"
-       default n
-       help
-         xxxxxx
-
-config SUPPORT_MIPI_SAMSUNG_FHD_DISPLAY
-       bool "Support Samsung 1080x1920 4-lanes MIPI interface Panel"
-       default n
-       help
-         xxxxxx
-
-config SUPPORT_MIPI_SAMSUNG_WQHD_DISPLAY
-       bool "Support Samsung 1440x2560 4-lanes MIPI interface Panel"
-       default n
-       help
-         xxxxxx
-
-config SUPPORT_MIPI_TD4300_DISPLAY
-       bool "Support Synaptics TD4300 1080x1920 4-lanes MIPI interface Panel"
        default n
        help
          xxxxxx

@@ -2,7 +2,7 @@
 @File
 @Title          RGX sync kick functionality
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
-@Description    Header for the RGX sync kick functionality
+@Description    Header for the RGX compute functionality
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.

@@ -501,7 +501,7 @@ int psb_submit_video_cmdbuf(struct drm_device *dev,
 
 	if (!msvdx_priv->fw_b0_uploaded){
 #ifdef MERRIFIELD
-		if (IS_TNG(dev) || IS_MOFD(dev))
+		if (IS_TNG_B0(dev) || IS_MOFD(dev))
 			tng_securefw(dev, "msvdx", "VED", TNG_IMR5L_MSG_REGADDR);
 		else {
 			DRM_ERROR("VED secure fw: bad platform\n");

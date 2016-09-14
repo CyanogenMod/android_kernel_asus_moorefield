@@ -54,7 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sync_internal.h"
 #include "connection_server.h"
 
-
 typedef struct _RGX_SERVER_COMPUTE_CONTEXT_ RGX_SERVER_COMPUTE_CONTEXT;
 
 /*!
@@ -112,12 +111,10 @@ PVRSRV_ERROR PVRSRVRGXDestroyComputeContextKM(RGX_SERVER_COMPUTE_CONTEXT *psComp
 IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXKickCDMKM(RGX_SERVER_COMPUTE_CONTEXT	*psComputeContext,
 								IMG_UINT32					ui32ClientFenceCount,
-								SYNC_PRIMITIVE_BLOCK			**pauiClientFenceUFOSyncPrimBlock,
-								IMG_UINT32					*paui32ClientFenceSyncOffset,
+								PRGXFWIF_UFO_ADDR			*pauiClientFenceUFOAddress,
 								IMG_UINT32					*paui32ClientFenceValue,
 								IMG_UINT32					ui32ClientUpdateCount,
-								SYNC_PRIMITIVE_BLOCK			**pauiClientUpdateUFOSyncPrimBlock,
-								IMG_UINT32					*paui32ClientUpdateSyncOffset,
+								PRGXFWIF_UFO_ADDR			*pauiClientUpdateUFOAddress,
 								IMG_UINT32					*paui32ClientUpdateValue,
 								IMG_UINT32					ui32ServerSyncPrims,
 								IMG_UINT32					*paui32ServerSyncFlags,
@@ -125,9 +122,9 @@ PVRSRV_ERROR PVRSRVRGXKickCDMKM(RGX_SERVER_COMPUTE_CONTEXT	*psComputeContext,
 								IMG_UINT32					ui32CmdSize,
 								IMG_PBYTE					pui8DMCmd,
 								IMG_BOOL					bPDumpContinuous,
-							    IMG_UINT32					ui32ExtJobRef,
+								IMG_UINT32					ui32ExtJobRef,
 								IMG_UINT32					ui32IntJobRef);
-
+								
 /*!
 *******************************************************************************
  @Function	PVRSRVRGXFlushComputeDataKM
@@ -165,19 +162,16 @@ IMG_BOOL CheckForStalledClientComputeCtxt(PVRSRV_RGXDEV_INFO *psDevInfo);
 IMG_EXPORT PVRSRV_ERROR 
 PVRSRVRGXKickSyncCDMKM(RGX_SERVER_COMPUTE_CONTEXT  *psComputeContext,
                        IMG_UINT32                  ui32ClientFenceCount,
-                       SYNC_PRIMITIVE_BLOCK          **pauiClientFenceUFOSyncPrimBlock,
-                       IMG_UINT32                  *paui32ClientFenceSyncOffset,
+                       PRGXFWIF_UFO_ADDR           *pauiClientFenceUFOAddress,
                        IMG_UINT32                  *paui32ClientFenceValue,
                        IMG_UINT32                  ui32ClientUpdateCount,
-                       SYNC_PRIMITIVE_BLOCK           **pauiClientUpdateUFOSyncPrimBlock,
-                       IMG_UINT32                  *paui32ClientUpdateSyncOffset,
+                       PRGXFWIF_UFO_ADDR           *pauiClientUpdateUFOAddress,
                        IMG_UINT32                  *paui32ClientUpdateValue,
                        IMG_UINT32                  ui32ServerSyncPrims,
                        IMG_UINT32                  *paui32ServerSyncFlags,
                        SERVER_SYNC_PRIMITIVE       **pasServerSyncs,
-					   IMG_UINT32				   ui32NumCheckFenceFDs,
-					   IMG_INT32				   *pai32CheckFenceFDs,
-					   IMG_INT32                   i32UpdateFenceFD,
+					   IMG_UINT32				   ui32NumFenceFDs,
+					   IMG_INT32				   *paui32FenceFDs,
                        IMG_BOOL                    bPDumpContinuous);
 
 #endif /* __RGXCOMPUTE_H__ */

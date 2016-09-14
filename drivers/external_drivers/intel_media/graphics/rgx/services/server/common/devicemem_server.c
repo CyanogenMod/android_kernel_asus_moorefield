@@ -56,7 +56,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "allocmem.h"
 #include "osfunc.h"
-#include "lock.h"
 
 struct _DEVMEMINT_CTX_
 {
@@ -69,7 +68,10 @@ struct _DEVMEMINT_CTX_
        know about us at all. */
     MMU_CONTEXT *psMMUContext;
 
-    ATOMIC_T hRefCount;
+    IMG_UINT32 ui32RefCount;
+
+    /* Lock for this memory context */
+    POS_LOCK hLock;
 
     /* This handle is for devices that require notification when a new
        memory context is created and they need to store private data that
@@ -85,7 +87,9 @@ struct _DEVMEMINT_CTX_EXPORT_
 struct _DEVMEMINT_HEAP_
 {
     struct _DEVMEMINT_CTX_ *psDevmemCtx;
-    ATOMIC_T hRefCount;
+    IMG_UINT32 ui32RefCount;
+    /* Lock for this heap */
+    POS_LOCK hLock;
 };
 
 struct _DEVMEMINT_RESERVATION_
@@ -110,7 +114,9 @@ struct _DEVMEMINT_MAPPING_
 */ /**************************************************************************/
 static INLINE IMG_VOID _DevmemIntCtxAcquire(DEVMEMINT_CTX *psDevmemCtx)
 {
-	OSAtomicIncrement(&psDevmemCtx->hRefCount);
+	OSLockAcquire(psDevmemCtx->hLock);
+	psDevmemCtx->ui32RefCount++;
+	OSLockRelease(psDevmemCtx->hLock);
 }
 
 /*************************************************************************/ /*!
@@ -122,7 +128,13 @@ static INLINE IMG_VOID _DevmemIntCtxAcquire(DEVMEMINT_CTX *psDevmemCtx)
 */ /**************************************************************************/
 static INLINE IMG_VOID _DevmemIntCtxRelease(DEVMEMINT_CTX *psDevmemCtx)
 {
-	if (OSAtomicDecrement(&psDevmemCtx->hRefCount) == 0)
+	IMG_UINT32 ui32RefCount;
+
+	OSLockAcquire(psDevmemCtx->hLock);
+	ui32RefCount = --psDevmemCtx->ui32RefCount;
+	OSLockRelease(psDevmemCtx->hLock);
+
+	if (ui32RefCount == 0)
 	{
 		/* The last reference has gone, destroy the context */
 		PVRSRV_DEVICE_NODE *psDevNode = psDevmemCtx->psDevNode;
@@ -132,6 +144,7 @@ static INLINE IMG_VOID _DevmemIntCtxRelease(DEVMEMINT_CTX *psDevmemCtx)
 			psDevNode->pfnUnregisterMemoryContext(psDevmemCtx->hPrivData);
 		}
 	    MMU_ContextDestroy(psDevmemCtx->psMMUContext);
+	    OSLockDestroy(psDevmemCtx->hLock);
 	
 		PVR_DPF((PVR_DBG_MESSAGE, "%s: Freed memory context %p", __FUNCTION__, psDevmemCtx));
 		OSFreeMem(psDevmemCtx);
@@ -145,7 +158,9 @@ static INLINE IMG_VOID _DevmemIntCtxRelease(DEVMEMINT_CTX *psDevmemCtx)
 */ /**************************************************************************/
 static INLINE IMG_VOID _DevmemIntHeapAcquire(DEVMEMINT_HEAP *psDevmemHeap)
 {
-	OSAtomicIncrement(&psDevmemHeap->hRefCount);
+	OSLockAcquire(psDevmemHeap->hLock);
+	psDevmemHeap->ui32RefCount++;
+	OSLockRelease(psDevmemHeap->hLock);
 }
 
 /*************************************************************************/ /*!
@@ -157,7 +172,9 @@ static INLINE IMG_VOID _DevmemIntHeapAcquire(DEVMEMINT_HEAP *psDevmemHeap)
 */ /**************************************************************************/
 static INLINE IMG_VOID _DevmemIntHeapRelease(DEVMEMINT_HEAP *psDevmemHeap)
 {
-	OSAtomicDecrement(&psDevmemHeap->hRefCount);
+	OSLockAcquire(psDevmemHeap->hLock);
+	psDevmemHeap->ui32RefCount--;
+	OSLockRelease(psDevmemHeap->hLock);
 }
 
 /*************************************************************************/ /*!
@@ -228,7 +245,14 @@ DevmemIntCtxCreate(
         goto fail_alloc;
 	}
 
-	OSAtomicWrite(&psDevmemCtx->hRefCount, 1);
+	eError = OSLockCreate(&psDevmemCtx->hLock, LOCK_TYPE_PASSIVE);
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to create lock", __FUNCTION__));
+		goto fail_lock;
+	}
+
+	psDevmemCtx->ui32RefCount = 1;
     psDevmemCtx->psDevNode = psDeviceNode;
 
     /* Call down to MMU context creation */
@@ -261,17 +285,22 @@ DevmemIntCtxCreate(
 
 fail_register:
     MMU_ContextDestroy(psDevmemCtx->psMMUContext);
+
 fail_mmucontext:
-	OSFREEMEM(psDevmemCtx);
+	OSLockDestroy(psDevmemCtx->hLock);
+
+fail_lock:
+    OSFreeMem(psDevmemCtx);
+
 fail_alloc:
     PVR_ASSERT(eError != PVRSRV_OK);
     return eError;
 }
 
 /*************************************************************************/ /*!
-@Function       DevmemIntHeapCreate
-@Description    Creates and initialises a device memory heap.
-@Return         valid Device Memory heap handle - Success
+@Function       DevmemIntCtxCreate
+@Description    Creates and initialises a device memory context.
+@Return         valid Device Memory context handle - Success
                 PVRSRV_ERROR failure code
 */ /**************************************************************************/
 PVRSRV_ERROR
@@ -297,15 +326,25 @@ DevmemIntHeapCreate(
         goto fail_alloc;
 	}
 
+	eError = OSLockCreate(&psDevmemHeap->hLock, LOCK_TYPE_PASSIVE);
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to create lock", __FUNCTION__));
+		goto fail_lock;
+	}
+
     psDevmemHeap->psDevmemCtx = psDevmemCtx;
 
 	_DevmemIntCtxAcquire(psDevmemHeap->psDevmemCtx);
 
-	OSAtomicWrite(&psDevmemHeap->hRefCount, 1);
+	psDevmemHeap->ui32RefCount = 1;
 
     *ppsDevmemHeapPtr = psDevmemHeap;
 
 	return PVRSRV_OK;
+
+fail_lock:
+	OSFreeMem(psDevmemHeap);
 
 fail_alloc:
     return eError;
@@ -497,30 +536,30 @@ DevmemIntHeapDestroy(
                      DEVMEMINT_HEAP *psDevmemHeap
                      )
 {
-    if (OSAtomicRead(&psDevmemHeap->hRefCount) != 1)
+    if (psDevmemHeap->ui32RefCount != 1)
     {
         PVR_DPF((PVR_DBG_ERROR, "BUG!  %s called but has too many references (%d) "
                  "which probably means allocations have been made from the heap and not freed",
                  __FUNCTION__,
-                 OSAtomicRead(&psDevmemHeap->hRefCount)));
-
+                 psDevmemHeap->ui32RefCount));
         /*
-	 * Try again later when you've freed all the memory
-	 *
-	 * Note:
-	 * We don't expect the application to retry (after all this call would
-	 * succeed if the client had freed all the memory which it should have
-	 * done before calling this function). However, given there should be
-	 * an associated handle, when the handle base is destroyed it will free
-	 * any allocations leaked by the client and then it will retry this call,
-	 * which should then succeed.
-	 */
+			Try again later when you've freed all the memory
+
+			Note:
+			While we don't expect the application to retry (after all this call
+			would succeed if the client had freed all the memory which it should
+			have done before calling this function) resman will retry at which
+			point any allocations leaked by the client will have also been cleaned
+			up by resman and so this call would then succeed.
+        */
         return PVRSRV_ERROR_RETRY;
     }
 
-    PVR_ASSERT(OSAtomicRead(&psDevmemHeap->hRefCount) == 1);
+    PVR_ASSERT(psDevmemHeap->ui32RefCount == 1);
 
 	_DevmemIntCtxRelease(psDevmemHeap->psDevmemCtx);
+
+	OSLockDestroy(psDevmemHeap->hLock);
 
 	PVR_DPF((PVR_DBG_MESSAGE, "%s: Freed heap %p", __FUNCTION__, psDevmemHeap));
 	OSFreeMem(psDevmemHeap);
@@ -630,13 +669,6 @@ DevmemSLCFlushInvalRequest(PVRSRV_DEVICE_NODE *psDeviceNode,
 	return PVRSRV_OK;
 }
 
-PVRSRV_ERROR DevmemIntIsVDevAddrValid(DEVMEMINT_CTX *psDevMemContext,
-                                      IMG_DEV_VIRTADDR sDevAddr)
-{
-    return MMU_IsVDevAddrValid(psDevMemContext->psMMUContext,
-                               GET_LOG2_PAGESIZE(),
-                               sDevAddr) ? PVRSRV_OK : PVRSRV_ERROR_INVALID_GPU_ADDR;
-}
 
 #if defined (PDUMP)
 IMG_UINT32 DevmemIntMMUContextID(DEVMEMINT_CTX *psDevMemContext)

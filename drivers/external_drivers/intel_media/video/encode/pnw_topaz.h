@@ -158,7 +158,7 @@ struct pnw_topaz_private {
 
 /* external function declare */
 /*ISR of TopazSC*/
-extern IMG_BOOL pnw_topaz_interrupt(void *pvData);
+extern IMG_BOOL pnw_topaz_interrupt(IMG_VOID *pvData);
 
 /*topaz commad handling function*/
 extern int pnw_cmdbuf_video(struct drm_file *priv,

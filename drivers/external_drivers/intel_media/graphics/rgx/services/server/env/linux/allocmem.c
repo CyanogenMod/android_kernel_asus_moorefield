@@ -43,191 +43,105 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
-#include <linux/string.h>
 
+#include "pvr_debug.h"
 #include "img_defs.h"
 #include "allocmem.h"
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #include "process_stats.h"
 #endif
-#include "osfunc.h"
+
 IMG_INTERNAL IMG_PVOID OSAllocMem(IMG_UINT32 ui32Size)
 {
-	IMG_PVOID pvRet = IMG_NULL;
+	IMG_PVOID pvRet;
 
-	if (ui32Size > PVR_LINUX_KMALLOC_ALLOCATION_THRESHOLD)
+	if (ui32Size > PVR_LINUX_VMALLOC_ALLOCATION_THRESHOLD)
 	{
 		pvRet = vmalloc(ui32Size);
 	}
-	if (pvRet == IMG_NULL)
+	else
 	{
-#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
-		/* Allocate an additional 4 bytes to store the PID of the allocating process */
-		pvRet = kmalloc(ui32Size + sizeof(IMG_UINT32), GFP_KERNEL);
-#else
 		pvRet = kmalloc(ui32Size, GFP_KERNEL);
-#endif
 	}
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
-
 	if (pvRet != IMG_NULL)
 	{
+		IMG_UINT32 uiStatSize;
+		IMG_UINT32 uiAllocType;
+
 
 		if (!is_vmalloc_addr(pvRet))
 		{
-#if !defined(PVRSRV_ENABLE_MEMORY_STATS)
-#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
-			{
-				/* Store the PID in the final additional 4 bytes allocated */
-				IMG_UINT32 *puiTemp = (IMG_UINT32*) (((IMG_BYTE*)pvRet) + (ksize(pvRet) - sizeof(IMG_UINT32)));
-				*puiTemp = OSGetCurrentProcessID();
-			}
-			PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvRet));
-#endif
-#else
-			{
-				IMG_CPU_PHYADDR sCpuPAddr;
-				sCpuPAddr.uiAddr = 0;
+			uiStatSize = ksize(pvRet);
+			uiAllocType = PVRSRV_MEM_ALLOC_TYPE_KMALLOC;
 
-				PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_KMALLOC,
-				                             pvRet,
-				                             sCpuPAddr,
-				                             ksize(pvRet),
-				                             IMG_NULL);
-			}
+#if !defined(PVRSRV_ENABLE_MEMORY_STATS)
+			PVRSRVStatsIncrMemAllocStat(uiAllocType, uiStatSize);
 #endif
 		}
 		else
 		{
-#if !defined(PVRSRV_ENABLE_MEMORY_STATS)
-#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
-			PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
-											   ((ui32Size + PAGE_SIZE -1) & ~(PAGE_SIZE-1)),
-											   (IMG_UINT64)(IMG_UINTPTR_T) pvRet);
-#endif
-#else
-			{
-				IMG_CPU_PHYADDR sCpuPAddr;
-				sCpuPAddr.uiAddr = 0;
+			uiStatSize = ((ui32Size + PAGE_SIZE -1) & ~(PAGE_SIZE-1));
+			uiAllocType = PVRSRV_MEM_ALLOC_TYPE_VMALLOC;
 
-				PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
-											 pvRet,
-											 sCpuPAddr,
-											 ((ui32Size + PAGE_SIZE -1) & ~(PAGE_SIZE-1)),
-											 IMG_NULL);
-			}
+#if !defined(PVRSRV_ENABLE_MEMORY_STATS)
+			PVRSRVStatsIncrMemAllocStatAndTrack(uiAllocType, uiStatSize, (IMG_UINT64)(IMG_UINTPTR_T) pvRet);
 #endif
 		}
 
+#if defined(PVRSRV_ENABLE_MEMORY_STATS)
+		{
+			IMG_CPU_PHYADDR sCpuPAddr;
+			sCpuPAddr.uiAddr = 0;
+
+			PVRSRVStatsAddMemAllocRecord(uiAllocType,
+										 pvRet,
+										 sCpuPAddr,
+										 uiStatSize,
+										 IMG_NULL);
+		}
+#endif
+
 	}
 #endif
+
+	return pvRet;
+}
+IMG_INTERNAL IMG_PVOID OSAllocMemstatMem(IMG_UINT32 ui32Size)
+{
+    IMG_PVOID pvRet = kmalloc(ui32Size, GFP_KERNEL);
+
 	return pvRet;
 }
 
-
-IMG_INTERNAL IMG_PVOID OSAllocMemstatMem(IMG_UINT32 ui32Size)
+IMG_INTERNAL IMG_PVOID OSReallocMem(IMG_PVOID pvPrev, IMG_UINT32 ui32Size)
 {
-	IMG_PVOID pvRet = IMG_NULL;
-
-	if (ui32Size > PVR_LINUX_KMALLOC_ALLOCATION_THRESHOLD)
-	{
-		pvRet = vmalloc(ui32Size);
-	}
-	if (pvRet == IMG_NULL)
-	{
-		pvRet = kmalloc(ui32Size, GFP_KERNEL);
-	}
-
+    IMG_PVOID pvRet = krealloc(pvPrev, ui32Size, GFP_KERNEL);
 	return pvRet;
 }
 
 IMG_INTERNAL IMG_PVOID OSAllocZMem(IMG_UINT32 ui32Size)
 {
-	IMG_PVOID pvRet = IMG_NULL;
+	IMG_PVOID pvRet = kzalloc(ui32Size, GFP_KERNEL);
 
-	if (ui32Size > PVR_LINUX_KMALLOC_ALLOCATION_THRESHOLD)
-	{
-		pvRet = vzalloc(ui32Size);
-	}
-	if (pvRet == IMG_NULL)
-	{
-#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
-		/* Allocate an additional 4 bytes to store the PID of the allocating process */
-		pvRet = kzalloc(ui32Size + sizeof(IMG_UINT32), GFP_KERNEL);
-#else
-		pvRet = kzalloc(ui32Size, GFP_KERNEL);
-#endif
-	}
-
+    if (pvRet != IMG_NULL)
+    {
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
-
-	if (pvRet != IMG_NULL)
-	{
-
-		if (!is_vmalloc_addr(pvRet))
-		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
-#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
-			{
-				/* Store the PID in the final additional 4 bytes allocated */
-				IMG_UINT32 *puiTemp = (IMG_UINT32*) (((IMG_BYTE*)pvRet) + (ksize(pvRet) - sizeof(IMG_UINT32)));
-				*puiTemp = OSGetCurrentProcessID();
-			}
-			PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvRet));
-#endif
+    	PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvRet));
 #else
-			{
-				IMG_CPU_PHYADDR sCpuPAddr;
-				sCpuPAddr.uiAddr = 0;
+		IMG_CPU_PHYADDR sCpuPAddr;
+		sCpuPAddr.uiAddr = 0;
 
-				PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_KMALLOC,
-				                             pvRet,
-				                             sCpuPAddr,
-				                             ksize(pvRet),
-				                             IMG_NULL);
-			}
+        PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_KMALLOC,
+                                     pvRet,
+                                     sCpuPAddr,
+                                     ksize(pvRet),
+                                     IMG_NULL);
 #endif
-		}
-		else
-		{
-#if !defined(PVRSRV_ENABLE_MEMORY_STATS)
-#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
-			PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
-											   ((ui32Size + PAGE_SIZE -1) & ~(PAGE_SIZE-1)),
-											   (IMG_UINT64)(IMG_UINTPTR_T) pvRet);
 #endif
-#else
-			{
-				IMG_CPU_PHYADDR sCpuPAddr;
-				sCpuPAddr.uiAddr = 0;
-
-				PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
-											 pvRet,
-											 sCpuPAddr,
-											 ((ui32Size + PAGE_SIZE -1) & ~(PAGE_SIZE-1)),
-											 IMG_NULL);
-			}
-#endif
-		}
-
-	}
-#endif
-	return pvRet;
-}
-
-IMG_INTERNAL IMG_PVOID OSAllocMemstatZMem(IMG_UINT32 ui32Size)
-{
-	IMG_PVOID pvRet = IMG_NULL;
-
-	if (ui32Size > PVR_LINUX_KMALLOC_ALLOCATION_THRESHOLD)
-	{
-		pvRet = vzalloc(ui32Size);
-	}
-	if (pvRet == IMG_NULL)
-	{
-		pvRet = kzalloc(ui32Size, GFP_KERNEL);
-	}
+    }
 
 	return pvRet;
 }
@@ -241,12 +155,9 @@ IMG_INTERNAL void OSFreeMem(IMG_PVOID pvMem)
 		if (pvMem != IMG_NULL)
 		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
-#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
-			PVRSRVStatsDecrMemKAllocStat(ksize(pvMem), *((IMG_UINT32*) (((IMG_BYTE*)pvMem) + (ksize(pvMem) - sizeof(IMG_UINT32)))));
-#endif
+			PVRSRVStatsDecrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvMem));
 #else
-			PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_KMALLOC,
-			                               (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
+			PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
 #endif
 		}
 #endif
@@ -258,28 +169,16 @@ IMG_INTERNAL void OSFreeMem(IMG_PVOID pvMem)
 		if (pvMem != IMG_NULL)
 		{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
-#if !defined(PVR_DISABLE_KMALLOC_MEMSTATS)
-			PVRSRVStatsDecrMemAllocStatAndUntrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
-			                                      (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
-#endif
+			PVRSRVStatsDecrMemAllocStatAndUntrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC, (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
 #else
-			PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
-			                               (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
+			PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_VMALLOC, (IMG_UINT64)(IMG_UINTPTR_T) pvMem);
 #endif
 		}
 #endif
 		vfree(pvMem);
 	}
 }
-
 IMG_INTERNAL void OSFreeMemstatMem(IMG_PVOID pvMem)
 {
-	if ( !is_vmalloc_addr(pvMem) )
-	{
-		kfree(pvMem);
-	}
-	else
-	{
-		vfree(pvMem);
-	}
+	kfree(pvMem);
 }

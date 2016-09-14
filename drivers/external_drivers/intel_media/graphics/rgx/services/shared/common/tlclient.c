@@ -257,7 +257,7 @@ PVRSRV_ERROR TLClientCloseStream(IMG_HANDLE hSrvHandle,
 		 * return eError; */
 	}
 
-	OSCachedMemSet(psSD, 0x00, sizeof(TL_STREAM_DESC));
+	OSMemSet(psSD, 0x00, sizeof(TL_STREAM_DESC));
 	OSFreeMem (psSD);
 
 	return eError;

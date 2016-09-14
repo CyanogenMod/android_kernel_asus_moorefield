@@ -74,6 +74,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if defined(CONFIG_X86)
 #include <asm/cacheflush.h>
 #endif
+#if defined(__arm__)
+#include "osfunc.h"
+#endif
 
 #include "rgxdevice.h"
 
@@ -129,29 +132,15 @@ _FreeTDMetaCodePageContainer(void *pvPagecontainer)
 
 static PVRSRV_ERROR
 PMRSysPhysAddrTDMetaCode(PMR_IMPL_PRIVDATA pvPriv,
-                         IMG_UINT32 ui32NumOfPages,
-                         IMG_DEVMEM_OFFSET_T *puiOffset,
-						 IMG_BOOL *pbValid,
+                         IMG_DEVMEM_OFFSET_T uiOffset,
                          IMG_DEV_PHYADDR *psDevPAddr)
 {
 	sTDMetaCodePageList *psPageContainer = (sTDMetaCodePageList *) pvPriv;
-	IMG_UINT64 ui64PageNum;
-	IMG_UINT32 idx;
-
-	for (idx=0; idx < ui32NumOfPages; idx++)
-	{
-		if (pbValid[idx])
-		{
-			IMG_UINT32 ui32PageOffset;
-
-			ui64PageNum = puiOffset[idx] >> psPageContainer->ui32Log2PageSizeBytes;
-			ui32PageOffset = puiOffset[idx] - (ui64PageNum << psPageContainer->ui32Log2PageSizeBytes);
-			PVR_ASSERT(ui64PageNum < psPageContainer->ui64NumPages);
-
-			psDevPAddr[idx].uiAddr = page_to_phys(psPageContainer->apsPageArray[ui64PageNum]) + ui32PageOffset;
-		}
-	}
+	IMG_UINT64 ui64PageNum = uiOffset >> psPageContainer->ui32Log2PageSizeBytes;
+	IMG_UINT32 ui32PageOffset = uiOffset - (ui64PageNum << psPageContainer->ui32Log2PageSizeBytes);
 	
+	PVR_ASSERT(ui64PageNum < psPageContainer->ui64NumPages);
+	psDevPAddr->uiAddr = page_to_phys(psPageContainer->apsPageArray[ui64PageNum]) + ui32PageOffset;
 	return PVRSRV_OK;
 }
 
@@ -224,7 +213,7 @@ PMRKernelMapTDMetaCode(PMR_IMPL_PRIVDATA pvPriv,
 
 	if(! pvAddress)
 	{
-		return PVRSRV_ERROR_PMR_NO_KERNEL_MAPPING;
+		return PVRSRV_ERROR_MAP_TDMETACODE_PAGES_FAIL;
 	}
 
     *ppvKernelAddressOut = pvAddress + uiOffset;

@@ -200,6 +200,50 @@ PDLLIST_NODE dllist_get_next_node(PDLLIST_NODE psListHead)
 
 
 /*************************************************************************/ /*!
+@Function       dllist_remove_next_node
+
+@Description    Remove the list node after psListHead
+
+@Input          psListHead             List node to start the operation
+
+*/
+/*****************************************************************************/
+static INLINE
+IMG_VOID dllist_remove_next_node(PDLLIST_NODE psListHead)
+{
+	PDLLIST_NODE psTmp;
+
+	psTmp = psListHead->psNextNode;
+
+	psListHead->psNextNode = psTmp->psNextNode;
+	psTmp->psNextNode->psPrevNode = psListHead;
+}
+
+
+/*************************************************************************/ /*!
+@Function       dllist_move_next_node_to_tail
+
+@Description    Move the node after psListHead to the tail of the list
+
+@Input          psListHead             List node to start the operation
+
+*/
+/*****************************************************************************/
+static INLINE
+IMG_VOID dllist_move_next_node_to_tail(PDLLIST_NODE psListHead)
+{
+	PDLLIST_NODE psTmp;
+
+	psTmp = dllist_get_next_node(psListHead);
+	if (psTmp != IMG_NULL)
+	{
+		dllist_remove_next_node(psListHead);
+		dllist_add_to_tail(psListHead, psTmp);
+	}
+}
+
+
+/*************************************************************************/ /*!
 @Function       dllist_remove_node
 
 @Description    Removes psListNode from the list where it currently belongs

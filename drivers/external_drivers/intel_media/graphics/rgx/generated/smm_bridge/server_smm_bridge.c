@@ -66,6 +66,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <linux/slab.h>
 
+/* ***************************************************************************
+ * Bridge proxy functions
+ */
+
+static PVRSRV_ERROR
+PMRSecureUnexportPMRResManProxy(IMG_HANDLE hResmanItem)
+{
+	PVRSRV_ERROR eError;
+
+	eError = ResManFreeResByPtr(hResmanItem);
+
+	/* Freeing a resource should never fail... */
+	PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
+
+	return eError;
+}
 
 
 
@@ -74,28 +90,29 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
  
 static IMG_INT
-PVRSRVBridgePMRSecureExportPMR(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_PMRSECUREEXPORTPMR *psPMRSecureExportPMRIN,
-					  PVRSRV_BRIDGE_OUT_PMRSECUREEXPORTPMR *psPMRSecureExportPMROUT,
+PVRSRVBridgePMRSecureExportPMR(IMG_UINT32 ui32BridgeID,
+					 PVRSRV_BRIDGE_IN_PMRSECUREEXPORTPMR *psPMRSecureExportPMRIN,
+					 PVRSRV_BRIDGE_OUT_PMRSECUREEXPORTPMR *psPMRSecureExportPMROUT,
 					 CONNECTION_DATA *psConnection)
 {
 	PMR * psPMRInt = IMG_NULL;
+	IMG_HANDLE hPMRInt2 = IMG_NULL;
 	PMR * psPMROutInt = IMG_NULL;
-	IMG_HANDLE hPMROutInt = IMG_NULL;
+	IMG_HANDLE hPMROutInt2 = IMG_NULL;
 	CONNECTION_DATA *psSecureConnection;
+
+	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_SMM_PMRSECUREEXPORTPMR);
 
 
 
 
 
 	PMRLock();
-
-
 				{
 					/* Look up the address from the handle */
 					psPMRSecureExportPMROUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_VOID **) &psPMRInt,
+											(IMG_HANDLE *) &hPMRInt2,
 											psPMRSecureExportPMRIN->hPMR,
 											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
 					if(psPMRSecureExportPMROUT->eError != PVRSRV_OK)
@@ -103,8 +120,16 @@ PVRSRVBridgePMRSecureExportPMR(IMG_UINT32 ui32DispatchTableEntry,
 						PMRUnlock();
 						goto PMRSecureExportPMR_exit;
 					}
-				}
 
+					/* Look up the data from the resman address */
+					psPMRSecureExportPMROUT->eError = ResManFindPrivateDataByPtr(hPMRInt2, (IMG_VOID **) &psPMRInt);
+
+					if(psPMRSecureExportPMROUT->eError != PVRSRV_OK)
+					{
+						PMRUnlock();
+						goto PMRSecureExportPMR_exit;
+					}
+				}
 
 	psPMRSecureExportPMROUT->eError =
 		PMRSecureExportPMR(psConnection,
@@ -119,25 +144,30 @@ PVRSRVBridgePMRSecureExportPMR(IMG_UINT32 ui32DispatchTableEntry,
 	}
 	PMRUnlock();
 
-
-	psPMRSecureExportPMROUT->eError = PVRSRVAllocHandle(psSecureConnection->psHandleBase,
-							&hPMROutInt,
-							(IMG_VOID *) psPMROutInt,
-							PVRSRV_HANDLE_TYPE_PHYSMEM_PMR_SECURE_EXPORT,
-							PVRSRV_HANDLE_ALLOC_FLAG_SHARED
-							,(PFN_HANDLE_RELEASE)&PMRSecureUnexportPMR);
-	if (psPMRSecureExportPMROUT->eError != PVRSRV_OK)
+	/* Create a resman item and overwrite the handle with it */
+	hPMROutInt2 = ResManRegisterRes(psSecureConnection->hResManContext,
+												RESMAN_TYPE_PMR,
+												psPMROutInt,
+												(RESMAN_FREE_FN)&PMRSecureUnexportPMR);
+	if (hPMROutInt2 == IMG_NULL)
 	{
+		psPMRSecureExportPMROUT->eError = PVRSRV_ERROR_UNABLE_TO_REGISTER_RESOURCE;
 		goto PMRSecureExportPMR_exit;
 	}
-
-
 
 
 PMRSecureExportPMR_exit:
 	if (psPMRSecureExportPMROUT->eError != PVRSRV_OK)
 	{
-		if (psPMROutInt)
+		/* If we have a valid resman item we should undo the bridge function by freeing the resman item */
+		if (hPMROutInt2)
+		{
+			PVRSRV_ERROR eError = ResManFreeResByPtr(hPMROutInt2);
+
+			/* Freeing a resource should never fail... */
+			PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
+		}
+		else if (psPMROutInt)
 		{
 			PMRSecureUnexportPMR(psPMROutInt);
 		}
@@ -148,33 +178,47 @@ PMRSecureExportPMR_exit:
 }
 
 static IMG_INT
-PVRSRVBridgePMRSecureUnexportPMR(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_PMRSECUREUNEXPORTPMR *psPMRSecureUnexportPMRIN,
-					  PVRSRV_BRIDGE_OUT_PMRSECUREUNEXPORTPMR *psPMRSecureUnexportPMROUT,
+PVRSRVBridgePMRSecureUnexportPMR(IMG_UINT32 ui32BridgeID,
+					 PVRSRV_BRIDGE_IN_PMRSECUREUNEXPORTPMR *psPMRSecureUnexportPMRIN,
+					 PVRSRV_BRIDGE_OUT_PMRSECUREUNEXPORTPMR *psPMRSecureUnexportPMROUT,
 					 CONNECTION_DATA *psConnection)
 {
+	IMG_HANDLE hPMRInt2 = IMG_NULL;
 
+	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_SMM_PMRSECUREUNEXPORTPMR);
 
 
 
 
 	PMRLock();
+				{
+					/* Look up the address from the handle */
+					psPMRSecureUnexportPMROUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_HANDLE *) &hPMRInt2,
+											psPMRSecureUnexportPMRIN->hPMR,
+											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
+					if(psPMRSecureUnexportPMROUT->eError != PVRSRV_OK)
+					{
+						PMRUnlock();
+						goto PMRSecureUnexportPMR_exit;
+					}
 
+				}
 
-
+	psPMRSecureUnexportPMROUT->eError = PMRSecureUnexportPMRResManProxy(hPMRInt2);
+	/* Exit early if bridged call fails */
+	if(psPMRSecureUnexportPMROUT->eError != PVRSRV_OK)
+	{
+		PMRUnlock();
+		goto PMRSecureUnexportPMR_exit;
+	}
+	PMRUnlock();
 
 	psPMRSecureUnexportPMROUT->eError =
 		PVRSRVReleaseHandle(psConnection->psHandleBase,
 					(IMG_HANDLE) psPMRSecureUnexportPMRIN->hPMR,
-					PVRSRV_HANDLE_TYPE_PHYSMEM_PMR_SECURE_EXPORT);
-	if ((psPMRSecureUnexportPMROUT->eError != PVRSRV_OK) && (psPMRSecureUnexportPMROUT->eError != PVRSRV_ERROR_RETRY))
-	{
-		PVR_ASSERT(0);
-		PMRUnlock();
-		goto PMRSecureUnexportPMR_exit;
-	}
-
-	PMRUnlock();
+					PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
 
 
 PMRSecureUnexportPMR_exit:
@@ -183,20 +227,21 @@ PMRSecureUnexportPMR_exit:
 }
 
 static IMG_INT
-PVRSRVBridgePMRSecureImportPMR(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_PMRSECUREIMPORTPMR *psPMRSecureImportPMRIN,
-					  PVRSRV_BRIDGE_OUT_PMRSECUREIMPORTPMR *psPMRSecureImportPMROUT,
+PVRSRVBridgePMRSecureImportPMR(IMG_UINT32 ui32BridgeID,
+					 PVRSRV_BRIDGE_IN_PMRSECUREIMPORTPMR *psPMRSecureImportPMRIN,
+					 PVRSRV_BRIDGE_OUT_PMRSECUREIMPORTPMR *psPMRSecureImportPMROUT,
 					 CONNECTION_DATA *psConnection)
 {
 	PMR * psPMRInt = IMG_NULL;
+	IMG_HANDLE hPMRInt2 = IMG_NULL;
+
+	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_SMM_PMRSECUREIMPORTPMR);
 
 
 
 
 
 	PMRLock();
-
-
 	psPMRSecureImportPMROUT->eError =
 		PMRSecureImportPMR(
 					psPMRSecureImportPMRIN->Export,
@@ -211,25 +256,40 @@ PVRSRVBridgePMRSecureImportPMR(IMG_UINT32 ui32DispatchTableEntry,
 	}
 	PMRUnlock();
 
-
+	/* Create a resman item and overwrite the handle with it */
+	hPMRInt2 = ResManRegisterRes(psConnection->hResManContext,
+												RESMAN_TYPE_PMR,
+												psPMRInt,
+												(RESMAN_FREE_FN)&PMRUnrefPMR);
+	if (hPMRInt2 == IMG_NULL)
+	{
+		psPMRSecureImportPMROUT->eError = PVRSRV_ERROR_UNABLE_TO_REGISTER_RESOURCE;
+		goto PMRSecureImportPMR_exit;
+	}
 	psPMRSecureImportPMROUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
 							&psPMRSecureImportPMROUT->hPMR,
-							(IMG_VOID *) psPMRInt,
+							(IMG_HANDLE) hPMRInt2,
 							PVRSRV_HANDLE_TYPE_PHYSMEM_PMR,
-							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
-							,(PFN_HANDLE_RELEASE)&PMRUnrefPMR);
+							PVRSRV_HANDLE_ALLOC_FLAG_NONE
+							);
 	if (psPMRSecureImportPMROUT->eError != PVRSRV_OK)
 	{
 		goto PMRSecureImportPMR_exit;
 	}
 
 
-
-
 PMRSecureImportPMR_exit:
 	if (psPMRSecureImportPMROUT->eError != PVRSRV_OK)
 	{
-		if (psPMRInt)
+		/* If we have a valid resman item we should undo the bridge function by freeing the resman item */
+		if (hPMRInt2)
+		{
+			PVRSRV_ERROR eError = ResManFreeResByPtr(hPMRInt2);
+
+			/* Freeing a resource should never fail... */
+			PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
+		}
+		else if (psPMRInt)
 		{
 			PMRUnrefPMR(psPMRInt);
 		}
@@ -244,29 +304,18 @@ PMRSecureImportPMR_exit:
 /* *************************************************************************** 
  * Server bridge dispatch related glue 
  */
-
-
-PVRSRV_ERROR InitSMMBridge(IMG_VOID);
-PVRSRV_ERROR DeinitSMMBridge(IMG_VOID);
+ 
+PVRSRV_ERROR RegisterSMMFunctions(IMG_VOID);
+IMG_VOID UnregisterSMMFunctions(IMG_VOID);
 
 /*
  * Register all SMM functions with services
  */
-PVRSRV_ERROR InitSMMBridge(IMG_VOID)
+PVRSRV_ERROR RegisterSMMFunctions(IMG_VOID)
 {
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_SMM, PVRSRV_BRIDGE_SMM_PMRSECUREEXPORTPMR, PVRSRVBridgePMRSecureExportPMR,
-					IMG_NULL, IMG_NULL,
-					0, 0);
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_SMM, PVRSRV_BRIDGE_SMM_PMRSECUREUNEXPORTPMR, PVRSRVBridgePMRSecureUnexportPMR,
-					IMG_NULL, IMG_NULL,
-					0, 0);
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_SMM, PVRSRV_BRIDGE_SMM_PMRSECUREIMPORTPMR, PVRSRVBridgePMRSecureImportPMR,
-					IMG_NULL, IMG_NULL,
-					0, 0);
-
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SMM_PMRSECUREEXPORTPMR, PVRSRVBridgePMRSecureExportPMR);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SMM_PMRSECUREUNEXPORTPMR, PVRSRVBridgePMRSecureUnexportPMR);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SMM_PMRSECUREIMPORTPMR, PVRSRVBridgePMRSecureImportPMR);
 
 	return PVRSRV_OK;
 }
@@ -274,8 +323,6 @@ PVRSRV_ERROR InitSMMBridge(IMG_VOID)
 /*
  * Unregister all smm functions with services
  */
-PVRSRV_ERROR DeinitSMMBridge(IMG_VOID)
+IMG_VOID UnregisterSMMFunctions(IMG_VOID)
 {
-	return PVRSRV_OK;
 }
-

@@ -613,9 +613,16 @@ int mdfld_intel_crtc_set_gamma(struct drm_device *dev,
 					REG_WRITE(regs->palette_reg + j + 4, temp);
 					ctx->palette[(i / 8) * 2 + 1] = temp;
 				} else {
+#ifndef CONFIG_A500CG
 					REG_WRITE(regs->gamma_red_max_reg, MAX_GAMMA);
 					REG_WRITE(regs->gamma_green_max_reg, MAX_GAMMA);
 					REG_WRITE(regs->gamma_blue_max_reg, MAX_GAMMA);
+#else
+					//AP team will assign MAX_GAMMA
+					REG_WRITE(regs->gamma_red_max_reg, setting_data->gamma_tableX100[128]);
+					REG_WRITE(regs->gamma_green_max_reg, setting_data->gamma_tableX100[129]);
+					REG_WRITE(regs->gamma_blue_max_reg, setting_data->gamma_tableX100[130]);
+#endif
 				}
 			} else {
 				if (temp < 0)

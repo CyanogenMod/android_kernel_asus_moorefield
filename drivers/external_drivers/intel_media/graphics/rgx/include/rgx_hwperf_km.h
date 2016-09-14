@@ -165,12 +165,6 @@ typedef RGXFWIF_DM RGX_HWPERF_DM;
  */
 #define HWPERF_PACKET_V2A_SIG		0x48575041
 
-/*! Signature ASCII pattern 'HWPB' found in the first word of a HWPerfV2b packet
- */
-#define HWPERF_PACKET_V2B_SIG		0x48575042
-
-#define HWPERF_PACKET_ISVALID(_ptr) (((_ptr) == HWPERF_PACKET_V2_SIG) || ((_ptr) == HWPERF_PACKET_V2A_SIG)|| ((_ptr) == HWPERF_PACKET_V2B_SIG))
-
 /*! This structure defines version 2 of the packet format which is
  * based around a header and a variable length data payload structure.
  * The address of the next packet can be found by adding the ui16Size field
@@ -259,42 +253,21 @@ RGX_FW_STRUCT_SIZE_ASSERT(RGX_HWPERF_V2_PACKET_HDR)
 #define RGX_HWPERF_GET_PACKET_HEADER(_packet_addr)     ((RGX_HWPERF_V2_PACKET_HDR*)  ( ((IMG_BYTE*)(_packet_addr)) - sizeof(RGX_HWPERF_V2_PACKET_HDR) ))
 
 
-/*! Masks for use with the IMG_UINT32 ui32BlkInfo field */
-#define RGX_HWPERF_BLKINFO_BLKCOUNT_MASK	0xFFFF0000U
-#define RGX_HWPERF_BLKINFO_BLKOFFSET_MASK	0x0000FFFFU
-
-/*! Shift for the NumBlocks and counter block offset field in ui32BlkInfo */
-#define RGX_HWPERF_BLKINFO_BLKCOUNT_SHIFT	16U
-#define RGX_HWPERF_BLKINFO_BLKOFFSET_SHIFT 0U
-
-/*! Macro used to set the block info word as a combination of two 16-bit integers */
-#define RGX_HWPERF_MAKE_BLKINFO(_numblks,_blkoffset) ((IMG_UINT32) ((RGX_HWPERF_BLKINFO_BLKCOUNT_MASK&((_numblks) << RGX_HWPERF_BLKINFO_BLKCOUNT_SHIFT)) | (RGX_HWPERF_BLKINFO_BLKOFFSET_MASK&((_blkoffset) << RGX_HWPERF_BLKINFO_BLKOFFSET_SHIFT))))
-
-/*! Macro used to obtain get the number of counter blocks present in the packet */
-#define RGX_HWPERF_GET_BLKCOUNT(_blkinfo)            ((_blkinfo & RGX_HWPERF_BLKINFO_BLKCOUNT_MASK) >> RGX_HWPERF_BLKINFO_BLKCOUNT_SHIFT)
-
-/*! Obtains the offset of the counter block stream in the packet */
-#define RGX_HWPERF_GET_BLKOFFSET(_blkinfo)           ((_blkinfo & RGX_HWPERF_BLKINFO_BLKOFFSET_MASK) >> RGX_HWPERF_BLKINFO_BLKOFFSET_SHIFT)
-
-/* This is the maximum frame contexts that are supported in the driver at the moment */
-#define RGX_HWPERF_HW_MAX_WORK_CONTEXT               2
 /*! This structure holds the field data of a Hardware packet.
  */
 #define RGX_HWPERF_HW_DATA_FIELDS_LIST \
-IMG_UINT32 ui32DMCyc;         /*!< DataMaster cycle count register, 0 if none */\
-IMG_UINT32 ui32FrameNum;      /*!< Frame number */\
-IMG_UINT32 ui32PID;           /*!< Process identifier */\
-IMG_UINT32 ui32DMContext;     /*!< RenderContext for a TA,3D, Compute context for CDM, etc. */\
-IMG_UINT32 ui32RenderTarget;  /*!< RenderTarget for a TA,3D, 0x0 otherwise */\
-IMG_UINT32 ui32ExtJobRef;     /*!< Externally provided job reference used to track work for debugging purposes */\
-IMG_UINT32 ui32IntJobRef;     /*!< Internally provided job reference used to track work for debugging purposes */\
-IMG_UINT32 ui32TimeCorrIndex; /*!< Index to the time correlation at the time the packet was generated */\
-IMG_UINT32 ui32BlkInfo;       /*!< <31..16> NumBlocks <15..0> Counterblock stream offset */\
-IMG_UINT32 ui32WorkContext;   /*!< Work context number. Frame number for RTU DM, 0x0 otherwise */
+IMG_UINT32 ui32DMCyc;        /*!< DataMaster cycle count register, 0 if none */\
+IMG_UINT32 ui32FrameNum;     /*!< Frame number */\
+IMG_UINT32 ui32PID;          /*!< Process identifier */\
+IMG_UINT32 ui32DMContext;    /*!< RenderContext for a TA,3D, Compute context for CDM, etc. */\
+IMG_UINT32 ui32RenderTarget; /*!< RenderTarget for a TA,3D, 0x0 otherwise */\
+IMG_UINT32 ui32ExtJobRef; /*!< Externally provided job reference used to track work for debugging purposes */\
+IMG_UINT32 ui32IntJobRef; /*!< Internally provided job reference used to track work for debugging purposes */
 
 typedef struct
 {
 	RGX_HWPERF_HW_DATA_FIELDS_LIST
+	IMG_UINT32 ui32Reserved1; /*!< Define only if needed to make RGX_HWPERF_HW_DATA_FIELDS 8-byte aligned */
 } RGX_HWPERF_HW_DATA_FIELDS;
 
 RGX_FW_STRUCT_SIZE_ASSERT(RGX_HWPERF_HW_DATA_FIELDS)
@@ -341,7 +314,7 @@ RGX_FW_STRUCT_SIZE_ASSERT(RGX_HWPERF_HW_DATA_FIELDS)
  typedef struct _RGX_HWPERF_CONFIG_CNTBLK_
 {
 	/*! Counter block ID, see RGX_HWPERF_CNTBLK_ID */
-	IMG_UINT16 ui16BlockID;
+	IMG_UINT8	ui8BlockID;
 
 	/*! 4 or 6 LSBs are a mask of which counters to configure. Bit 0 is counter 0,
 	 * bit 1 is counter 1 on so on. */
@@ -368,7 +341,7 @@ RGX_FW_STRUCT_SIZE_ASSERT(RGX_HWPERF_HW_DATA_FIELDS)
 	/*! 14 LSBs used as the BATCH_MIN field in the RGX_CR_<N>_PERF_SELECTm
 	 * register. Array indexes relate to counters as above. */
 	IMG_UINT32  aui32BatchMin[RGX_HWPERF_CNTRS_IN_BLK];
-} UNCACHED_ALIGN RGX_HWPERF_CONFIG_CNTBLK;
+} RGX_HWPERF_CONFIG_CNTBLK;
 
 RGX_FW_STRUCT_SIZE_ASSERT(RGX_HWPERF_CONFIG_CNTBLK)
 

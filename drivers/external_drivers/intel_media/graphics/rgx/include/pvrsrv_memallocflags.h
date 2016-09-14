@@ -89,8 +89,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
  * This distinction becomes important when (a) we export allocations;
  * and (b) when we separate the creation of the PMR from the mapping.
  */
-#define PVRSRV_MEMALLOCFLAG_GPU_READABLE 		(1U<<0)
-#define PVRSRV_CHECK_GPU_READABLE(uiFlags) 		((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_READABLE) != 0)
+#define PVRSRV_MEMALLOCFLAG_GPU_READABLE (1U<<0)
 
 /*!
  * PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE
@@ -116,25 +115,13 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
  * and would therefore not enforce read-only mapping on CPU.
  */
 #define PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE       (1U<<1) /*!< mapped as writeable to the GPU */
-#define PVRSRV_CHECK_GPU_WRITEABLE(uiFlags)				((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE) != 0)
-
 #define PVRSRV_MEMALLOCFLAG_GPU_READ_PERMITTED  (1U<<2) /*!< can be mapped is GPU readable in another GPU mem context */
-#define PVRSRV_CHECK_GPU_READ_PERMITTED(uiFlags) 		((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_READ_PERMITTED) != 0)
-
 #define PVRSRV_MEMALLOCFLAG_GPU_WRITE_PERMITTED (1U<<3) /*!< can be mapped is GPU writable in another GPU mem context */
-#define PVRSRV_CHECK_GPU_WRITE_PERMITTED(uiFlags)		((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_WRITE_PERMITTED) != 0)
 
 #define PVRSRV_MEMALLOCFLAG_CPU_READABLE        (1U<<4) /*!< mapped as readable to the CPU */
-#define PVRSRV_CHECK_CPU_READABLE(uiFlags) 				((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_READABLE) != 0)
-
 #define PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE       (1U<<5) /*!< mapped as writeable to the CPU */
-#define PVRSRV_CHECK_CPU_WRITEABLE(uiFlags)				((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE) != 0)
-
 #define PVRSRV_MEMALLOCFLAG_CPU_READ_PERMITTED  (1U<<6) /*!< can be mapped is CPU readable in another CPU mem context */
-#define PVRSRV_CHECK_CPU_READ_PERMITTED(uiFlags)		((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_READ_PERMITTED) != 0)
-
 #define PVRSRV_MEMALLOCFLAG_CPU_WRITE_PERMITTED (1U<<7) /*!< can be mapped is CPU writable in another CPU mem context */
-#define PVRSRV_CHECK_CPU_WRITE_PERMITTED(uiFlags)		((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_WRITE_PERMITTED) != 0)
 
 
 /*
@@ -152,7 +139,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
 	The following defines are used to control the GPU cache bit field.
 	The defines are mutually exclusive.
 	
-	A helper macro, PVRSRV_GPU_CACHE_MODE, is provided to obtain just the GPU cache
+	A helper macro, GPU_CACHE_MODE, is provided to obtain just the GPU cache
 	bit field from the flags. This should be used whenever the GPU cache mode
 	needs to be determined.
 */
@@ -162,16 +149,13 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
   allocated with this flag are written straight to memory and thus are coherent
   for any device in the system.
 */
-#define PVRSRV_MEMALLOCFLAG_GPU_UNCACHED         		(0U<<8)
-#define PVRSRV_CHECK_GPU_UNCACHED(uiFlags)		 		((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_UNCACHED) != 0)
+#define PVRSRV_MEMALLOCFLAG_GPU_UNCACHED         (0U<<8)
 
 /*!
    GPU domain. Use write combiner (if supported) to combine sequential writes 
    together to reduce memory access by doing burst writes.
 */
-#define PVRSRV_MEMALLOCFLAG_GPU_WRITE_COMBINE    		(1U<<8)
-#define PVRSRV_CHECK_GPU_WRITE_COMBINE(uiFlags)	 		((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_WRITE_COMBINE) != 0)
-
+#define PVRSRV_MEMALLOCFLAG_GPU_WRITE_COMBINE    (1U<<8)
 /*!
     GPU domain. This flag affects the device MMU protection flags.
  
@@ -182,8 +166,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     is accessed by another device (eg display controller) a flush will
     be required.
 */
-#define PVRSRV_MEMALLOCFLAG_GPU_CACHE_COHERENT   		(2U<<8)
-#define PVRSRV_CHECK_GPU_CACHE_COHERENT(uiFlags) 		((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_CACHE_COHERENT) != 0)
+#define PVRSRV_MEMALLOCFLAG_GPU_CACHE_COHERENT   (2U<<8)
 
 /*!
    GPU domain. Request cached memory, but not coherent (i.e. no cache snooping).
@@ -194,8 +177,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     Note: We reserve 3 bits in the CPU/GPU cache mode to allow for future
     expansion.
 */
-#define PVRSRV_MEMALLOCFLAG_GPU_CACHE_INCOHERENT 		(3U<<8)
-#define PVRSRV_CHECK_GPU_CACHE_INCOHERENT(uiFlags)		((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_CACHE_INCOHERENT) != 0)
+#define PVRSRV_MEMALLOCFLAG_GPU_CACHE_INCOHERENT (3U<<8)
 
 /*!
     GPU domain.
@@ -206,7 +188,6 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
 	but rather returns an error.
 */
 #define PVRSRV_MEMALLOCFLAG_GPU_CACHED_CACHE_COHERENT   (4U<<8)
-#define PVRSRV_CHECK_GPU_CACHED_CACHE_COHERENT(uiFlags)	((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_CACHED_CACHE_COHERENT) != 0)
 
 /*!
 	GPU domain.
@@ -216,15 +197,15 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
 	after all the snooping and coherent checks have been done
 */
 #define PVRSRV_MEMALLOCFLAG_GPU_CACHED					(7U<<8)
-#define PVRSRV_CHECK_GPU_CACHED(uiFlags)				((uiFlags & PVRSRV_MEMALLOCFLAG_GPU_CACHED) != 0)
 
 /*!
 	GPU domain.
 	
 	GPU cache mode mask
 */
-#define PVRSRV_MEMALLOCFLAG_GPU_CACHE_MODE_MASK  		(7U<<8)
-#define PVRSRV_GPU_CACHE_MODE(uiFlags)					(uiFlags & PVRSRV_MEMALLOCFLAG_GPU_CACHE_MODE_MASK)
+#define PVRSRV_MEMALLOCFLAG_GPU_CACHE_MODE_MASK  (7U<<8)
+
+#define GPU_CACHE_MODE(n)	(n & PVRSRV_MEMALLOCFLAG_GPU_CACHE_MODE_MASK)
 
 
 /*
@@ -234,7 +215,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
 	The following defines are used to control the CPU cache bit field.
 	The defines are mutually exclusive.
 	
-	A helper macro, PVRSRV_CPU_CACHE_MODE, is provided to obtain just the CPU cache
+	A helper macro, CPU_CACHE_MODE, is provided to obtain just the CPU cache
 	bit field from the flags. This should be used whenever the CPU cache mode
 	needs to be determined.
 */
@@ -244,15 +225,13 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
   allocated with this flag are written straight to memory and thus are coherent
   for any device in the system.
 */
-#define PVRSRV_MEMALLOCFLAG_CPU_UNCACHED         		(0U<<11)
-#define PVRSRV_CHECK_CPU_UNCACHED(uiFlags)				((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_UNCACHED) != 0)
+#define PVRSRV_MEMALLOCFLAG_CPU_UNCACHED         (0U<<11)
 
 /*!
    CPU domain. Use write combiner (if supported) to combine sequential writes 
    together to reduce memory access by doing burst writes.
 */
-#define PVRSRV_MEMALLOCFLAG_CPU_WRITE_COMBINE 		   	(1U<<11)
-#define PVRSRV_CHECK_CPU_WRITE_COMBINE(uiFlags)			((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_WRITE_COMBINE) != 0)
+#define PVRSRV_MEMALLOCFLAG_CPU_WRITE_COMBINE    (1U<<11)
 
 /*!
     CPU domain. This flag affects the device MMU protection flags.
@@ -264,8 +243,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     is accessed by another device (eg display controller) a flush will
     be required.
 */
-#define PVRSRV_MEMALLOCFLAG_CPU_CACHE_COHERENT   		(2U<<11)
-#define PVRSRV_CHECK_CPU_CACHE_COHERENT(uiFlags)		((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_COHERENT) != 0)
+#define PVRSRV_MEMALLOCFLAG_CPU_CACHE_COHERENT   (2U<<11)
 
 /*!
    CPU domain. Request cached memory, but not coherent (i.e. no cache snooping).
@@ -276,8 +254,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     Note: We reserve 3 bits in the CPU/GPU cache mode to allow for future
     expansion.
 */
-#define PVRSRV_MEMALLOCFLAG_CPU_CACHE_INCOHERENT 		(3U<<11)
-#define PVRSRV_CHECK_CPU_CACHE_INCOHERENT(uiFlags)		((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_INCOHERENT) != 0)
+#define PVRSRV_MEMALLOCFLAG_CPU_CACHE_INCOHERENT (3U<<11)
 
 /*!
     CPU domain.
@@ -288,7 +265,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
 	but rather returns an error.
 */
 #define PVRSRV_MEMALLOCFLAG_CPU_CACHED_CACHE_COHERENT   (4U<<11)
-#define PVRSRV_CHECK_CPU_CACHED_CACHE_COHERENT(uiFlags)	((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHED_CACHE_COHERENT) != 0)
+
 
 /*!
 	CPU domain.
@@ -298,29 +275,21 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
 	after all the snooping and coherent checks have been done
 */
 #define PVRSRV_MEMALLOCFLAG_CPU_CACHED					(7U<<11)
-#define PVRSRV_CHECK_CPU_CACHED(uiFlags)				((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHED) != 0)
 
 /*!
 	CPU domain.
 	
 	CPU cache mode mask
 */
-#define PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK  		(7U<<11)
-#define PVRSRV_CPU_CACHE_MODE(uiFlags)					(uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK)
+#define PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK  (7U<<11)
+
+#define CPU_CACHE_MODE(n)	(n & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK)
 
 /* Helper flags for usual cases */
-#define PVRSRV_MEMALLOCFLAG_UNCACHED             		(PVRSRV_MEMALLOCFLAG_GPU_UNCACHED | PVRSRV_MEMALLOCFLAG_CPU_UNCACHED) /*!< Memory will be uncached */
-#define PVRSRV_CHECK_UNCACHED(uiFlags)					((uiFlags & PVRSRV_MEMALLOCFLAG_UNCACHED) != 0)
-
-#define PVRSRV_MEMALLOCFLAG_WRITE_COMBINE        		(PVRSRV_MEMALLOCFLAG_GPU_WRITE_COMBINE | PVRSRV_MEMALLOCFLAG_CPU_WRITE_COMBINE)   /*!< Memory will be write-combined */
-#define PVRSRV_CHECK_WRITE_COMBINE(uiFlags)				((uiFlags & PVRSRV_MEMALLOCFLAG_WRITE_COMBINE) != 0)
-
-#define PVRSRV_MEMALLOCFLAG_CACHE_COHERENT       		(PVRSRV_MEMALLOCFLAG_GPU_CACHE_COHERENT | PVRSRV_MEMALLOCFLAG_CPU_CACHE_COHERENT)  /*!< Memory will be cache-coherent */
-#define PVRSRV_CHECK_CACHE_COHERENT(uiFlags)			((uiFlags & PVRSRV_MEMALLOCFLAG_CACHE_COHERENT) != 0)
-
-#define PVRSRV_MEMALLOCFLAG_CACHE_INCOHERENT     		(PVRSRV_MEMALLOCFLAG_GPU_CACHE_INCOHERENT | PVRSRV_MEMALLOCFLAG_CPU_CACHE_INCOHERENT) /*!< Memory will be cache-incoherent */
-#define PVRSRV_CHECK_CACHE_INCOHERENT(uiFlags)			((uiFlags & PVRSRV_MEMALLOCFLAG_CACHE_INCOHERENT) != 0)
-
+#define PVRSRV_MEMALLOCFLAG_UNCACHED             (PVRSRV_MEMALLOCFLAG_GPU_UNCACHED | PVRSRV_MEMALLOCFLAG_CPU_UNCACHED) /*!< Memory will be uncached */
+#define PVRSRV_MEMALLOCFLAG_WRITE_COMBINE        (PVRSRV_MEMALLOCFLAG_GPU_WRITE_COMBINE | PVRSRV_MEMALLOCFLAG_CPU_WRITE_COMBINE)   /*!< Memory will be write-combined */
+#define PVRSRV_MEMALLOCFLAG_CACHE_COHERENT       (PVRSRV_MEMALLOCFLAG_GPU_CACHE_COHERENT | PVRSRV_MEMALLOCFLAG_CPU_CACHE_COHERENT)  /*!< Memory will be cache-coherent */
+#define PVRSRV_MEMALLOCFLAG_CACHE_INCOHERENT     (PVRSRV_MEMALLOCFLAG_GPU_CACHE_INCOHERENT | PVRSRV_MEMALLOCFLAG_CPU_CACHE_INCOHERENT) /*!< Memory will be cache-incoherent */
 
 /*!
    CPU MMU Flags mask -- intended for use internal to services only
@@ -346,8 +315,8 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     flag as it may cause wastage of precious kernel virtual memory on
     some platforms.
  */
-#define PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE 		(1U<<14)
-#define PVRSRV_CHECK_KERNEL_CPU_MAPPABLE(uiFlags)		((uiFlags & PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE) != 0)
+#define PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE (1U<<14)
+
 
 
 
@@ -362,8 +331,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
  * (Bits 15)
  *
  */
-#define PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC			(1U<<15)
-#define PVRSRV_CHECK_ON_DEMAND(uiFlags)					((uiFlags & PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC) != 0)
+#define PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC (1U<<15)
 
 /*!
     PVRSRV_MEMALLOCFLAG_CPU_LOCAL
@@ -373,16 +341,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     If not set, the allocation will primarily be accessed by
     the GPU, so LMA allocation (if available) is preferable.
  */
-#define PVRSRV_MEMALLOCFLAG_CPU_LOCAL 					(1U<<16)
-#define PVRSRV_CHECK_CPU_LOCAL(uiFlags)					((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_LOCAL) != 0)
-
-/*!
- * PVRSRV_MEMALLOCFLAG_ZONE_DMA32
- * Some devices, like Intel's display controller and camera
- * ISP, can only use the system memory residing in 32bit range.
- * Use this flag to indicate this kind of allocation.
- */
-#define PVRSRV_MEMALLOCFLAG_ZONE_DMA32 (1U<<17)
+#define PVRSRV_MEMALLOCFLAG_CPU_LOCAL (1U<<16)
 
 /*
  *
@@ -418,8 +377,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC
     Ensures that the memory allocated is initialized with zeroes.
  */
-#define PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC 				(1U<<31)
-#define PVRSRV_CHECK_ZERO_ON_ALLOC(uiFlags)				((uiFlags & PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC) != 0)
+#define PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC (1U<<31)
 
 /*!
     VRSRV_MEMALLOCFLAG_POISON_ON_ALLOC
@@ -432,8 +390,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     a simulation to cry loudly if the initialised data propogates to a
     result.
  */
-#define PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC 			(1U<<30)
-#define PVRSRV_CHECK_POISON_ON_ALLOC(uiFlags) 			((uiFlags & PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC) != 0)
+#define PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC (1U<<30)
 
 /*!
     PVRSRV_MEMALLOCFLAG_POISON_ON_FREE
@@ -442,7 +399,6 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
     measure.
  */
 #define PVRSRV_MEMALLOCFLAG_POISON_ON_FREE (1U<<29)
-#define PVRSRV_CHECK_POISON_ON_FREE(uiFlags)			((uiFlags & PVRSRV_MEMALLOCFLAG_POISON_ON_FREE) != 0)
 
 /*
  *
@@ -480,8 +436,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
                                             PVRSRV_MEMALLOCFLAGS_GPU_MMUFLAGSMASK | \
                                             PVRSRV_MEMALLOCFLAGS_CPU_MMUFLAGSMASK | \
                                             PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC | \
-                                            PVRSRV_MEMALLOCFLAG_CPU_LOCAL | \
-                                            PVRSRV_MEMALLOCFLAG_ZONE_DMA32)
+                                            PVRSRV_MEMALLOCFLAG_CPU_LOCAL)
 
 #if ((~(PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK) & PVRSRV_MEMALLOCFLAGS_GPU_MMUFLAGSMASK) != 0)
 #error PVRSRV_MEMALLOCFLAGS_GPU_MMUFLAGSMASK is not a subset of PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK
@@ -506,8 +461,7 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
                                                       PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK | \
                                                       PVRSRV_MEMALLOCFLAG_POISON_ON_FREE | \
                                                       PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK | \
-                                                      PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC | \
-                                                      PVRSRV_MEMALLOCFLAG_ZONE_DMA32)
+                                                      PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC)
 
 #if ((~(PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK) & PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK) != 0)
 #error PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK is not a subset of PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK

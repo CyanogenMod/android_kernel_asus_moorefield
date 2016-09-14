@@ -49,29 +49,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * debugging. */
 #if defined(LINUX) && defined(__KERNEL__)
 
-#include <linux/types.h>
 #include <linux/mutex.h>
 /* The mutex is defined as a pointer to be compatible with the other code. This
  * isn't ideal and usually you wouldn't do that in kernel code. */
 typedef struct mutex *POS_LOCK;
-typedef atomic_t ATOMIC_T;
 
 #else /* defined(LINUX) && defined(__KERNEL__) */
 
 typedef struct _OS_LOCK_ *POS_LOCK;
-#if defined(LINUX)
-	typedef struct _OS_ATOMIC {IMG_INT counter;} ATOMIC_T;
-#elif defined(__QNXNTO__)
-	typedef struct _OS_ATOMIC {IMG_INT counter;} ATOMIC_T;
-#elif defined(_WIN32)
-	/*
-	 * Dummy definition. WDDM doesn't use Services, but some headers
-	 * still have to be shared. This is one such case.
-	 */
-	typedef struct _OS_ATOMIC {IMG_INT counter;} ATOMIC_T;
-#else
-	#error "Please type-define an atomic lock for this environment"
-#endif
 
 #endif /* defined(LINUX) && defined(__KERNEL__) */
 

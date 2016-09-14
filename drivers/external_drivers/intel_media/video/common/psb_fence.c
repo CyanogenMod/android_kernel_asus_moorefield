@@ -70,7 +70,6 @@ int psb_fence_emit_sequence(struct ttm_fence_device *fdev,
 		spin_lock(&dev_priv->sequence_lock);
 		seq = dev_priv->sequence[fence_class]++;
 		spin_unlock(&dev_priv->sequence_lock);
-		PSB_DEBUG_TOPAZ("TOPAZ: emit a sequence, next sequence %08x\n", dev_priv->sequence[fence_class]);
 		break;
 #ifdef SUPPORT_VSP
 	case VSP_ENGINE_VPP:
@@ -177,12 +176,8 @@ static void psb_fence_lockup(struct ttm_fence_object *fence,
 		if (psb_get_power_state(OSPM_VIDEO_DEC_ISLAND) == 0)
 			PSB_DEBUG_WARN("WARN: msvdx is power off in accident.\n");
 #endif
-
-#if defined(MERRIFIELD)
-		/* It's safe to check VED reg here on TNG/ANN as the bus can handle case of "VED power down" */
 		PSB_DEBUG_WARN("WARN: MSVDX_COMMS_FW_STATUS reg is 0x%x.\n",
 				PSB_RMSVDX32(MSVDX_COMMS_FW_STATUS));
-#endif
 		psb_msvdx_flush_cmd_queue(dev);
 
 		write_lock(&fc->lock);

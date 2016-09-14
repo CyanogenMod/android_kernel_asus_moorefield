@@ -47,10 +47,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "physmem.h"
 #include "pvrsrv.h"
 
-#if defined(DEBUG)
-IMG_UINT32 gPMRAllocFail = 0;
-#endif /* defined(DEBUG) */
-
 PVRSRV_ERROR
 PhysmemNewRamBackedPMR(PVRSRV_DEVICE_NODE *psDevNode,
 						IMG_DEVMEM_SIZE_T uiSize,
@@ -65,28 +61,25 @@ PhysmemNewRamBackedPMR(PVRSRV_DEVICE_NODE *psDevNode,
 	PVRSRV_DEVICE_PHYS_HEAP ePhysHeapIdx = (uiFlags & PVRSRV_MEMALLOCFLAG_CPU_LOCAL) ? 1: 0;
 	PFN_SYS_DEV_CHECK_MEM_ALLOC_SIZE pfnCheckMemAllocSize = \
 										psDevNode->psDevConfig->pfnCheckMemAllocSize;
-#if defined(DEBUG)
-	static IMG_UINT32 ui32AllocCount = 1;
-#endif /* defined(DEBUG) */
 	/********************************
 	 * Sanity check the cache flags *
 	 ********************************/
 	/* Check if we can honour cached cache-coherent allocations */
-	if ((PVRSRV_CPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_CPU_CACHED_CACHE_COHERENT) &&
+	if ((CPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_CPU_CACHED_CACHE_COHERENT) &&
 		(!PVRSRVSystemHasCacheSnooping()))
 	{
 		return PVRSRV_ERROR_UNSUPPORTED_CACHE_MODE;
 	}
 
 	/* Both or neither have to be cache-coherent */
-	if ((PVRSRV_CPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_CPU_CACHE_COHERENT) ^
-		(PVRSRV_GPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_GPU_CACHE_COHERENT))
+	if ((CPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_CPU_CACHE_COHERENT) ^
+		(GPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_GPU_CACHE_COHERENT))
 	{
 		return PVRSRV_ERROR_UNSUPPORTED_CACHE_MODE;
 	}
 
-	if ((PVRSRV_CPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_CPU_CACHED_CACHE_COHERENT) ^
-		(PVRSRV_GPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_GPU_CACHED_CACHE_COHERENT))
+	if ((CPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_CPU_CACHED_CACHE_COHERENT) ^
+		(GPU_CACHE_MODE(uiFlags) == PVRSRV_MEMALLOCFLAG_GPU_CACHED_CACHE_COHERENT))
 	{
 		return PVRSRV_ERROR_UNSUPPORTED_CACHE_MODE;
 	}
@@ -101,22 +94,6 @@ PhysmemNewRamBackedPMR(PVRSRV_DEVICE_NODE *psDevNode,
 			return eError;
 		}
 	}
-
-#if defined(DEBUG)
-	if (gPMRAllocFail > 0)
-	{
-		if (ui32AllocCount < gPMRAllocFail)
-		{
-			ui32AllocCount++;
-		}
-		else
-		{
-			PVR_DPF((PVR_DBG_ERROR, "%s failed on %d allocation.",
-			         __func__, ui32AllocCount));
-			return PVRSRV_ERROR_OUT_OF_MEMORY;
-		}
-	}
-#endif /* defined(DEBUG) */
 
 	return psDevNode->pfnCreateRamBackedPMR[ePhysHeapIdx](psDevNode,
 											uiSize,

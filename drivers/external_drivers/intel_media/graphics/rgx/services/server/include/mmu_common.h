@@ -127,15 +127,15 @@ typedef struct _MMU_DEVICEATTRIBS_
 	const struct _MMU_DEVVADDR_CONFIG_ *psTopLevelDevVAddrConfig;
 
 	/*! Callback for creating protection bits for the page catalogue entry with 8 byte entry */
-	IMG_UINT64 (*pfnDerivePCEProt8)(IMG_UINT32, IMG_UINT32);
+	IMG_UINT64 (*pfnDerivePCEProt8)(IMG_UINT32, IMG_UINT8);
 	/*! Callback for creating protection bits for the page catalogue entry with 4 byte entry */
 	IMG_UINT32 (*pfnDerivePCEProt4)(IMG_UINT32);
 	/*! Callback for creating protection bits for the page directory entry with 8 byte entry */
-	IMG_UINT64 (*pfnDerivePDEProt8)(IMG_UINT32, IMG_UINT32);
+	IMG_UINT64 (*pfnDerivePDEProt8)(IMG_UINT32, IMG_UINT8);
 	/*! Callback for creating protection bits for the page directory entry with 4 byte entry */
 	IMG_UINT32 (*pfnDerivePDEProt4)(IMG_UINT32);
 	/*! Callback for creating protection bits for the page table entry with 8 byte entry */
-	IMG_UINT64 (*pfnDerivePTEProt8)(IMG_UINT32, IMG_UINT32);
+	IMG_UINT64 (*pfnDerivePTEProt8)(IMG_UINT32, IMG_UINT8);
 	/*! Callback for creating protection bits for the page table entry with 4 byte entry */
 	IMG_UINT32 (*pfnDerivePTEProt4)(IMG_UINT32);
 
@@ -213,11 +213,6 @@ typedef struct _MMU_PxE_CONFIG_
 	IMG_UINT64	 uiProtMask;
 	/*! Protection flags shift */
 	IMG_UINT8	 uiProtShift;
-
-	/*! Entry valid bit mask */
-	IMG_UINT64   uiValidEnMask;
-	/*! Entry valid bit shift */
-	IMG_UINT8    uiValidEnShift;
 } MMU_PxE_CONFIG;
 
 /* MMU Protection flags */
@@ -408,42 +403,6 @@ MMU_AcquireBaseAddr(MMU_CONTEXT *psMMUContext, IMG_DEV_PHYADDR *psPhysAddr);
 IMG_VOID
 MMU_ReleaseBaseAddr(MMU_CONTEXT *psMMUContext);
 
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-/***********************************************************************************/ /*!
-@Function       MMU_SetOSid
-
-@Description    Set the OSid associated with the application (and the MMU Context)
-
-@Input          psMMUContext            MMU context to store the OSid on
-
-@Input          ui32OSid                the OSid in question
-
-@Input			ui32OSidReg				The value that the firmware will assign to the
-										registers.
-@Return None
-*/
-/***********************************************************************************/
-
-IMG_VOID MMU_SetOSids(MMU_CONTEXT *psMMUContext, IMG_UINT32 ui32OSid, IMG_UINT32 ui32OSidReg);
-
-/***********************************************************************************/ /*!
-@Function       MMU_GetOSid
-
-@Description    Retrieve the OSid associated with the MMU context.
-
-@Input          psMMUContext            MMU context to store the OSid on
-
-@Output			ui32OSid                the OSid in question
-
-@Output			ui32OSidReg				The OSid that the firmware will assign to the
-										registers
-@Return None
-*/
-/***********************************************************************************/
-
-IMG_VOID MMU_GetOSids(MMU_CONTEXT *psMMUContext, IMG_UINT32 * pui32OSid, IMG_UINT32 * pui32OSidReg);
-#endif
-
 /*************************************************************************/ /*!
 @Function       MMU_SetDeviceData
 
@@ -472,18 +431,6 @@ IMG_VOID MMU_SetDeviceData(MMU_CONTEXT *psMMUContext, IMG_HANDLE hDevData);
 */
 /*****************************************************************************/
 IMG_VOID MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAddr);
-
-/*************************************************************************/ /*!
-@Function       MMUI_IsVDevAddrValid
-@Description    Checks if given address is valid.
-@Input          psMMUContext MMU context to store the data on
-@Input          uiLog2PageSize page size
-@Input          psDevVAddr Address to check
-@Return         IMG_TRUE of address is valid
-*/ /**************************************************************************/
-IMG_BOOL MMU_IsVDevAddrValid(MMU_CONTEXT *psMMUContext,
-                             IMG_UINT32 uiLog2PageSize,
-                             IMG_DEV_VIRTADDR sDevVAddr);
 
 #if defined(PDUMP)
 /*************************************************************************/ /*!

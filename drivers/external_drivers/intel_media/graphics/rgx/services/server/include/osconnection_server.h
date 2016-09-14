@@ -46,6 +46,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "handle.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__linux__) || defined(__QNXNTO__)
 PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, IMG_PVOID pvOSData);
@@ -85,5 +88,8 @@ static INLINE PVRSRV_ERROR OSConnectionSetHandleOptions(PVRSRV_HANDLE_BASE *psHa
 }
 #endif	/* defined(__linux__) */
 
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* _OSCONNECTION_SERVER_H_ */

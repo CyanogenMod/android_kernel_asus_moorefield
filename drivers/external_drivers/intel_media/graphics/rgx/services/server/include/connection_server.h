@@ -41,58 +41,46 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /***************************************************************************/
 
-#if !defined(_CONNECTION_SERVER_H_)
+#ifndef _CONNECTION_SERVER_H_
 #define _CONNECTION_SERVER_H_
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
 #include "img_types.h"
-#include "handle.h"
-#include "pvrsrv_cleanup.h"
+#include "resman.h"
 
-/* Variable used to hold in memory the timeout for the current time slice*/
-extern IMG_UINT64 gui64TimesliceLimit;
-/* Counter number of handle data freed during the current time slice */
-extern IMG_UINT32 gui32HandleDataFreeCounter;
-/* Set the maximum time the freeing of the resources can keep the lock */
-#define CONNECTION_DEFERRED_CLEANUP_TIMESLICE_NS 3000 * 1000 /* 3ms */
+#include "handle.h"
 
 typedef struct _CONNECTION_DATA_
 {
-	PVRSRV_HANDLE_BASE		*psHandleBase;
-	struct _SYNC_CONNECTION_DATA_	*psSyncConnectionData;
-	struct _PDUMP_CONNECTION_DATA_	*psPDumpConnectionData;
+	PRESMAN_CONTEXT 	hResManContext;
+	PVRSRV_HANDLE_BASE 	*psHandleBase;
+	struct _SYNC_CONNECTION_DATA_ *psSyncConnectionData;
+	struct _PDUMP_CONNECTION_DATA_ *psPDumpConnectionData;
 
-	/* Holds the client flags supplied at connection time */
-	IMG_UINT32			ui32ClientFlags;
+	/* True if the process is the initialisation server. */
+	IMG_BOOL		bInitProcess;
 
 	/*
 	 * OS specific data can be stored via this handle.
 	 * See osconnection_server.h for a generic mechanism
 	 * for initialising this field.
 	 */
-	IMG_HANDLE			hOsPrivateData;
+	IMG_HANDLE		hOsPrivateData;
 
-	IMG_PID				pid;
+	IMG_PVOID		hSecureData;
 
-	IMG_PVOID			hSecureData;
-
-	IMG_HANDLE			hProcessStats;
-
-	/* Structure which is hooked into the cleanup thread work list */
-	PVRSRV_CLEANUP_THREAD_WORK sCleanupThreadFn;
-
-	/* List navigation for deferred freeing of connection data */
-	struct _CONNECTION_DATA_	**ppsThis;
-	struct _CONNECTION_DATA_	*psNext;
+	IMG_HANDLE      hProcessStats;
 } CONNECTION_DATA;
 
 PVRSRV_ERROR PVRSRVConnectionConnect(IMG_PVOID *ppvPrivData, IMG_PVOID pvOSData);
-void PVRSRVConnectionDisconnect(IMG_PVOID pvPrivData);
+IMG_VOID PVRSRVConnectionDisconnect(IMG_PVOID pvPrivData);
 
-PVRSRV_ERROR PVRSRVConnectionInit(void);
-PVRSRV_ERROR PVRSRVConnectionDeInit(void);
+PVRSRV_ERROR PVRSRVConnectionInit(IMG_VOID);
+PVRSRV_ERROR PVRSRVConnectionDeInit(IMG_VOID);
 
-IMG_PID PVRSRVGetPurgeConnectionPid(void);
 
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(PVRSRVConnectionPrivateData)
@@ -103,5 +91,8 @@ IMG_HANDLE PVRSRVConnectionPrivateData(CONNECTION_DATA *psConnection)
 	return (psConnection != IMG_NULL) ? psConnection->hOsPrivateData : IMG_NULL;
 }
 
+#if defined (__cplusplus)
+}
+#endif
 
-#endif /* !defined(_CONNECTION_SERVER_H_) */
+#endif /* _CONNECTION_SERVER_H_ */

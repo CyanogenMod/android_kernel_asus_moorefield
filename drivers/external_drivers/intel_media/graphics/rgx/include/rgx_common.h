@@ -115,24 +115,7 @@ typedef enum _RGXFWIF_DM_
 #endif
 #define RGXFWIF_HWDM_MAX		(RGXFWIF_DM_MAX)
 
-/*!
- ******************************************************************************
- * RGXFW Compiler alignment definitions
- *****************************************************************************/
-#if defined(__GNUC__)
-#define RGXFW_ALIGN			__attribute__ ((aligned (8)))
-#elif defined(_MSC_VER)
-#define RGXFW_ALIGN			__declspec(align(8))
-#pragma warning (disable : 4324)
-#else
-#error "Align MACROS need to be defined for this compiler"
-#endif
 
-/*!
- ******************************************************************************
- * Force 8-byte alignment for structures allocated uncached.
- *****************************************************************************/
-#define UNCACHED_ALIGN      RGXFW_ALIGN
 
 #if defined (__cplusplus)
 }

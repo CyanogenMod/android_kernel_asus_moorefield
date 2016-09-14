@@ -71,4 +71,8 @@ int psb_dpst_bl(struct drm_device *, void *);
 int psb_diet_enable(struct drm_device *, void *);
 /* SH END DPST */
 
+#ifdef CONFIG_A500CG
+void disable_diet(int status);
+#endif
+
 #endif				/* _PSB_DPST_FUNC_H_ */

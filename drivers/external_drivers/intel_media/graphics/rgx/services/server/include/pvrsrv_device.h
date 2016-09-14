@@ -49,8 +49,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "physheap.h"
 #include "rgx_fwif_km.h"
 #include "pmr.h"
-#include "lock.h"
-#include "pvr_dvfs.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct _PVRSRV_DEVICE_CONFIG_ PVRSRV_DEVICE_CONFIG;
 
@@ -156,10 +158,6 @@ struct _PVRSRV_DEVICE_CONFIG_
 	RGXFWIF_DM			eBPDM;
 	/*! A Breakpoint has been set */
 	IMG_BOOL			bBPSet;	
-
-#if defined(PVR_DVFS)
-	PVRSRV_DVFS			sDVFS;
-#endif
 };
 
 typedef PVRSRV_ERROR (*PFN_SYSTEM_PRE_POWER_STATE)(PVRSRV_SYS_POWER_STATE eNewPowerState);
@@ -189,5 +187,8 @@ typedef struct _PVRSRV_SYSTEM_CONFIG_
 	IMG_UINT32              ui32BIFTilingHeapCount;
 } PVRSRV_SYSTEM_CONFIG;
 
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* __PVRSRV_DEVICE_H__*/

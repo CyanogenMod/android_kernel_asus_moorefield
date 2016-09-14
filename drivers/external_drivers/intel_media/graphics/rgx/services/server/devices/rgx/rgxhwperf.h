@@ -80,9 +80,9 @@ PVRSRV_ERROR PVRSRVRGXConfigEnableHWPerfCountersKM(
 
 PVRSRV_ERROR PVRSRVRGXCtrlHWPerfCountersKM(
 		PVRSRV_DEVICE_NODE*		psDeviceNode,
-		IMG_BOOL			bEnable,
-	    IMG_UINT32 			ui32ArrayLen,
-	    IMG_UINT16*			psBlockIDs);
+		IMG_BOOL				bEnable,
+	    IMG_UINT32 				ui32ArrayLen,
+	    IMG_UINT8*				psBlockIDs);
 
 PVRSRV_ERROR PVRSRVRGXConfigCustomCountersKM(
 		PVRSRV_DEVICE_NODE*     psDeviceNode,
@@ -103,7 +103,7 @@ IMG_VOID RGXHWPerfFTraceGPUEnqueueEvent(PVRSRV_RGXDEV_INFO *psDevInfo,
 		IMG_UINT32 ui32ExternalJobRef, IMG_UINT32 ui32InternalJobRef,
 		const IMG_CHAR* pszJobType);
 
-PVRSRV_ERROR RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue);
+IMG_VOID RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue);
 IMG_BOOL RGXHWPerfFTraceGPUEventsEnabled(IMG_VOID);
 
 IMG_VOID RGXHWPerfFTraceGPUThread(IMG_PVOID pvData);

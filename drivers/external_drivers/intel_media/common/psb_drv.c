@@ -73,9 +73,19 @@
 #include "img_types.h"
 #include "pvr_bridge.h"
 #include "linkage.h"
-#include <linux/HWVersion.h>
+#ifdef CONFIG_A500CG
+#include "mdfld_dsi_dpi.h"
+#endif
 
-extern int Read_HW_ID(void);
+#include <linux/HWVersion.h>
+#ifdef CONFIG_A500CG
+extern int Read_LCD_ID(void);
+extern int Read_PROJ_ID(void);
+
+
+u8 panel_name_FW[PANEL_NAME_MAX_LEN+1] = {0};
+static u8 *lcd_unique_id;
+#endif
 
 struct workqueue_struct *te_wq;
 struct workqueue_struct *vsync_wq;
@@ -115,7 +125,11 @@ int csc_setting[6] = {0};
 int gamma_number = 129;
 int csc_number = 6;
 #ifdef CONFIG_CTP_DPST
+#ifdef CONFIG_A500CG
+int dpst_level = 5;
+#else
 int dpst_level = 3;
+#endif
 #endif
 
 int asus_panel_id = 0x0;
@@ -157,6 +171,14 @@ extern struct platform_driver tmd_lcd_driver;
 
 #ifdef CONFIG_SUPPORT_OTM8018B_MIPI_480X854_DISPLAY
 extern struct platform_driver pf450cl_vid_lcd_driver;
+#endif
+
+#ifdef CONFIG_SUPPORT_MIPI_HX8394_DISPLAY
+extern struct platform_driver hx8394_lcd_driver;
+#endif
+
+#ifdef CONFIG_SUPPORT_MIPI_ORISE1283A_DISPLAY
+extern struct platform_driver orise1283a_lcd_driver;
 #endif
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -1166,8 +1188,11 @@ static bool intel_mid_get_vbt_data(struct drm_psb_private *dev_priv)
 			DRM_ERROR("Invalid desc\n");
 			return false;
 		}
-
+#ifdef CONFIG_A500CG
+		strncpy(panel_name_FW, panel_desc, PANEL_NAME_MAX_LEN);
+#else
 		strncpy(panel_name, panel_desc, PANEL_NAME_MAX_LEN);
+#endif
 
 		mipi_mode =
 		((struct gct_r11_panel_desc *)panel_desc)->display.mode ? \
@@ -1185,8 +1210,11 @@ static bool intel_mid_get_vbt_data(struct drm_psb_private *dev_priv)
 			DRM_ERROR("Invalid desc\n");
 			return false;
 		}
-
+#ifdef CONFIG_A500CG
+		strncpy(panel_name_FW, panel_desc, PANEL_NAME_MAX_LEN);
+#else
 		strncpy(panel_name, panel_desc, PANEL_NAME_MAX_LEN);
+#endif
 
 		mipi_mode =
 		((struct gct_r20_panel_desc *)panel_desc)->panel_mode.mode ?\
@@ -1197,16 +1225,68 @@ static bool intel_mid_get_vbt_data(struct drm_psb_private *dev_priv)
 		pVBT->size = 0;
 		return false;
 	}
-
+#ifdef CONFIG_A500CG
+	len = strnlen(panel_name_FW, PANEL_NAME_MAX_LEN);
+#else
 	len = strnlen(panel_name, PANEL_NAME_MAX_LEN);
+#endif
 	if (len) {
+#ifdef CONFIG_A500CG
+		strncpy(dev_priv->panel_info.name, panel_name_FW, len);
+#else
 		strncpy(dev_priv->panel_info.name, panel_name, len);
+#endif
 		dev_priv->panel_info.mode = mipi_mode;
 	} else {
 		DRM_ERROR("%s: detect panel info from gct error\n",
 				__func__);
 		return false;
 	}
+#ifdef CONFIG_A500CG
+	DRM_INFO("%s: FW panel name: %s, mipi_mode = %d !\n", __func__, panel_name_FW, mipi_mode);
+
+	if (Read_PROJ_ID() == PROJ_ID_A502CG) {
+		if (Read_LCD_ID() == A502CG_LCD_ID_TXD) {
+			printk("[DISP] DriverIC : ORISE9605A, Panel : TXD device registered!\n");
+			strncpy(panel_name, "OTM9605A", strlen("OTM9605A"));
+			mipi_mode = MDFLD_DSI_ENCODER_DPI;
+		} else if (Read_LCD_ID() == A502CG_LCD_ID_OFILM) {
+			printk("[DISP] DriverIC : ORISE8018B, Panel : OFILM device registered!\n");
+			strncpy(panel_name, panel_name_FW, strlen("OTM8018B"));
+			mipi_mode = MDFLD_DSI_ENCODER_DPI;
+		} else {
+			printk("[DISP] DriverIC : ORISE8018B, Panel : GIS device registered!\n");
+			strncpy(panel_name, panel_name_FW, strlen("OTM8018B"));
+			mipi_mode = MDFLD_DSI_ENCODER_DPI;
+		}
+	} else {
+#if defined(CONFIG_SUPPORT_MIPI_HX8394_DISPLAY) || defined(CONFIG_SUPPORT_MIPI_ORISE1283A_DISPLAY)
+		if (Read_LCD_ID() == LCD_ID_TM) {
+			printk("[DISP] DriverIC : HX8394 SR device registered!\n");
+			strncpy(panel_name, panel_name_FW, strlen("HX8394"));
+			mipi_mode = MDFLD_DSI_ENCODER_DPI;
+		} else {
+#ifdef PANEL_HX8394_EVB
+			printk("[DISP] DriverIC : HX8394 EVB device registered!\n");
+			strncpy(panel_name, panel_name_FW, strlen("HX8394"));
+			mipi_mode = MDFLD_DSI_ENCODER_DPI;
+#else
+			printk("[DISP] DriverIC : ORISE1283A device registered!\n");
+			strncpy(panel_name, panel_name_FW, strlen("ORISE1283A"));
+			mipi_mode = MDFLD_DSI_ENCODER_DPI;
+#endif
+		}
+#endif
+	}
+
+	if (strcmp(panel_name_FW, panel_name) == 0) {
+		lcd_unique_id = "ffffffff";
+		DRM_INFO("Unique ID : NONE\n");
+	} else {
+		lcd_unique_id = panel_name_FW+strlen(panel_name);
+		DRM_INFO("Unique ID : %s\n", lcd_unique_id);
+	}
+#endif
 
 	pdev = platform_device_alloc(panel_name, -1);
 	if (!pdev) {
@@ -1553,7 +1633,6 @@ static int psb_driver_unload(struct drm_device *dev)
 
 	return 0;
 }
-
 
 static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 {
@@ -2495,6 +2574,13 @@ static int psb_set_csc_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {
     struct drm_psb_csc_matrix *csc_matrix = data;
+#ifdef CONFIG_A500CG
+	if (!drm_psb_enable_color_conversion) {
+		REG_WRITE(PIPEACONF, (REG_READ(PIPEACONF) & (~BIT20)));
+	} else
+		REG_WRITE(PIPEACONF, (REG_READ(PIPEACONF) | BIT20));
+
+#endif
     csc_program_DC(dev, csc_matrix->matrix, csc_matrix->pipe);
     return 0;
 }
@@ -3240,6 +3326,13 @@ static int psb_display_reg_dump(struct drm_device *dev)
 	/* DSI PLL */
 	printk(KERN_INFO "[DISPLAY REG DUMP] DSI PLL REG\n\n");
 	psb_register_dump(dev, 0xf010, 0xf020);
+#ifdef CONFIG_A500CG
+	printk(KERN_INFO "\n");
+
+	/* GAMMA LUT REGISTER */
+	printk(KERN_INFO "[DISPLAY REG DUMP] GAMMA LUT\n\n");
+	psb_register_dump(dev, 0xa000, 0xa200);
+#endif
 	printk(KERN_INFO "\n");
 
 	/* MIPI A REGISTER */
@@ -3475,10 +3568,17 @@ static int psb_vsync_set_ioctl(struct drm_device *dev, void *data,
 					    (intel_vblank_count(dev, pipe) !=
 					     vbl_count),
 					    3 * DRM_HZ);
-
+#ifndef CONFIG_A500CG
 				if (!ret)
 					DRM_ERROR("Pipe %d vsync time out\n",
 							pipe);
+#else
+				if (!ret) {
+					DRM_ERROR("Pipe %d vsync time out\n",
+							pipe);
+					mdfld_reset_dpi_panel(dev_priv);
+				}
+#endif
 			}
 
 			getrawmonotonic(&now);
@@ -3683,6 +3783,16 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 				arg->display.vtotal_a = dev_priv->saveVTOTAL_A;
 			if (arg->display_read_mask & REGRWBITS_VTOTAL_B)
 				arg->display.vtotal_b = dev_priv->saveVTOTAL_B;
+			if (arg->display_read_mask & REGRWBITS_PIPEASTAT)
+				arg->display.pipestat_a = PSB_RVDC32(PIPEASTAT);
+			if (arg->display_read_mask & REGRWBITS_INT_MASK)
+				arg->display.int_mask =
+						PSB_RVDC32(PSB_INT_MASK_R);
+			if (arg->display_read_mask & REGRWBITS_INT_ENABLE)
+				arg->display.int_enable =
+						PSB_RVDC32(PSB_INT_ENABLE_R);
+			if (arg->display_read_mask & REGRWBITS_DISPLAY_ALL)
+				psb_display_reg_dump(dev);
 		}
 	}
 
@@ -5132,9 +5242,119 @@ static __init int parse_hdmi_edid(char *arg)
 early_param("hdmi_edid", parse_hdmi_edid);
 #endif
 
+#ifdef CONFIG_CTP_DPST
+static int dpst_level_read(struct file *file, char __user *buffer,
+				    size_t count, loff_t *ppos)
+{
+	int len = 0;
+	ssize_t ret = 0;
+	char *buff;
+
+	buff = kmalloc(100, GFP_KERNEL);
+	if(!buff)
+		return -ENOMEM;
+
+	len += sprintf(buff + len, "%d\n", dpst_level);
+	ret = simple_read_from_buffer(buffer,count,ppos,buff,len);
+	kfree(buff);
+
+	return ret;
+}
+static int dpst_level_write(struct file *file, const char *buffer,
+			  size_t count, loff_t *ppos)
+{
+	dpst_level = buffer[0] - '0';
+	printk("DPST level write: %d\n", dpst_level);
+
+	return count;
+}
+#endif
+
+#ifdef CONFIG_A500CG
+static int panel_id_read(struct file *file, char __user *buffer,
+				    size_t count, loff_t *ppos)
+{
+	int len = 0;
+	int lcd_id;
+	ssize_t ret = 0;
+	char *buff;
+
+	buff = kmalloc(100, GFP_KERNEL);
+	if(!buff)
+		return -ENOMEM;
+
+	lcd_id = Read_LCD_ID();
+
+	len += sprintf(buff + len, "%d\n", lcd_id);
+	ret = simple_read_from_buffer(buffer,count,ppos,buff,len);
+	kfree(buff);
+
+	return ret;
+}
+static int panel_id_write(struct file *file, const char *buffer,
+			  size_t count, loff_t *ppos)
+{
+	return 0;
+}
+
+static int lcd_unique_id_read(struct file *file, char __user *buffer,
+				    size_t count, loff_t *ppos)
+{
+	int len = 0;
+	ssize_t ret = 0;
+	char *buff;
+
+	buff = kmalloc(100, GFP_KERNEL);
+	if(!buff)
+		return -ENOMEM;
+
+	len += sprintf(buff + len, "%s\n", lcd_unique_id);
+	ret = simple_read_from_buffer(buffer,count,ppos,buff,len);
+	kfree(buff);
+
+	return ret;
+}
+static int lcd_unique_id_write(struct file *file, const char *buffer,
+			  size_t count, loff_t *ppos)
+{
+	return 0;
+}
+#endif
+
+
+#ifdef CONFIG_CTP_DPST
+static const struct file_operations psb_dpst_proc_fops = {
+       .owner = THIS_MODULE,
+       .read = dpst_level_read,
+       .write = dpst_level_write,
+ };
+#endif
+
+
+#ifdef CONFIG_A500CG
+static const struct file_operations psb_panel_id_proc_fops = {
+       .owner = THIS_MODULE,
+       .read = panel_id_read,
+       .write = panel_id_write,
+ };
+
+static const struct file_operations psb_lcd_unique_id_proc_fops = {
+       .owner = THIS_MODULE,
+       .read = lcd_unique_id_read,
+       .write = lcd_unique_id_write,
+ };
+#endif
+
 static int __init psb_init(void)
 {
 	int ret;
+#ifdef CONFIG_CTP_DPST
+	struct proc_dir_entry *dpst_levels;
+#endif
+#ifdef CONFIG_A500CG
+	struct proc_dir_entry *lcd_type;
+	struct proc_dir_entry *lcd_unique_id;
+#endif
 
 #if defined(MODULE) && defined(CONFIG_NET)
 #ifdef CONFIG_SUPPORT_HDMI
@@ -5171,6 +5391,20 @@ static int __init psb_init(void)
 	}
 #endif
 
+#ifdef CONFIG_SUPPORT_MIPI_HX8394_DISPLAY
+	ret = platform_driver_register(&hx8394_lcd_driver);
+	if (ret != 0) {
+		return ret;
+	}
+#endif
+
+#ifdef CONFIG_SUPPORT_MIPI_ORISE1283A_DISPLAY
+	ret = platform_driver_register(&orise1283a_lcd_driver);
+	if (ret != 0) {
+		return ret;
+	}
+#endif
+
 #ifdef CONFIG_SUPPORT_VB_MIPI_DISPLAY
 	ret = platform_driver_register(&vb_lcd_driver);
 	if (ret != 0) {
@@ -5191,6 +5425,34 @@ static int __init psb_init(void)
 
 #ifdef CONFIG_SUPPORT_OTM8018B_MIPI_480X854_DISPLAY
     ret = platform_driver_register(&pf450cl_vid_lcd_driver);
+#endif
+
+
+#ifdef CONFIG_A500CG
+/*
+/* Create the display related file node in proc
+*/
+
+#ifdef CONFIG_CTP_DPST
+	dpst_levels = proc_create(DPST_LEVEL_PROC_ENTRY, 0644, NULL, &psb_dpst_proc_fops);
+	if (!dpst_levels) {
+		DRM_ERROR("Unable to create %s\n", DPST_LEVEL_PROC_ENTRY);
+		return -EINVAL;
+	}
+#endif
+
+	lcd_type = proc_create(PANEL_ID_PROC_ENTRY, 0444, NULL, &psb_panel_id_proc_fops);
+	if (!lcd_type) {
+		DRM_ERROR("Unable to create %s\n", PANEL_ID_PROC_ENTRY);
+		return -EINVAL;
+	}
+
+	lcd_unique_id = proc_create(LCD_UNIQUE_ID_PROC_ENTRY, 0444, NULL, &psb_lcd_unique_id_proc_fops);
+	if (!lcd_unique_id) {
+		DRM_ERROR("Unable to create %s\n", LCD_UNIQUE_ID_PROC_ENTRY);
+		return -EINVAL;
+	}
+
 #endif
 	return ret;
 }

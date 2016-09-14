@@ -42,6 +42,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 
+#include "resman.h"
 #include "handle.h"
 #include "pvrsrv.h"
 #include "connection_server.h"
@@ -51,89 +52,48 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sync_server.h"
 #include "process_stats.h"
 #include "pdump_km.h"
-#include "lists.h"
 
-/* PID associated with Connection currently being purged by Cleanup thread */
-static IMG_PID gCurrentPurgeConnectionPid = 0;
+/*!
+******************************************************************************
 
-static PVRSRV_ERROR ConnectionDataDestroy(CONNECTION_DATA *psConnection)
+ @Function	FreeConnectionData
+
+ @Description	Free a connection data area
+
+ @Input		psConnection - pointer to connection data area
+
+ @Return	Error code, or PVRSRV_OK
+
+******************************************************************************/
+static PVRSRV_ERROR FreeConnectionData(CONNECTION_DATA *psConnection)
 {
 	PVRSRV_ERROR eError;
 
+	PVR_ASSERT(psConnection != IMG_NULL);
+
 	if (psConnection == IMG_NULL)
 	{
-		PVR_DPF((PVR_DBG_ERROR, "ConnectionDestroy: Missing connection!"));
-		PVR_ASSERT(0);
+		PVR_DPF((PVR_DBG_ERROR, "FreeConnectionData: invalid parameter"));
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
-
-	/* Close the process statistics */
-#if defined(PVRSRV_ENABLE_PROCESS_STATS)
-	if (psConnection->hProcessStats != IMG_NULL)
-	{
-		PVRSRVStatsDeregisterProcess(psConnection->hProcessStats);
-		psConnection->hProcessStats = IMG_NULL;
-	}
-#endif
 
 	/* Free handle base for this connection */
 	if (psConnection->psHandleBase != IMG_NULL)
 	{
-		PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
-		IMG_UINT64 ui64MaxBridgeTime;
-
-		if(psPVRSRVData->bUnload)
-		{
-			/* driver is unloading so do not allow the bridge lock to be released */
-			ui64MaxBridgeTime = 0;
-		}
-		else
-		{
-			ui64MaxBridgeTime = CONNECTION_DEFERRED_CLEANUP_TIMESLICE_NS;
-		}
-
-		eError = PVRSRVFreeHandleBase(psConnection->psHandleBase, ui64MaxBridgeTime);
+		eError = PVRSRVFreeHandleBase(psConnection->psHandleBase);
 		if (eError != PVRSRV_OK)
 		{
-			if (eError != PVRSRV_ERROR_RETRY)
-			{
-				PVR_DPF((PVR_DBG_ERROR,
-					 "ConnectionDataDestroy: Couldn't free handle base for connection (%d)",
-					 eError));
-			}
-
+			PVR_DPF((PVR_DBG_ERROR, "FreeConnectionData: Couldn't free handle base for connection (%d)", eError));
 			return eError;
 		}
-
-		psConnection->psHandleBase = IMG_NULL;
 	}
 
-	if (psConnection->psSyncConnectionData != IMG_NULL)
+	/* Call environment specific per process deinit function */
+	eError = OSConnectionPrivateDataDeInit(psConnection->hOsPrivateData);
+	if (eError != PVRSRV_OK)
 	{
-		SyncUnregisterConnection(psConnection->psSyncConnectionData);
-		psConnection->psSyncConnectionData = IMG_NULL;
-	}
-
-	if (psConnection->psPDumpConnectionData != IMG_NULL)
-	{
-		PDumpUnregisterConnection(psConnection->psPDumpConnectionData);
-		psConnection->psPDumpConnectionData = IMG_NULL;
-	}
-
-	/* Call environment specific connection data deinit function */
-	if (psConnection->hOsPrivateData != IMG_NULL)
-	{
-		eError = OSConnectionPrivateDataDeInit(psConnection->hOsPrivateData);
-		if (eError != PVRSRV_OK)
-		{
-			PVR_DPF((PVR_DBG_ERROR,
-				 "PVRSRVConnectionDataDestroy: OSConnectionPrivateDataDeInit failed (%d)",
-				 eError));
-
-			return eError;
-		}
-
-		psConnection->hOsPrivateData = IMG_NULL;
+		 PVR_DPF((PVR_DBG_ERROR, "FreeConnectionData: OSConnectionPrivateDataDeInit failed (%d)", eError));
+		return eError;
 	}
 
 	OSFreeMem(psConnection);
@@ -141,72 +101,73 @@ static PVRSRV_ERROR ConnectionDataDestroy(CONNECTION_DATA *psConnection)
 	return PVRSRV_OK;
 }
 
+/* PVRSRVConnectionConnect*/
 PVRSRV_ERROR PVRSRVConnectionConnect(IMG_PVOID *ppvPrivData, IMG_PVOID pvOSData)
 {
+	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
 	CONNECTION_DATA *psConnection;
-	PVRSRV_ERROR eError;
+	PVRSRV_ERROR eError = PVRSRV_OK;
 
-	/* Allocate connection data area */
-	psConnection = OSAllocZMem(sizeof(*psConnection));
+	/* Allocate per-process data area */
+	psConnection = OSAllocMem(sizeof(*psConnection));
 	if (psConnection == IMG_NULL)
 	{
-		PVR_DPF((PVR_DBG_ERROR,
-			 "PVRSRVConnectionConnect: Couldn't allocate connection data"));
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionConnect: Couldn't allocate per-process data (%d)", eError));
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
 	}
+	OSMemSet(psConnection, 0, sizeof(*psConnection));
 
-	/* Call environment specific connection data init function */
+	/* Call environment specific per process init function */
 	eError = OSConnectionPrivateDataInit(&psConnection->hOsPrivateData, pvOSData);
 	if (eError != PVRSRV_OK)
 	{
-		 PVR_DPF((PVR_DBG_ERROR,
-			  "PVRSRVConnectionConnect: OSConnectionPrivateDataInit failed (%d)",
-			  eError));
+		 PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionConnect: OSConnectionPrivateDataInit failed (%d)", eError));
 		goto failure;
 	}
-
-	psConnection->pid = OSGetCurrentProcessID();
 
 	/* Register this connection with the sync core */
 	eError = SyncRegisterConnection(&psConnection->psSyncConnectionData);
 	if (eError != PVRSRV_OK)
 	{
-		PVR_DPF((PVR_DBG_ERROR,
-			 "PVRSRVConnectionConnect: Couldn't register the sync data"));
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionConnect: Couldn't register the sync data"));
 		goto failure;
-	}
+	}	
 
 	/*
-	 * Register this connection with the pdump core. Pass in the sync connection data
-	 * as it will be needed later when we only get passed in the PDump connection data.
-	 */
+		Register this connection with the pdump core.
+		Pass in the sync connection data as it will be needed later when we
+		only get passed in the PDump connection data.
+	*/
 	eError = PDumpRegisterConnection(psConnection->psSyncConnectionData,
-					 &psConnection->psPDumpConnectionData);
+									 &psConnection->psPDumpConnectionData);
 	if (eError != PVRSRV_OK)
 	{
-		PVR_DPF((PVR_DBG_ERROR,
-			 "PVRSRVConnectionConnect: Couldn't register the PDump data"));
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionConnect: Couldn't register the PDump data"));
 		goto failure;
 	}
 
-	/* Allocate handle base for this connection */
+	/* Allocate handle base for this process */
 	eError = PVRSRVAllocHandleBase(&psConnection->psHandleBase);
 	if (eError != PVRSRV_OK)
 	{
-		PVR_DPF((PVR_DBG_ERROR,
-			 "PVRSRVConnectionConnect: Couldn't allocate handle base for connection (%d)",
-			 eError));
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionConnect: Couldn't allocate handle base for process (%d)", eError));
 		goto failure;
 	}
 
+	/* Create a resource manager context for the process */
+	eError = PVRSRVResManConnect(psPVRSRVData->hResManDeferContext, &psConnection->hResManContext);
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionConnect: Couldn't register with the resource manager"));
+		goto failure;
+	}
+	
 	/* Allocate process statistics */
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 	eError = PVRSRVStatsRegisterProcess(&psConnection->hProcessStats);
 	if (eError != PVRSRV_OK)
 	{
-		PVR_DPF((PVR_DBG_ERROR,
-			 "PVRSRVConnectionConnect: Couldn't register process statistics (%d)",
-			 eError));
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionConnect: Couldn't register process statistics (%d)", eError));
 		goto failure;
 	}
 #endif
@@ -216,82 +177,63 @@ PVRSRV_ERROR PVRSRVConnectionConnect(IMG_PVOID *ppvPrivData, IMG_PVOID pvOSData)
 	return eError;
 
 failure:
-	ConnectionDataDestroy(psConnection);
-
+	(IMG_VOID)FreeConnectionData(psConnection);
 	return eError;
 }
 
-static PVRSRV_ERROR _CleanupThreadPurgeConnectionData(void *pvConnectionData)
+/* PVRSRVConnectionDisconnect */
+IMG_VOID PVRSRVConnectionDisconnect(IMG_PVOID pvDataPtr)
 {
-	PVRSRV_ERROR eErrorConnection, eErrorKernel;
-	CONNECTION_DATA *psConnectionData = pvConnectionData;
+	PVRSRV_ERROR eError;
+	CONNECTION_DATA *psConnection = pvDataPtr;
 
-	OSAcquireBridgeLock();
+	/* Close the process statistics */
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
+	PVRSRVStatsDeregisterProcess(psConnection->hProcessStats);
+	psConnection->hProcessStats = 0;
+#endif
 
-	gCurrentPurgeConnectionPid = psConnectionData->pid;
+	/* Close the Resource Manager connection */
+	PVRSRVResManDisconnect(psConnection->hResManContext);
 
-	eErrorConnection = ConnectionDataDestroy(psConnectionData);
-	if (eErrorConnection != PVRSRV_OK)
+	/*
+		Unregister with the sync core. Logically this is after resman to
+		ensure that any sync block that haven't been freed by the app will
+		be freed by resman 1st.
+		However, due to the fact the resman can defer the free the Sync core
+		needs to handle the case where the connection data is destroyed while
+		Sync blocks are still in it.
+	*/
+	SyncUnregisterConnection(psConnection->psSyncConnectionData);
+
+	/*
+		Unregister with the PDump core, see the note above about logical order
+		and refcounting as it also applies to the PDump connection data
+	*/
+	PDumpUnregisterConnection(psConnection->psPDumpConnectionData);
+
+	/* Free the connection data */
+	eError = FreeConnectionData(psConnection);
+	if (eError != PVRSRV_OK)
 	{
-		if (eErrorConnection == PVRSRV_ERROR_RETRY)
-		{
-			PVR_DPF((PVR_DBG_MESSAGE,
-				 "_CleanupThreadPurgeConnectionData: Failed to purge connection data %p "
-				 "(deferring destruction)",
-				 psConnectionData));
-		}
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionDisconnect: Error freeing per-process data"));
 	}
-	else
+
+	eError = PVRSRVPurgeHandles(KERNEL_HANDLE_BASE);
+	if (eError != PVRSRV_OK)
 	{
-		PVR_DPF((PVR_DBG_MESSAGE,
-			 "_CleanupThreadPurgeConnectionData: Connection data %p deferred destruction finished",
-			 psConnectionData));
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVConnectionDisconnect: Purge of global handle pool failed (%d)", eError));
 	}
-
-	/* Check if possible resize the global handle base */
-	eErrorKernel = PVRSRVPurgeHandles(KERNEL_HANDLE_BASE);
-	if (eErrorKernel != PVRSRV_OK)
-	{
-		PVR_DPF((PVR_DBG_ERROR,
-			 "_CleanupThreadPurgeConnectionData: Purge of global handle pool failed (%d)",
-			 eErrorKernel));
-	}
-
-	gCurrentPurgeConnectionPid = 0;
-
-	OSReleaseBridgeLock();
-
-	return eErrorConnection;
 }
 
-void PVRSRVConnectionDisconnect(void *pvDataPtr)
-{
-	CONNECTION_DATA *psConnectionData = pvDataPtr;
-
-	/* Notify the PDump core if the pdump control client is disconnecting */
-	if (psConnectionData->ui32ClientFlags & SRV_FLAGS_PDUMPCTRL)
-	{
-		PDumpDisconnectionNotify();
-	}
-
-	/* Defer the release of the connection data */
-	psConnectionData->sCleanupThreadFn.pfnFree = _CleanupThreadPurgeConnectionData;
-	psConnectionData->sCleanupThreadFn.pvData = psConnectionData;
-	psConnectionData->sCleanupThreadFn.ui32RetryCount = CLEANUP_THREAD_RETRY_COUNT_DEFAULT;
-	PVRSRVCleanupThreadAddWork(&psConnectionData->sCleanupThreadFn);
-}
-
-PVRSRV_ERROR PVRSRVConnectionInit(void)
+/* PVRSRVConnectionInit */
+PVRSRV_ERROR PVRSRVConnectionInit(IMG_VOID)
 {
 	return PVRSRV_OK;
 }
 
-PVRSRV_ERROR PVRSRVConnectionDeInit(void)
+/* PVRSRVConnectionDeInit */
+PVRSRV_ERROR PVRSRVConnectionDeInit(IMG_VOID)
 {
 	return PVRSRV_OK;
-}
-
-IMG_PID PVRSRVGetPurgeConnectionPid(void)
-{
-	return gCurrentPurgeConnectionPid;
 }

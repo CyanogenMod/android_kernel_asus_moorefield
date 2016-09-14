@@ -49,20 +49,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVR_STR2(X) PVR_STR(X)
 
 #define PVRVERSION_MAJ               1
-#define PVRVERSION_MIN               5
+#define PVRVERSION_MIN               4
 
 #define PVRVERSION_FAMILY           "rogueddk"
-#define PVRVERSION_BRANCHNAME       "1.5"
-#define PVRVERSION_BUILD             3830101
-#define PVRVERSION_BSCONTROL        "Rogue_DDK_Android"
+#define PVRVERSION_BRANCHNAME       "1.4"
+#define PVRVERSION_BUILD             3283119
+#define PVRVERSION_BSCONTROL        "Rogue_DDK_Android_RSCompute"
 
-#define PVRVERSION_STRING           "Rogue_DDK_Android rogueddk 1.5@" PVR_STR2(PVRVERSION_BUILD)
-#define PVRVERSION_STRING_SHORT     "1.5@" PVR_STR2(PVRVERSION_BUILD) ""
+#define PVRVERSION_STRING           "Rogue_DDK_Android_RSCompute rogueddk 1.4@" PVR_STR2(PVRVERSION_BUILD)
+#define PVRVERSION_STRING_SHORT     "1.4@" PVR_STR2(PVRVERSION_BUILD) ""
 
 #define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
 
-#define PVRVERSION_BUILD_HI          383
-#define PVRVERSION_BUILD_LO          101
+#define PVRVERSION_BUILD_HI          328
+#define PVRVERSION_BUILD_LO          3119
 #define PVRVERSION_STRING_NUMERIC    PVR_STR2(PVRVERSION_MAJ) "." PVR_STR2(PVRVERSION_MIN) "." PVR_STR2(PVRVERSION_BUILD_HI) "." PVR_STR2(PVRVERSION_BUILD_LO)
 
 #define PVRVERSION_PACK(MAJ,MIN) ((((MAJ)&0xFFFF) << 16) | (((MIN)&0xFFFF) << 0))

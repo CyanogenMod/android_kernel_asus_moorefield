@@ -195,7 +195,7 @@ int vsp_init(struct drm_device *dev)
 	vsp_priv->setting = ttm_kmap_obj_virtual(&vsp_priv->setting_kmap,
 						 &is_iomem);
 
-	for (i = 0; i < MAX_VP8_CONTEXT_NUM; i++)
+	for (i = 0; i < MAX_VP8_CONTEXT_NUM + 1; i++)
 		vsp_priv->vp8_filp[i] = NULL;
 	vsp_priv->context_vp8_num = 0;
 	vsp_priv->context_vpp_num = 0;
@@ -298,7 +298,17 @@ void vsp_disableirq(struct drm_device *dev)
 	return;
 }
 
+
 int vsp_reset(struct drm_psb_private *dev_priv)
+{
+	int ret;
+
+	ret = vsp_setup_fw(dev_priv);
+
+	return ret;
+}
+
+int vsp_setup_fw(struct drm_psb_private *dev_priv)
 {
 	struct vsp_private *vsp_priv = dev_priv->vsp_private;
 	uint32_t pd_addr;

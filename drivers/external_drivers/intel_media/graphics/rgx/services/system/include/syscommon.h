@@ -56,17 +56,11 @@ extern "C" {
 #endif
 #include "pvrsrv.h"
 
-PVRSRV_ERROR SysCreateConfigData(PVRSRV_SYSTEM_CONFIG **ppsSysConfig, void *hDevice);
+PVRSRV_ERROR SysCreateConfigData(PVRSRV_SYSTEM_CONFIG **ppsSysConfig);
 IMG_VOID SysDestroyConfigData(PVRSRV_SYSTEM_CONFIG *psSysConfig);
 PVRSRV_ERROR SysAcquireSystemData(IMG_HANDLE hSysData);
 PVRSRV_ERROR SysReleaseSystemData(IMG_HANDLE hSysData);
 PVRSRV_ERROR SysDebugInfo(PVRSRV_SYSTEM_CONFIG *psSysConfig, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
-
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-#include "services.h"
-IMG_VOID SysSetOSidRegisters(IMG_UINT32 aui32OSidMin[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS], IMG_UINT32 aui32OSidMax[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS]);
-IMG_VOID SysPrintAndResetFaultStatusRegister(void);
-#endif
 
 #if defined(SUPPORT_SYSTEM_INTERRUPT_HANDLING)
 PVRSRV_ERROR SysInstallDeviceLISR(IMG_UINT32 ui32IRQ,

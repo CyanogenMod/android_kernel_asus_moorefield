@@ -54,7 +54,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct _DEVMEMINT_CTX_ DEVMEMINT_CTX;
 typedef struct _DEVMEMINT_CTX_EXPORT_ DEVMEMINT_CTX_EXPORT;
 typedef struct _DEVMEMINT_HEAP_ DEVMEMINT_HEAP;
-/* FIXME: can we unify RESERVATION and MAPPING to save data structures? */
+
 typedef struct _DEVMEMINT_RESERVATION_ DEVMEMINT_RESERVATION;
 typedef struct _DEVMEMINT_MAPPING_ DEVMEMINT_MAPPING;
 
@@ -104,7 +104,7 @@ DevmemServerGetHeapHandle(DEVMEMINT_RESERVATION *psReservation,
 extern PVRSRV_ERROR
 DevmemIntCtxCreate(
                  PVRSRV_DEVICE_NODE *psDeviceNode,
-                 /* devnode / perproc etc */
+                 /* devnode / perproc / resman context etc */
 
                  DEVMEMINT_CTX **ppsDevmemCtxPtr,
                  IMG_HANDLE *hPrivData
@@ -265,10 +265,6 @@ DevmemIntUnreserveRange(DEVMEMINT_RESERVATION *psDevmemReservation);
 extern PVRSRV_ERROR
 DevmemSLCFlushInvalRequest(PVRSRV_DEVICE_NODE *psDeviceNode, PMR *psPmr);
 
-extern PVRSRV_ERROR
-DevmemIntIsVDevAddrValid(DEVMEMINT_CTX *psDevMemContext,
-                         IMG_DEV_VIRTADDR sDevAddr);
-
 #if defined(PDUMP)
 /*
  * DevmemIntPDumpSaveToFileVirtual()
@@ -276,8 +272,7 @@ DevmemIntIsVDevAddrValid(DEVMEMINT_CTX *psDevMemContext,
  * Writes out PDump "SAB" commands with the data found in memory at
  * the given virtual address.
  */
-/* FIXME: uiArraySize shouldn't be here, and is an
-   artefact of the bridging */
+
 extern PVRSRV_ERROR
 DevmemIntPDumpSaveToFileVirtual(DEVMEMINT_CTX *psDevmemCtx,
                                 IMG_DEV_VIRTADDR sDevAddrStart,

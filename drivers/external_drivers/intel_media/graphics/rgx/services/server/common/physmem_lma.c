@@ -59,10 +59,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "process_stats.h"
 #endif
 
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-#include "rgxutils.h"
-#endif
-
 typedef struct _PMR_LMALLOCARRAY_DATA_ {
 	PVRSRV_DEVICE_NODE *psDevNode;
 	IMG_UINT32 uiNumAllocs;
@@ -95,7 +91,7 @@ static PVRSRV_ERROR _MapAlloc(PVRSRV_DEVICE_NODE *psDevNode, IMG_DEV_PHYADDR *ps
 {
 	IMG_CPU_PHYADDR sCpuPAddr;
 
-	PhysHeapDevPAddrToCpuPAddr(psDevNode->apsPhysHeap[PVRSRV_DEVICE_PHYS_HEAP_GPU_LOCAL], 1, &sCpuPAddr, psDevPAddr);
+	PhysHeapDevPAddrToCpuPAddr(psDevNode->apsPhysHeap[PVRSRV_DEVICE_PHYS_HEAP_GPU_LOCAL], &sCpuPAddr, psDevPAddr);
 	*pvPtr = OSMapPhysToLin(sCpuPAddr,
 							uiSize,
 							ulFlags);
@@ -306,37 +302,18 @@ _AllocLMPages(PMR_LMALLOCARRAY_DATA *psPageArrayDataPtr)
 	RA_BASE_T uiCardAddr;
 	RA_LENGTH_T uiActualSize;
 	IMG_UINT32 i;
-	RA_ARENA *pArena=psDevNode->psLocalDevMemArena;
 
 	PVR_ASSERT(!psPageArrayDataPtr->bHasLMPages);
 
 	for(i=0;i<psPageArrayDataPtr->uiNumAllocs;i++)
 	{
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-{
-		IMG_UINT32  ui32OSid=0, ui32OSidReg=0;
-		IMG_PID     pId;
-
-		pId=OSGetCurrentProcessID();
-		RetrieveOSidsfromPidList(pId, &ui32OSid, &ui32OSidReg);
-
-		pArena=psDevNode->psOSidSubArena[ui32OSid];
-		PVR_DPF((PVR_DBG_MESSAGE,"(GPU Virtualization Validation): Giving from OS slot %d",ui32OSid));
-}
-#endif
-
-		bAllocResult = RA_Alloc(pArena,
+		bAllocResult = RA_Alloc(psDevNode->psLocalDevMemArena, 
 								uiAllocSize,
-								0,                                      /* No flags */
+								0,					/* No flags */
 								1ULL << uiLog2AllocSize,
 								&uiCardAddr,
 								&uiActualSize,
-								IMG_NULL);                      /* No private handle */
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-{
-		PVR_DPF((PVR_DBG_MESSAGE,"(GPU Virtualization Validation): Address: %llu \n",uiCardAddr));
-}
-#endif
+								IMG_NULL);			/* No private handle */
 
 		if (!bAllocResult)
 		{
@@ -351,7 +328,6 @@ _AllocLMPages(PMR_LMALLOCARRAY_DATA *psPageArrayDataPtr)
 #else
 		{
 			IMG_CPU_PHYADDR sLocalCpuPAddr;
-
 			sLocalCpuPAddr.uiAddr = (IMG_UINT64)uiCardAddr;
 			PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_ALLOC_LMA_PAGES,
 									 IMG_NULL,
@@ -361,7 +337,6 @@ _AllocLMPages(PMR_LMALLOCARRAY_DATA *psPageArrayDataPtr)
 		}
 #endif
 #endif
-
 		psPageArrayDataPtr->pasDevPAddr[i].uiAddr = uiCardAddr;
 
 		if (bPoisonOnAlloc)
@@ -414,10 +389,9 @@ static PVRSRV_ERROR
 _FreeLMPageArray(PMR_LMALLOCARRAY_DATA *psPageArrayData)
 {
 	OSFreeMem(psPageArrayData->pasDevPAddr);
+	OSFreeMem(psPageArrayData);
 
 	PVR_DPF((PVR_DBG_MESSAGE, "physmem_lma.c: freed local memory array structure for PMR @0x%p", psPageArrayData));
-
-	OSFreeMem(psPageArrayData);
 
 	return PVRSRV_OK;
 }
@@ -555,17 +529,17 @@ PMRUnlockSysPhysAddressesLocalMem(PMR_IMPL_PRIVDATA pvPriv
 /* N.B.  It is assumed that PMRLockSysPhysAddressesLocalMem() is called _before_ this function! */
 static PVRSRV_ERROR
 PMRSysPhysAddrLocalMem(PMR_IMPL_PRIVDATA pvPriv,
-					   IMG_UINT32 ui32NumOfPages,
-					   IMG_DEVMEM_OFFSET_T *puiOffset,
-					   IMG_BOOL *pbValid,
-					   IMG_DEV_PHYADDR *psDevPAddr)
+					   IMG_DEVMEM_OFFSET_T uiOffset,
+					   IMG_DEV_PHYADDR *psDevPAddr
+					   )
 {
-	IMG_UINT32 idx;
 	IMG_UINT32 uiLog2AllocSize;
 	IMG_UINT32 uiNumAllocs;
 	IMG_UINT64 uiAllocIndex;
 	IMG_DEVMEM_OFFSET_T uiInAllocOffset;
-	PMR_LMALLOCARRAY_DATA *psLMAllocArrayData = pvPriv;
+	PMR_LMALLOCARRAY_DATA *psLMAllocArrayData = IMG_NULL;
+
+	psLMAllocArrayData = pvPriv;
 
 	uiNumAllocs = psLMAllocArrayData->uiNumAllocs;
 	if (uiNumAllocs > 1)
@@ -573,29 +547,16 @@ PMRSysPhysAddrLocalMem(PMR_IMPL_PRIVDATA pvPriv,
 		PVR_ASSERT(psLMAllocArrayData->uiLog2AllocSize != 0);
 		uiLog2AllocSize = psLMAllocArrayData->uiLog2AllocSize;
 
-		for (idx=0; idx < ui32NumOfPages; idx++)
-		{
-			if (pbValid[idx])
-			{
-				uiAllocIndex = puiOffset[idx] >> uiLog2AllocSize;
-				uiInAllocOffset = puiOffset[idx] - (uiAllocIndex << uiLog2AllocSize);
+		uiAllocIndex = uiOffset >> uiLog2AllocSize;
+		uiInAllocOffset = uiOffset - (uiAllocIndex << uiLog2AllocSize);
+		PVR_ASSERT(uiAllocIndex < uiNumAllocs);
+		PVR_ASSERT(uiInAllocOffset < (1ULL << uiLog2AllocSize));
 
-				PVR_ASSERT(uiAllocIndex < uiNumAllocs);
-				PVR_ASSERT(uiInAllocOffset < (1ULL << uiLog2AllocSize));
-
-				psDevPAddr[idx].uiAddr = psLMAllocArrayData->pasDevPAddr[uiAllocIndex].uiAddr + uiInAllocOffset;
-			}
-		}
+		psDevPAddr->uiAddr = psLMAllocArrayData->pasDevPAddr[uiAllocIndex].uiAddr + uiInAllocOffset;
 	}
 	else
 	{
-		for (idx=0; idx < ui32NumOfPages; idx++)
-		{
-			if (pbValid[idx])
-			{
-				psDevPAddr[idx].uiAddr = psLMAllocArrayData->pasDevPAddr[0].uiAddr + puiOffset[idx];
-			}
-		}
+		psDevPAddr->uiAddr = psLMAllocArrayData->pasDevPAddr[0].uiAddr + uiOffset;
 	}
 
 	return PVRSRV_OK;
@@ -873,6 +834,9 @@ PhysmemNewLocalRamBackedPMR(PVRSRV_DEVICE_NODE *psDevNode,
 		bPoisonOnFree = IMG_FALSE;
 	}
 
+#if defined (UNDER_WDDM)
+	bContig = IMG_TRUE;
+#else
 	if (uiFlags & PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE)
 	{
 		bContig = IMG_TRUE;
@@ -881,6 +845,7 @@ PhysmemNewLocalRamBackedPMR(PVRSRV_DEVICE_NODE *psDevNode,
 	{
 		bContig = IMG_FALSE;
 	}
+#endif
 
 	if ((uiFlags & PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC) &&
 		(uiFlags & PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC))
@@ -985,120 +950,3 @@ errorOnParam:
 	PVR_ASSERT(eError != PVRSRV_OK);
 	return eError;
 }
-
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-
-struct PidOSidCouplingList
-{
-	IMG_PID     pId;
-	IMG_UINT32  ui32OSid;
-	IMG_UINT32	ui32OSidReg;
-
-	struct PidOSidCouplingList *psNext;
-};
-typedef struct PidOSidCouplingList PidOSidCouplingList;
-
-static PidOSidCouplingList *psPidOSidHead=NULL;
-static PidOSidCouplingList *psPidOSidTail=NULL;
-
-IMG_VOID InsertPidOSidsCoupling(IMG_PID pId, IMG_UINT32 ui32OSid, IMG_UINT32 ui32OSidReg)
-{
-	PidOSidCouplingList *psTmp;
-
-	PVR_DPF((PVR_DBG_MESSAGE,"(GPU Virtualization Validation): Inserting (PID/ OSid/ OSidReg) (%d/ %d/ %d) into list",pId,ui32OSid, ui32OSidReg));
-
-	psTmp=OSAllocMem(sizeof(PidOSidCouplingList));
-
-	if (psTmp==IMG_NULL)
-	{
-		PVR_DPF((PVR_DBG_ERROR,"(GPU Virtualization Validation): Memory allocation failed. No list insertion => program will execute normally.\n"));
-		return ;
-	}
-
-	psTmp->pId=pId;
-	psTmp->ui32OSid=ui32OSid;
-	psTmp->ui32OSidReg=ui32OSidReg;
-
-	psTmp->psNext=NULL;
-	if (psPidOSidHead==NULL)
-	{
-		psPidOSidHead=psTmp;
-		psPidOSidTail=psTmp;
-	}
-	else
-	{
-		psPidOSidTail->psNext=psTmp;
-		psPidOSidTail=psTmp;
-	}
-
-	return ;
-}
-
-IMG_VOID RetrieveOSidsfromPidList(IMG_PID pId, IMG_UINT32 *pui32OSid, IMG_UINT32 * pui32OSidReg)
-{
-	PidOSidCouplingList *psTmp;
-
-	for (psTmp=psPidOSidHead;psTmp!=NULL;psTmp=psTmp->psNext)
-	{
-		if (psTmp->pId==pId)
-		{
-			(*pui32OSid) = psTmp->ui32OSid;
-			(*pui32OSidReg) = psTmp->ui32OSidReg;
-
-			return ;
-		}
-	}
-
-	(*pui32OSid)=0;
-	(*pui32OSidReg)=0;
-	return ;
-}
-
-IMG_VOID    RemovePidOSidCoupling(IMG_PID pId)
-{
-	PidOSidCouplingList *psTmp, *psPrev=NULL;
-
-	for (psTmp=psPidOSidHead; psTmp!=NULL; psTmp=psTmp->psNext)
-	{
-		if (psTmp->pId==pId) break;
-		psPrev=psTmp;
-	}
-
-	if (psTmp==NULL)
-	{
-		return ;
-	}
-
-	PVR_DPF((PVR_DBG_MESSAGE,"(GPU Virtualization Validation): Deleting Pairing %d / (%d - %d) from list",psTmp->pId, psTmp->ui32OSid, psTmp->ui32OSidReg));
-
-	if (psTmp==psPidOSidHead)
-	{
-		if (psPidOSidHead->psNext==NULL)
-		{
-			psPidOSidHead=NULL;
-			psPidOSidTail=NULL;
-			OSFreeMem(psTmp);
-
-			return ;
-		}
-
-		psPidOSidHead=psPidOSidHead->psNext;
-		OSFreeMem(psTmp);
-		return ;
-	}
-
-	if (psPrev==NULL) return ;
-
-	psPrev->psNext=psTmp->psNext;
-	if (psTmp==psPidOSidTail)
-	{
-		psPidOSidTail=psPrev;
-	}
-
-	OSFreeMem(psTmp);
-
-	return ;
-}
-
-#endif
-

@@ -283,22 +283,8 @@ static void dfrgx_add_sample_data(struct df_rgx_data_s *g_dfrgx,
 	static int num_samples;
 	static int sum_samples_active;
 	int ret = 0;
-	int active_high = util_stats_sample.ui64GpuStatActiveHigh;
 
-	/*There might be a case where util_stats_sample.ui64GpuStatCumulative is actually zero
-	* due to the getutilstats functionality assumes certain conditions in the driver making low
-	* high and blocked values actually 0 */
-	if (util_stats_sample.ui64GpuStatCumulative == 0) {
-		DFRGX_DPF(DFRGX_DEBUG_HIGH, "%s: Ignoring util stats from gpu!\n",
-				__func__);
-		return;
-	}
-
-	/* convert ui64GpuStatActiveHigh time period to a 0.01% precision ratio */
-	active_high *= 10000;
-	do_div(active_high, util_stats_sample.ui64GpuStatCumulative);
-
-	sum_samples_active += (active_high / 100);
+	sum_samples_active += ((util_stats_sample.ui32GpuStatActiveHigh) / 100);
 	num_samples++;
 
 	/* When we collect MAX_NUM_SAMPLES samples we need to decide
@@ -374,13 +360,6 @@ static int df_rgx_action(struct df_rgx_data_s *g_dfrgx)
 		goto go_out;
 	}
 
-	/*So don't need to do any utilization polling when
-	* simple_on_demand is not the current governor
-	*/
-	if (g_dfrgx->g_profile_index != DFRGX_TURBO_PROFILE_SIMPLE_ON_DEMAND
-		&& g_dfrgx->g_profile_index != DFRGX_TURBO_PROFILE_CUSTOM)
-		return 1;
-
 	/* This will happen when min or max freq are modified or using userpace governor*/
 	if(g_dfrgx->bus_freq_data->bf_desired_freq && g_dfrgx->bus_freq_data->b_need_freq_update)
 	{
@@ -411,17 +390,22 @@ static int df_rgx_action(struct df_rgx_data_s *g_dfrgx)
 		}
 	}
 
+	/*So don't need to do any utilization polling when
+	* simple_on_demand is not the current governor
+	*/
+	if (g_dfrgx->g_profile_index != DFRGX_TURBO_PROFILE_SIMPLE_ON_DEMAND
+		&& g_dfrgx->g_profile_index != DFRGX_TURBO_PROFILE_CUSTOM)
+		return 1;
 
 	if (gpu_rgx_get_util_stats(&util_stats)) {
-		DFRGX_DPF(DFRGX_DEBUG_LOW, "%s: Active: %llu, "
-			"Blocked: %llu, Idle: %llu !\n",
+		DFRGX_DPF(DFRGX_DEBUG_LOW, "%s: Active: %d, "
+			"Blocked: %d, Idle: %d !\n",
 			__func__,
-			util_stats.ui64GpuStatActiveHigh,
-			util_stats.ui64GpuStatBlocked,
-			util_stats.ui64GpuStatIdle);
+			util_stats.ui32GpuStatActiveHigh,
+			util_stats.ui32GpuStatBlocked,
+			util_stats.ui32GpuStatIdle);
 
 		dfrgx_add_sample_data(g_dfrgx, util_stats);
-
 	} else {
 		DFRGX_DPF(DFRGX_DEBUG_MED, "%s: Invalid Util stats !\n",
 		__func__);
@@ -834,9 +818,7 @@ int dfrgx_burst_init(struct df_rgx_data_s *g_dfrgx)
 		goto error_init_obj;
 	}
 
-	if (g_dfrgx->g_enable &&
-	(g_dfrgx->g_profile_index == DFRGX_TURBO_PROFILE_CUSTOM ||
-	g_dfrgx->g_profile_index == DFRGX_TURBO_PROFILE_SIMPLE_ON_DEMAND)) {
+	if (g_dfrgx->g_enable) {
 		hrt_start(g_dfrgx);
 		sts = df_rgx_create_worker_thread(g_dfrgx);
 		if (sts < 0) {

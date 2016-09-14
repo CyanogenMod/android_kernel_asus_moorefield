@@ -258,7 +258,6 @@ PDumpPMRLDB(const IMG_CHAR *pszDevSpace,
 
 	uiPDumpFlags |= (PDumpIsPersistent()) ? PDUMP_FLAGS_PERSISTENT : 0;
 
-	PDumpOSLock();
 	eError = PDumpOSBufprintf(hScript,
                               ui32MaxLen,
                               "LDB :%s:%s:" IMG_DEVMEM_OFFSET_FMTSPEC " "
@@ -275,6 +274,7 @@ PDumpPMRLDB(const IMG_CHAR *pszDevSpace,
 		return eError;
 	}
 
+	PDumpOSLock();
 	PDumpWriteScript(hScript, uiPDumpFlags);
 	PDumpOSUnlock();
 
@@ -419,7 +419,7 @@ PDumpWriteBuffer(IMG_UINT8 *pcBuffer,
     PVR_ASSERT(uiNumBytes > 0);
 
 	/* PRQA S 3415 1 */ /* side effects desired */
-	if (PDumpIsDumpSuspended())
+	if (PDumpCtrlIsDumpSuspended())
 	{
 		return PVRSRV_OK;
 	}

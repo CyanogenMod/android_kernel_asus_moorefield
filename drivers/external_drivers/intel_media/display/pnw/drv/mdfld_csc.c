@@ -456,11 +456,11 @@ static void csc_to_12bit_register_value (int64_t csc, u16 *reg_val)
 	 * Convert the absolute value to register value.
 	 *
 	 */
-	integer = temp_32_2 / 1000;
-	remain = temp_32_2 % 1000;
+	integer = temp_32_2 / 1024;
+	remain = temp_32_2 % 1024;
 
 	(*reg_val) = 0;
-	remain = (remain * 1024) / 1000;
+	remain = (remain * 1024) / 1024;
 	(*reg_val) |= remain;
 
 	if (integer)

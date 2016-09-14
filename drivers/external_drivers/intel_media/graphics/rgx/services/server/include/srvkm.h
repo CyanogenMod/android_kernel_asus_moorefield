@@ -45,8 +45,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "servicesext.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-#if defined(__KERNEL__) && defined(ANDROID) && !defined(__GENKSYMS__)
+#if defined(KERNEL) && defined(ANDROID)
 #define __pvrsrv_defined_struct_enum__
 #include <services_kernel_client.h>
 #endif
@@ -74,7 +77,7 @@ IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVReleasePrintf(const IMG_CHAR *pszFormat, 
  @Return   PVRSRV_ERROR	:
 
 ******************************************************************************/
-PVRSRV_ERROR IMG_CALLCONV PVRSRVInit(void *);
+PVRSRV_ERROR IMG_CALLCONV PVRSRVInit(IMG_VOID);
 
 /*!
 ******************************************************************************
@@ -88,7 +91,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVInit(void *);
  @Return   PVRSRV_ERROR	:
 
 ******************************************************************************/
-IMG_VOID IMG_CALLCONV PVRSRVDeInit(IMG_VOID *);
+IMG_VOID IMG_CALLCONV PVRSRVDeInit(IMG_VOID);
 
 
 /*!
@@ -127,6 +130,9 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVSaveRestoreLiveSegments(IMG_HANDLE hArena, IMG_P
 IMG_VOID PVRSRVScheduleDeviceCallbacks(IMG_UINT32 ui32CallerID);
 
 
+#if defined (__cplusplus)
+}
+#endif
 
 /******************
 HIGHER LEVEL MACROS
@@ -180,9 +186,7 @@ LOOP_UNTIL_TIMEOUT(MAX_HW_TIME_US)
 IMG_IMPORT
 const IMG_CHAR *PVRSRVGetErrorStringKM(PVRSRV_ERROR eError);
 
-/*
-	FIXME: This should be defined elsewhere when server sync are implemented
-*/
+
 typedef struct _SERVER_SYNC_PRIM_
 {
 	/* Placeholder until structure is properly implemented */

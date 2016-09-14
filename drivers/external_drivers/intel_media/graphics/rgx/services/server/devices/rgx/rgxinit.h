@@ -50,6 +50,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "device.h"
 #include "rgxdevice.h"
 
+
 /*!
 *******************************************************************************
 
@@ -81,8 +82,7 @@ PVRSRV_ERROR PVRSRVRGXInitDevPart2KM (PVRSRV_DEVICE_NODE	*psDeviceNode,
 									  RGX_ACTIVEPM_CONF		eActivePMConf,
 								 	  DEVMEM_EXPORTCOOKIE	*psFWCodeAllocServerExportCookie,
 								 	  DEVMEM_EXPORTCOOKIE	*psFWDataAllocServerExportCookie,
-								 	  DEVMEM_EXPORTCOOKIE	*psFWCorememAllocServerExportCookie,
-									  DEVMEM_EXPORTCOOKIE	*psHWPerfDataAllocServerExportCookie);
+								 	  DEVMEM_EXPORTCOOKIE	*psFWCorememAllocServerExportCookie);
 
 IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXInitAllocFWImgMemKM(PVRSRV_DEVICE_NODE    *psDeviceNode,
@@ -125,12 +125,9 @@ PVRSRV_ERROR PVRSRVRGXInitFirmwareKM(PVRSRV_DEVICE_NODE			*psDeviceNode,
 									    IMG_UINT32					ui32ConfigFlags,
 									    IMG_UINT32					ui32LogType,
 										IMG_UINT32					ui32FilterMode,
-									    IMG_UINT32					ui32JonesDisableMask,
-									    IMG_UINT32					ui32HWRDebugDumpLimit,
 									    RGXFWIF_COMPCHECKS_BVNC     *psClientBVNC,
-										IMG_UINT32					ui32HWPerfCountersDataSize,
-										DEVMEM_EXPORTCOOKIE   **ppsHWPerfDataAllocServerExportCookie,
-									    RGX_RD_POWER_ISLAND_CONF			eRGXRDPowerIslandingConf);
+									    IMG_UINT32 ui32APMLatency,
+									    IMG_UINT32 ui32CoreClockSpeed);
 
 
 /*!
@@ -163,22 +160,6 @@ PVRSRV_ERROR PVRSRVRGXInitLoadFWImageKM(PMR *psFWImgDestPMR,
 										PMR *psFWImgSigPMR,
                                         IMG_UINT64 ui64FWSigLen);
 
-/*!
-*******************************************************************************
-
- @Function	PVRSRVRGXInitHWPerfCountersKM
-
- @Description
-
- Initialisation of the performance counters
-
- @Input pvDeviceNode - device node
-
- @Return   PVRSRV_ERROR
-
-******************************************************************************/
-IMG_IMPORT
-PVRSRV_ERROR PVRSRVRGXInitHWPerfCountersKM (PVRSRV_DEVICE_NODE	*psDeviceNode);
 
 /*!
 *******************************************************************************
@@ -213,101 +194,5 @@ PVRSRV_ERROR RGXRegisterDevice(PVRSRV_DEVICE_NODE *psDeviceNode);
 ******************************************************************************/
 PVRSRV_ERROR DevDeInitRGX(PVRSRV_DEVICE_NODE *psDeviceNode);
 
-#if !defined(NO_HARDWARE)
-void RGX_WaitForInterruptsTimeout(PVRSRV_RGXDEV_INFO *psDevInfo);
-#endif
-/*!
-*******************************************************************************
-
- @Function     RGXRegisterGpuUtilStats
-
- @Description  Initialise data used to compute GPU utilisation statistics
-               for a particular user (identified by the handle passed as
-               argument). This function must be called only once for each
-               different user/handle.
-
- @Input        phGpuUtilUser - Pointer to handle used to identify a user of
-                               RGXGetGpuUtilStats
-
- @Return       PVRSRV_ERROR
-
-******************************************************************************/
-PVRSRV_ERROR RGXRegisterGpuUtilStats(IMG_HANDLE *phGpuUtilUser);
-
-
-/*!
-*******************************************************************************
-
- @Function     RGXUnregisterGpuUtilStats
-
- @Description  Free data previously used to compute GPU utilisation statistics
-               for a particular user (identified by the handle passed as
-               argument).
-
- @Input        hGpuUtilUser - Handle used to identify a user of
-                              RGXGetGpuUtilStats
-
- @Return       PVRSRV_ERROR
-
-******************************************************************************/
-PVRSRV_ERROR RGXUnregisterGpuUtilStats(IMG_HANDLE hGpuUtilUser);
-
-
-/*!
-*******************************************************************************
-
- @Function     RGXRegisterGpuUtilStats
-
- @Description  Initialise data used to compute GPU utilisation statistics
-               for a particular user (identified by the handle passed as
-               argument). This function must be called only once for each
-               different user/handle.
-
- @Input        phGpuUtilUser - Pointer to handle used to identify a user of
-                               RGXGetGpuUtilStats
-
- @Return       PVRSRV_ERROR
-
-******************************************************************************/
-PVRSRV_ERROR RGXRegisterGpuUtilStats(IMG_HANDLE *phGpuUtilUser);
-
-
-/*!
-*******************************************************************************
-
- @Function     RGXUnregisterGpuUtilStats
-
- @Description  Free data previously used to compute GPU utilisation statistics
-               for a particular user (identified by the handle passed as
-               argument).
-
- @Input        hGpuUtilUser - Handle used to identify a user of
-                              RGXGetGpuUtilStats
-
- @Return       PVRSRV_ERROR
-
-******************************************************************************/
-PVRSRV_ERROR RGXUnregisterGpuUtilStats(IMG_HANDLE hGpuUtilUser);
-
-
-/*!
-*******************************************************************************
-
- @Function		PVRSRVGPUVIRTPopulateLMASubArenasKM
-
- @Description	Populates the LMA arenas based on the min max values passed by
-				the client during initialization. GPU Virtualization Validation
-				only.
-
- @Input			pvDeviceNode	: Pointer to a device info structure.
-				ui32NumElements	: Total number of min / max values passed by
-								  the client
-				pui32Elements	: The array containing all the min / max values
-								  passed by the client, all bundled together
-
- @Return   PVRSRV_ERROR
-
-******************************************************************************/
-PVRSRV_ERROR PVRSRVGPUVIRTPopulateLMASubArenasKM(PVRSRV_DEVICE_NODE	*psDeviceNode, IMG_UINT32 ui32NumElements, IMG_UINT32 aui32Elements[]);
 
 #endif /* __RGXINIT_H__ */

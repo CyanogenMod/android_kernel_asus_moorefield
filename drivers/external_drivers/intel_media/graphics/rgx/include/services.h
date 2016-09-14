@@ -44,22 +44,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __SERVICES_H__
 #define __SERVICES_H__
 
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-	#if !defined(OSID_BITS_FLAGS_OFFSET)
-		#define  OSID_BITS_FLAGS_OFFSET	20
-		#define  OSID_BITS_FLAGS_MASK	7
-	#endif
-
-	#if !defined(GPUVIRT_VALIDATION_MAX_STRING_LENGTH)
-		#define GPUVIRT_VALIDATION_MAX_STRING_LENGTH 100
-	#endif
-
-	#if !defined(GPUVIRT_VALIDATION_NUM_REGIONS)
-		#define GPUVIRT_VALIDATION_NUM_REGIONS	2
-	#endif
-
-#endif
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -71,8 +55,7 @@ extern "C" {
 #include "lock_types.h"
 #include "pvr_debug.h"
 
-/* FIXME: Can't do this as dc_client includes services.h
-#include "dc_client.h"
+/* 
 */
 
 #if defined(LDDM)
@@ -100,26 +83,6 @@ extern "C" {
 #define PVRSRV_4K_PAGE_SIZE					4096UL      /*!< Size of a 4K Page */
 #define PVRSRV_4K_PAGE_SIZE_ALIGNSHIFT		12          /*!< Amount to shift an address by so that
                                                           it is always page-aligned */
-/*! 16k page size definition */
-#define PVRSRV_16K_PAGE_SIZE					16384UL      /*!< Size of a 16K Page */
-#define PVRSRV_16K_PAGE_SIZE_ALIGNSHIFT		14          /*!< Amount to shift an address by so that
-                                                          it is always page-aligned */
-/*! 64k page size definition */
-#define PVRSRV_64K_PAGE_SIZE					65536UL      /*!< Size of a 64K Page */
-#define PVRSRV_64K_PAGE_SIZE_ALIGNSHIFT		16          /*!< Amount to shift an address by so that
-                                                          it is always page-aligned */
-/*! 256k page size definition */
-#define PVRSRV_256K_PAGE_SIZE					262144UL      /*!< Size of a 256K Page */
-#define PVRSRV_256K_PAGE_SIZE_ALIGNSHIFT		18          /*!< Amount to shift an address by so that
-                                                          it is always page-aligned */
-/*! 1MB page size definition */
-#define PVRSRV_1M_PAGE_SIZE					1048576UL      /*!< Size of a 1M Page */
-#define PVRSRV_1M_PAGE_SIZE_ALIGNSHIFT		20          /*!< Amount to shift an address by so that
-                                                          it is always page-aligned */
-/*! 2MB page size definition */
-#define PVRSRV_2M_PAGE_SIZE					2097152UL      /*!< Size of a 2M Page */
-#define PVRSRV_2M_PAGE_SIZE_ALIGNSHIFT		21          /*!< Amount to shift an address by so that
-                                                          it is always page-aligned */
 
 
 #define EVENTOBJNAME_MAXLENGTH (50) /*!< Max length of an event object name */
@@ -137,11 +100,8 @@ extern "C" {
 /*
 	Pdump flags which are accessible to Services clients
 */
-/* FIXME: defined to be the same as
- * #define PDUMP_FLAGS_CONTINUOUS		0x40000000UL
- * (from services/include/pdump.h)
- * The flags need to either be moved here, or e.g. all PDump functions need a bContinuous parameter
- */
+/* 
+*/
 #define PVRSRV_PDUMP_FLAGS_CONTINUOUS		0x40000000UL /*!< pdump continuous */
 
 #define PVRSRV_UNDEFINED_HEAP_ID			(~0LU)
@@ -159,16 +119,19 @@ typedef enum
 	IMG_SRV_UM			= 0x00000005,       /*!< Services User-Mode */
 	IMG_SRV_INIT		= 0x00000006,		/*!< Services initialisation */
 	IMG_SRVCLIENT		= 0x00000007,       /*!< Services Client */
-	IMG_OPENGL			= 0x00000008,       /*!< OpenGL */
-	IMG_D3D				= 0x00000009,       /*!< D3D */
-	IMG_OPENCL			= 0x0000000A,       /*!< OpenCL */
-	IMG_ANDROID_HAL		= 0x0000000B,       /*!< Graphics HAL */
-	IMG_WEC_GPE			= 0x0000000C,		/*!< WinEC-specific GPE */
-	IMG_PVRGPE			= 0x0000000D,		/*!< WinEC/WinCE GPE */
-	IMG_RSCOMPUTE       = 0x0000000E,       /*!< RenderScript Compute */
-	IMG_OPENRL          = 0x0000000F,       /*!< OpenRL Module */
-	IMG_PDUMPCTRL		= 0x00000010,       /*!< PDump control client */
-	IMG_USC2			= 0x00000011,       /*!< Uniflex compiler */
+	IMG_WDDMKMD			= 0x00000008,       /*!< WDDM KMD */
+	IMG_WDDM3DNODE		= 0x00000009,       /*!< WDDM 3D Node */
+	IMG_WDDMMVIDEONODE	= 0x0000000A,       /*!< WDDM MVideo Node */
+	IMG_WDDMVPBNODE		= 0x0000000B,       /*!< WDDM VPB Node */
+	IMG_OPENGL			= 0x0000000C,       /*!< OpenGL */
+	IMG_D3D				= 0x0000000D,       /*!< D3D */
+	IMG_OPENCL			= 0x0000000E,       /*!< OpenCL */
+	IMG_ANDROID_HAL		= 0x0000000F,       /*!< Graphics HAL */
+	IMG_WEC_GPE			= 0x00000010,		/*!< WinEC-specific GPE */
+	IMG_PVRGPE			= 0x00000011,		/*!< WinEC/WinCE GPE */
+	IMG_RSCOMPUTE       = 0x00000012,       /*!< RenderScript Compute */
+	IMG_OPENRL          = 0x00000013,       /*!< OpenRL Module */
+	IMG_PDUMPCTRL		= 0x00000014,       /*!< PDump control client */
 
 } IMG_MODULE_ID;
 
@@ -201,6 +164,19 @@ typedef struct _PVRSRV_DEV_DATA_ *PPVRSRV_DEV_DATA;
  * Forward declaration (look on connection.h)
  */
 typedef struct _PVRSRV_CONNECTION_ PVRSRV_CONNECTION;
+
+
+/*************************************************************************/ /*!
+ * Client dev info
+ */ /*************************************************************************/
+typedef struct _PVRSRV_CLIENT_DEV_DATA_
+{
+	IMG_UINT32		ui32NumDevices;				                                /*!< Number of services-managed devices connected */
+	PVRSRV_DEVICE_IDENTIFIER asDevID[PVRSRV_MAX_DEVICES];		                /*!< Device identifiers */
+	PVRSRV_ERROR	(*apfnDevConnect[PVRSRV_MAX_DEVICES])(PPVRSRV_DEV_DATA);	/*!< device-specific connection callback */
+	PVRSRV_ERROR	(*apfnDumpTrace[PVRSRV_MAX_DEVICES])(PPVRSRV_DEV_DATA);		/*!< device-specific debug trace callback */
+
+} PVRSRV_CLIENT_DEV_DATA;
 
 /*!
  ******************************************************************************
@@ -242,8 +218,8 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVClientEvent(const PVRSRV_CLIENT_EVENT eEvent,
 
 /**************************************************************************/ /*!
 @Function       PVRSRVConnect
-@Description    Creates a services connection from an application to the
-                services module.
+@Description    Creates a connection from an application to the services 
+                module and initialises device-specific call-back functions.
 @Output         ppsConnection   on Success, *ppsConnection is set to the new 
                                 PVRSRV_CONNECTION instance.
 @Input          ui32SrvFlags    a bit-wise OR of the following:
@@ -252,8 +228,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVClientEvent(const PVRSRV_CLIENT_EVENT eEvent,
                                 error code
  */ /**************************************************************************/
 IMG_IMPORT
-PVRSRV_ERROR IMG_CALLCONV PVRSRVConnect(PVRSRV_CONNECTION **ppsConnection,
-					IMG_UINT32 ui32SrvFlags);
+PVRSRV_ERROR IMG_CALLCONV PVRSRVConnect(PVRSRV_CONNECTION **ppsConnection, IMG_UINT32 ui32SrvFlags);
 
 /**************************************************************************/ /*!
 @Function       PVRSRVDisconnect 
@@ -336,7 +311,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVAcquireDeviceData(PVRSRV_CONNECTION 	*psConnecti
                 matches ui32Value, or (2) the maximum number of tries has
                 been reached.
 @Input          psConnection        Services connection
-@Input          hOSEvent            Handle to OS event to wait for
+@Input          hOSEvent            Handle to OS event object to wait for
 @Input          pui32LinMemAddr     the address of the memory to poll
 @Input          ui32Value           the required value
 @Input          ui32Mask            the mask to use
@@ -917,72 +892,25 @@ IMG_IMPORT IMG_PVOID IMG_CALLCONV PVRSRVReallocUserModeMem (IMG_PVOID pvBase, IM
 @Return         None
  */ /**************************************************************************/
 IMG_IMPORT IMG_VOID  IMG_CALLCONV PVRSRVFreeUserModeMem (IMG_PVOID pvMem);
-
 /**************************************************************************/ /*!
 @Function       PVRSRVMemCopy
 @Description    Copy a block of memory
-                Safe implementation of memset for use with device memory.
-@Input          pvDst       Pointer to the destination
-@Input          pvSrc       Pointer to the source location
-@Input          uiSize      The amount of memory to copy in bytes
+@Input          pvDst       pointer to the destination
+@Input          pvSrc       pointer to the source location
+@Input          uiSize    the amount of memory to copy
 @Return         None
  */ /**************************************************************************/
 IMG_IMPORT IMG_VOID PVRSRVMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T uiSize);
 
 /**************************************************************************/ /*!
-@Function       PVRSRVCachedMemCopy
-@Description    Copy a block of memory between two cached memory allocations.
-                For use only when source and destination are both cached memory allocations.
-@Input          pvDst       Pointer to the destination
-@Input          pvSrc       Pointer to the source location
-@Input          uiSize      The amount of memory to copy in bytes
-@Return         None
- */ /**************************************************************************/
-IMG_IMPORT void PVRSRVCachedMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T uiSize);
-
-/**************************************************************************/ /*!
-@Function       PVRSRVDeviceMemCopy
-@Description    Copy a block of memory to/from a device memory allocation.
-                For use when one or both of the allocations is a device memory allocation.
-@Input          pvDst       Pointer to the destination
-@Input          pvSrc       Pointer to the source location
-@Input          uiSize      The amount of memory to copy in bytes
-@Return         None
- */ /**************************************************************************/
-IMG_IMPORT IMG_VOID PVRSRVDeviceMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T uiSize);
-
-/**************************************************************************/ /*!
 @Function       PVRSRVMemSet
-@Description    Set all bytes in a region of memory to the specified value.
-                Safe implementation of memset for use with device memory.
-@Input          pvDest      Pointer to the start of the memory region
-@Input          ui8Value    The value to be written
-@Input          uiSize      The number of bytes to be set to ui8Value
+@Description    Set all bytes in a region of memory to the specified value
+@Input          pvDest      pointer to the start of the memory region
+@Input          ui8Value    the value to be written
+@Input          uiSize    the number of bytes to be set to ui8Value
 @Return         None
  */ /**************************************************************************/
 IMG_IMPORT IMG_VOID PVRSRVMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T uiSize);
-
-/**************************************************************************/ /*!
-@Function       PVRSRVCachedMemSet
-@Description    Set all bytes in a region of cached memory to the specified value.
-                For use only when the destination is a cached memory allocation.
-@Input          pvDest      Pointer to the start of the memory region
-@Input          ui8Value    The value to be written
-@Input          uiSize      The number of bytes to be set to ui8Value
-@Return         None
- */ /**************************************************************************/
-IMG_IMPORT IMG_VOID PVRSRVCachedMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T uiSize);
-
-/**************************************************************************/ /*!
-@Function       PVRSRVDeviceMemSet
-@Description    Set all bytes in a region of device memory to the specified value.
-                The destination pointer should be a device memory buffer.
-@Input          pvDest      Pointer to the start of the memory region
-@Input          ui8Value    The value to be written
-@Input          uiSize      The number of bytes to be set to ui8Value
-@Return         None
- */ /**************************************************************************/
-IMG_IMPORT IMG_VOID PVRSRVDeviceMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T uiSize);
 
 /**************************************************************************/ /*!
 @Function       PVRSRVLockProcessGlobalMutex
@@ -1229,15 +1157,15 @@ PVRSRVDumpDebugInfo(const PVRSRV_CONNECTION *psConnection, IMG_UINT32 ui32VerbLe
 
 /**************************************************************************/ /*!
 @Function       PVRSRVGetDevClockSpeed
-@Description    Gets the clock speed
+@Description    Gets the RGX clock speed
 @Input          psConnection		Services connection
 @Input          psDevData			Pointer to the PVRSRV_DEV_DATA context
-@Output         pui32ClockSpeed     Variable for storing clock speed
+@Output         pui32RGXClockSpeed  Variable for storing clock speed
 @Return         IMG_BOOL			True if the operation was successful
  */ /**************************************************************************/
 IMG_IMPORT IMG_BOOL IMG_CALLCONV PVRSRVGetDevClockSpeed(const PVRSRV_CONNECTION *psConnection,
 														PVRSRV_DEV_DATA  *psDevData,
-														IMG_PUINT32 pui32ClockSpeed);
+														IMG_PUINT32 pui32RGXClockSpeed);
 
 /**************************************************************************/ /*!
 @Function       PVRSRVResetHWRLogs
@@ -1250,51 +1178,46 @@ IMG_IMPORT IMG_BOOL IMG_CALLCONV PVRSRVGetDevClockSpeed(const PVRSRV_CONNECTION 
 IMG_IMPORT PVRSRV_ERROR
 PVRSRVResetHWRLogs(const PVRSRV_CONNECTION *psConnection, PVRSRV_DEV_DATA  *psDevData);
 
-
 /******************************************************************************
- * PVR Global Event Object - Event APIs
+ * PVR Event Object API(s)
  *****************************************************************************/
 
 /*****************************************************************************
-@Function       PVRSRVAcquireGlobalEventHandle
-@Description    Gets a handle to an event that is opened on the global
-                event object.
-@Input          psConnection    Services connection
-@Output         phEvent         Global event handle
+@Function       PVRSRVAcquireGlobalEventObject
+@Description    Gets a handle to an event
+ Outputs            : phOSEvent    Global eventobject event
+ Returns            : 
 @Return                         PVRSRV_OK on success. Otherwise, a PVRSRV_
                                 error code
- */ /**************************************************************************/
+                      
+******************************************************************************/
 IMG_IMPORT PVRSRV_ERROR
-PVRSRVAcquireGlobalEventHandle(const PVRSRV_CONNECTION *psConnection,
-                               IMG_HANDLE *phEvent);
+PVRSRVAcquireGlobalEventObject(const PVRSRV_CONNECTION *psConnection,
+											IMG_HANDLE *phOSEvent);
 
-/**************************************************************************/ /*!
-@Function       PVRSRVReleaseGlobalEventHandle
-@Description    Destroys the event handle previously acquired.
-@Input          psConnection    Services connection
-@Input          phEvent         Global event handle
+/*****************************************************************************
+ Function Name      : PVRSRVReleaseGlobalEventObject
+ Inputs             : phOSEvent    Global eventobject event
+ Outputs            : 
 @Return                         PVRSRV_OK on success. Otherwise, a PVRSRV_
                                 error code
- */ /**************************************************************************/
+                      
+******************************************************************************/
 IMG_IMPORT PVRSRV_ERROR
-PVRSRVReleaseGlobalEventHandle(const PVRSRV_CONNECTION *psConnection,
-                               IMG_HANDLE hEvent);
+PVRSRVReleaseGlobalEventObject(const PVRSRV_CONNECTION *psConnection,
+											IMG_HANDLE hOSEvent);
 
 /**************************************************************************/ /*!
 @Function       PVRSRVEventObjectWait
 @Description    Wait (block) on the OS-specific event object passed
 @Input          psConnection    Services connection
-@Input          hEvent          Global event handle to wait on
+@Input          hOSEvent        the event object to wait on
 @Return                         PVRSRV_OK on success. Otherwise, a PVRSRV_
                                 error code
  */ /**************************************************************************/
 IMG_IMPORT PVRSRV_ERROR
 PVRSRVEventObjectWait(const PVRSRV_CONNECTION *psConnection,
-                      IMG_HANDLE hEvent);
-
-/******************************************************************************
- * PVR Global Event Object - Event APIs End
- *****************************************************************************/
+									IMG_HANDLE hOSEvent);
 
 
 IMG_IMPORT PVRSRV_ERROR
@@ -1302,23 +1225,18 @@ PVRSRVKickDevices(const PVRSRV_CONNECTION *psConnection);
 
 
 /**************************************************************************/ /*!
-@Function       PVRSRVSoftReset
-@Description    Resets some modules of the device
+@Function       RGXSoftReset
+@Description    Resets some modules of the RGX device
 @Input          psConnection    Services connection
-@Input          psDevData		Pointer to the PVRSRV_DEV_DATA context
-@Input          ui64ResetValue1 A mask for which each bit set corresponds
-                                to a module to reset (via the SOFT_RESET
-                                register).
-@Input          ui64ResetValue2 A mask for which each bit set corresponds
-                                to a module to reset (via the SOFT_RESET2
-                                register).
+@Input          psDevData			Pointer to the PVRSRV_DEV_DATA context
+@Output         ui64ResetValue  a mask for which each bit set correspond
+                                to a module to reset.
 @Return         PVRSRV_ERROR
 */ /***************************************************************************/
 IMG_IMPORT PVRSRV_ERROR
 PVRSRVSoftReset(const PVRSRV_CONNECTION *psConnection,
 				PVRSRV_DEV_DATA  *psDevData,
-				IMG_UINT64 ui64ResetValue1,
-				IMG_UINT64 ui64ResetValue2);
+				IMG_UINT64 ui64ResetValue);
 
 /*!
  Time wrapping macro

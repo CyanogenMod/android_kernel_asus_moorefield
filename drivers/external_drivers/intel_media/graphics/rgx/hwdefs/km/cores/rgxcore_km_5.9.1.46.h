@@ -42,8 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _RGXCORE_KM_5_9_1_46_H_
 #define _RGXCORE_KM_5_9_1_46_H_
 
-/***** Automatically generated file (26/08/2015 09:15:08): Do not edit manually ********************/
-/***** Timestamp:  (26/08/2015 09:15:08)************************************************************/
+/***** Automatically generated file (10/28/2014 1:55:48 PM): Do not edit manually ********************/
+/***** Timestamp:  (10/28/2014 1:55:48 PM)************************************************************/
 /***** CS: @2967148 ******************************************************************/
 
 
@@ -66,7 +66,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /******************************************************************************
  * Enhancements 
  *****************************************************************************/
-#define HW_ERN_36400
 
 
 

@@ -66,11 +66,8 @@ typedef struct _RGX_SERVER_TQ_CONTEXT_ RGX_SERVER_TQ_CONTEXT;
 
  @Input pvDeviceNode - device node
  
-FIXME fill this in
 
- @Return   PVRSRV_ERROR
-
-******************************************************************************/
+*/
 IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXCreateTransferContextKM(CONNECTION_DATA			*psConnection,
 										   PVRSRV_DEVICE_NODE		*psDeviceNode,
@@ -114,19 +111,16 @@ IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 									IMG_UINT32				ui32PrepareCount,
 									IMG_UINT32				*paui32ClientFenceCount,
-									SYNC_PRIMITIVE_BLOCK		***papauiClientFenceUFOSyncPrimBlock,
-									IMG_UINT32				**papaui32ClientFenceSyncOffset,
+									PRGXFWIF_UFO_ADDR		**papauiClientFenceUFOAddress,
 									IMG_UINT32				**papaui32ClientFenceValue,
 									IMG_UINT32				*paui32ClientUpdateCount,
-									SYNC_PRIMITIVE_BLOCK		***papauiClientUpdateUFOSyncPrimBlock,
-									IMG_UINT32				**papaui32ClientUpdateSyncOffset,
+									PRGXFWIF_UFO_ADDR		**papauiClientUpdateUFOAddress,
 									IMG_UINT32				**papaui32ClientUpdateValue,
 									IMG_UINT32				*paui32ServerSyncCount,
 									IMG_UINT32				**papaui32ServerSyncFlags,
 									SERVER_SYNC_PRIMITIVE	***papapsServerSyncs,
-									IMG_UINT32				ui32NumCheckFenceFDs,
-									IMG_INT32				*paui32CheckFenceFDs,
-									IMG_INT32				i32UpdateFenceFD,
+									IMG_UINT32				ui32NumFenceFDs,
+									IMG_INT32				*paui32FenceFDs,
 									IMG_UINT32				*paui32FWCommandSize,
 									IMG_UINT8				**papaui8FWCommand,
 									IMG_UINT32				*pui32TQPrepareFlags,
@@ -147,18 +141,15 @@ IMG_BOOL CheckForStalledClientTransferCtxt(PVRSRV_RGXDEV_INFO *psDevInfo);
 
 PVRSRV_ERROR PVRSRVRGXKickSyncTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 									   IMG_UINT32				ui32ClientFenceCount,
-									   SYNC_PRIMITIVE_BLOCK		**pauiClientFenceUFOSyncPrimBlock,
-									   IMG_UINT32				*paui32ClientFenceSyncOffset,
+									   PRGXFWIF_UFO_ADDR		*pauiClientFenceUFOAddress,
 									   IMG_UINT32				*paui32ClientFenceValue,
 									   IMG_UINT32				ui32ClientUpdateCount,
-									   SYNC_PRIMITIVE_BLOCK		**pauiClientUpdateUFOSyncPrimBlock,
-									   IMG_UINT32				*paui32ClientUpdateSyncOffset,
+									   PRGXFWIF_UFO_ADDR		*pauiClientUpdateUFOAddress,
 									   IMG_UINT32				*paui32ClientUpdateValue,
 									   IMG_UINT32				ui32ServerSyncCount,
 									   IMG_UINT32				*pui32ServerSyncFlags,
 									   SERVER_SYNC_PRIMITIVE	**pasServerSyncs,
-									   IMG_UINT32				ui32NumCheckFenceFDs,
-									   IMG_INT32				*paui32CheckFenceFDs,
-									   IMG_INT32				i32UpdateFenceFD,
+									   IMG_UINT32				ui32NumFenceFDs,
+									   IMG_INT32				*paui32FenceFDs,
 									   IMG_UINT32				ui32TQPrepareFlags);
 #endif /* __RGXTRANSFER_H__ */

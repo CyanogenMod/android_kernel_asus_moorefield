@@ -64,7 +64,7 @@ SYS_INCLUDES := \
  -isystem $(ANDROID_ROOT)/frameworks/base/include \
  -isystem $(ANDROID_ROOT)/system/core/include \
  -isystem $(ANDROID_ROOT)/hardware/libhardware/include \
- -isystem $(ANDROID_ROOT)/external/openssl_bsp/include \
+ -isystem $(ANDROID_ROOT)/external/openssl/include \
  -isystem $(ANDROID_ROOT)/system/media/camera/include \
  -isystem $(ANDROID_ROOT)/hardware/libhardware_legacy/include
 

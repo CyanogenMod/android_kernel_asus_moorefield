@@ -136,10 +136,6 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeDevmemSLCFlushInvalRequest(IMG_HAND
 									IMG_HANDLE hDeviceNode,
 									IMG_HANDLE hPmr);
 
-IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeDevmemIsVDevAddrValid(IMG_HANDLE hBridge,
-								   IMG_HANDLE hDevmemCtx,
-								   IMG_DEV_VIRTADDR sAddress);
-
 IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeHeapCfgHeapConfigCount(IMG_HANDLE hBridge,
 								    IMG_HANDLE hDeviceNode,
 								    IMG_UINT32 *pui32NumHeapConfigs);
@@ -163,8 +159,7 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeHeapCfgHeapDetails(IMG_HANDLE hBrid
 								IMG_CHAR *puiHeapNameOut,
 								IMG_DEV_VIRTADDR *psDevVAddrBase,
 								IMG_DEVMEM_SIZE_T *puiHeapLength,
-								IMG_UINT32 *pui32Log2DataPageSizeOut,
-								IMG_UINT32 *pui32Log2ImportAlignmentOut);
+								IMG_UINT32 *pui32Log2DataPageSizeOut);
 
 
 #endif /* CLIENT_MM_BRIDGE_H */
