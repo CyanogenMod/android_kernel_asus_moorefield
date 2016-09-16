@@ -24,7 +24,6 @@
 
 /* common register definitions */
 #define PUNIT_PORT		0x04
-#define CCK_PORT		0x14
 
 #define PCICMDSTS		0x01
 #define INTR			0x0f
@@ -105,6 +104,7 @@
 
 #define MRFLD_MAX_ZOOM_FACTOR	1024
 
+#ifdef CONFIG_GMIN_INTEL_MID
 /* MRFLD ISP POWER related */
 #define MRFLD_ISPSSPM0         0x39
 #define MRFLD_ISPSSPM0_ISPSSC_OFFSET   0
@@ -112,9 +112,7 @@
 #define MRFLD_ISPSSPM0_ISPSSC_MASK     0x3
 #define MRFLD_ISPSSPM0_IUNIT_POWER_ON  0
 #define MRFLD_ISPSSPM0_IUNIT_POWER_OFF 0x3
-#define MRFLD_ISPSSDVFS			0x13F
-#define MRFLD_BIT0			0x0001
-#define MRFLD_BIT1			0x0002
+#endif
 
 /* MRFLD CSI lane configuration related */
 #define MRFLD_PORT_CONFIG_NUM  8
@@ -148,13 +146,8 @@
 #define ISP_FREQ_320MHZ				0x140
 #define ISP_FREQ_266MHZ				0x10a
 #define ISP_FREQ_200MHZ				0xc8
-
-#define HPLL_FREQ_800MHZ			0x320
-#define HPLL_FREQ_1600MHZ			0x640
-#define HPLL_FREQ_2000MHZ			0x7D0
-
-#define CCK_FUSE_REG_0			0x08
-#define CCK_FUSE_HPLL_FREQ_MASK		0x03
+#define HPLL_FREQ				0x640
+#define HPLL_FREQ_CR        			0x7D0
 
 #if defined(ISP2401)
 #define ISP_FREQ_MAX	ISP_FREQ_320MHZ
@@ -200,8 +193,6 @@
 #define CSI2_PORT_C_RX_CSI_DLY_CNT_SETTLE_DLANE0		0xC4424
 #define CSI2_PORT_C_RX_CSI_DLY_CNT_TERMEN_DLANE1		0xC4428
 #define CSI2_PORT_C_RX_CSI_DLY_CNT_SETTLE_DLANE1		0xC442C
-
-#define DMA_BURST_SIZE_REG					0xCD408
 
 #define ISP_DFS_TRY_TIMES	2
 

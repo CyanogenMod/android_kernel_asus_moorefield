@@ -1,16 +1,27 @@
 /*
- * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
+ * INTEL CONFIDENTIAL
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (C) 2010 - 2013 Intel Corporation.
+ * All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * The source code contained or described herein and all documents
+ * related to the source code ("Material") are owned by Intel Corporation
+ * or licensors. Title to the Material remains with Intel
+ * Corporation or its licensors. The Material contains trade
+ * secrets and proprietary and confidential information of Intel or its
+ * licensors. The Material is protected by worldwide copyright
+ * and trade secret laws and treaty provisions. No part of the Material may
+ * be used, copied, reproduced, modified, published, uploaded, posted,
+ * transmitted, distributed, or disclosed in any way without Intel's prior
+ * express written permission.
+ *
+ * No License under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or
+ * delivery of the Materials, either expressly, by implication, inducement,
+ * estoppel or otherwise. Any license under such intellectual property rights
+ * must be express and approved by Intel in writing.
  */
+
 
 #ifndef _REF_VECTOR_FUNC_H_INCLUDED_
 #define _REF_VECTOR_FUNC_H_INCLUDED_
@@ -79,20 +90,6 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_mul_realigning(
 	tvector1w b,
 	tscalar1w shift );
 
-/** @brief Leading bit index
- *
- * @param[in] a 	input
- *
- * @return		index of the leading bit of each element
- *
- * This function finds the index of leading one (set) bit of the
- * input. The index starts with 0 for the LSB and can go upto
- * ISP_VEC_ELEMBITS-1 for the MSB. For an input equal to zero,
- * the returned index is -1.
- */
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_lod(
-		tvector1w a);
-
 /** @brief Config Unit Input Processing
  *
  * @param[in] a 	    input
@@ -144,42 +141,81 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_piecewise_estimation(
 	tvector1w a,
 	ref_config_points config_points);
 
-/** @brief Fast Config Unit
+/** @brief XCU LUT initialization
  *
- * @param[in] x 		input
- * @param[in] init_vectors	LUT data structure
+ * @param[in] config_points   config parameter structure
  *
- * @return	piecewise linear estimated output
- * This block gets an input x and a set of input configuration points stored in a look-up
- * table of 32 elements. First, the x input is clipped to be within the range [x1, xn+1].
- * Then, it computes the interval in which the input lies. Finally, the output is computed
- * by performing linear interpolation based on the interval properties (i.e. x_prev, slope,
- * and offset). This block assumes that the points are equally spaced and that the interval
- * size is a power of 2.
+ * @return				   LUT with three vectors for slope, x_prev, offset
+ *
+ * Given a set of N points, not necessariliy equidistant,
+ * {(x1,y1), (x2,y2), ...., (xn,yn)}, to find
+ * the functional value at an arbitrary point around the input set,
+ * this function will perform input processing followed by piecewise
+ * linear estimation and then output processing to yield the final value.
+ * Piecewise liner estimation is performed with the help of LUT generated
+ * based on configuration input. Range of min and max config point is
+ * divided into 32 equal intervals and LUT is created for each of these 32
+ * intervals for slope, y_offset and x_prev. Interval of current point x
+ * is calculated by dividing it with the range approximated to nearest
+ * power of 2 (upper bound). The range has to be a multiple of 32.
+ *
+ * * @details
+ * Given a set of N configuration points, not necessarily equidistant,
+ * {(x1,y1), (x2,y2),....(xn,yn)}, this function gives the piecewise linear
+ * estimation for any arbitrary point around the config points. The distance
+ * between the minimum config point and maximum config point (range) is
+ * divided into ISP_NWAY equal intervals i.e. the LUT size is equal to
+ * ISP_NWAY. It is assumed that is always a power of 2.
+ * In the current case, 32 intervals are used as the ISP is 32 way. It should
+ * be noted that some approximation is introduced here as the range may not be
+ * an integer multiple of ISP_NWAY.
+ * The LUT is created from the configuration input for slope, y_offset and
+ * x_prev_value. Input values of a particular conifg point are replicated in
+ * the LUT till the interval reaches the next config point. LUT is then filled
+ * with the data of the next config point. For example:
+ * LUT for Slope can look like S = [s1 s2 s2 s2 s2 s3 s3 s4 s5 s5 s6 s6 s6..],
+ * depending on the distance between the config points. Similarly the data
+ * is filled for y_offset and X-prev_values. */
+
+STORAGE_CLASS_REF_VECTOR_FUNC_H ref_config_point_vectors XCU_LUT_create(
+	ref_config_points config_points);
+
+/** @brief XCU Fast Config Unit Piecewise linear estimation
+ *
+ * @param[in] x input
+ * @param[in] config_points   config parameters structure
+ * @param[in] init_vectors		   LUT data structure
+ *
+ * @return		     	   piecewise linear estimated output
+ *
+ * Once the LUT is created in XCU_LUT_create function,
+ * the interval of the any input x is identified by dividing it by the range
+ * (approximated to the nearest power of 2 (upper bound)). This is done to have a
+ * fast division operation to identify the interval of input x. Once the
+ * interval of the input is idenitfied, its config data is retrieved from the
+ * LUT and output y is calculated. Input points less than x1 are treated as
+ * simple case of using first y_offset as the output.
+ */
+STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_X_piecewise_estimation(
+	tvector1w x,
+	ref_config_points config_points,
+	ref_config_point_vectors init_vectors);
+
+/** @brief OP_1w_XCU Wrapper function for XCU LUT create, piecewise estimation and output clamping
+ *
+ * @param[in] x input
+ * @param[in] config_points Config parameters structure
+ *
+ * @return	piecewise linear estimated clamped output
+ * This block gets a set of input configuration points and input x, creates a LUT for
+ * config points and gives a clamped piece-wise interpolated output. This block assumes
+ * that the difference between the first config point and the last config point is a multiple
+ * of 32. The config points are monotonically increasing.
  **/
 STORAGE_CLASS_REF_VECTOR_FUNC_H  tvector1w OP_1w_XCU(
 	tvector1w x,
-	xcu_ref_init_vectors init_vectors);
+	ref_config_points config_points);
 
-
-/** @brief LXCU
- *
- * @param[in] x 		input
- * @param[in] init_vectors 	LUT data structure
- *
- * @return   logarithmic piecewise linear estimated output.
- * This block gets an input x and a set of input configuration points stored in a look-up
- * table of 32 elements. It computes the interval in which the input lies.
- * Then output is computed by performing linear interpolation based on the interval
- * properties (i.e. x_prev, slope, * and offset).
- * This BBB assumes spacing x-coordinates of "init vectors" increase exponentially as
- * shown below.
- * interval size :   2^0    2^1      2^2    2^3
- * x-coordinates: x0<--->x1<---->x2<---->x3<---->
- **/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_LXCU(
-	tvector1w x,
-	xcu_ref_init_vectors init_vectors);
 
 /** @brief Coring
  *
@@ -296,7 +332,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph3 (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_calc_coeff (
 	const s_1w_1x3_matrix		m, tscalar1w_3bit coeff);
 
-/** @brief 3 tap FIR with coefficients [1,1,1]
+/** @brief 3 tab FIR with coefficients [1,1,1]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -438,206 +474,11 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x5m_12dB_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir5x5m_12dB_nrm (
 	const s_1w_5x5_matrix m);
 
-/** @brief Approximate averaging FIR 1x5
- *
- * @param[in] m	1x5 matrix with pixels
- *
- * @return		filtered output
- *
- * This function will produce filtered output by
- * applying the filter coefficients (1/8) * [1,1,1,1,1]
- * _______
- *   5 vector operations
-*/
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x5m_box (
 	s_1w_1x5_matrix m);
 
-/** @brief Approximate averaging FIR 1x9
- *
- * @param[in] m	1x9 matrix with pixels
- *
- * @return		filtered output
- *
- * This function will produce filtered output by
- * applying the filter coefficients (1/16) * [1,1,1,1,1,1,1,1,1]
- * _______
- *   9 vector operations
-*/
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x9m_box (
 	s_1w_1x9_matrix m);
-
-/** @brief Approximate averaging FIR 1x11
- *
- * @param[in] m	1x11 matrix with pixels
- *
- * @return		filtered output
- *
- * This function will produce filtered output by
- * applying the filter coefficients (1/16) * [1,1,1,1,1,1,1,1,1,1,1]
- * _______
- *   12 vector operations
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x11m_box (
-	s_1w_1x11_matrix m);
-
-/** @brief Symmetric 7 tap filter with normalization
- *
- *  @param[in] in 1x7 matrix with pixels
- *  @param[in] coeff 1x4 matrix with coefficients
- *  @param[in] out_shift output pixel shift value for normalization
- *
- *  @return symmetric 7 tap filter output
- *
- * This function performs symmetric 7 tap filter over input pixels.
- * Filter sum is normalized by shifting out_shift bits.
- * Filter sum: p0*c3 + p1*c2 + p2*c1 + p3*c0 + p4*c1 + p5*c2 + p6*c3
- * is implemented as: (p0 + p6)*c3 + (p1 + p5)*c2 + (p2 + p4)*c1 + p3*c0 to
- * reduce multiplication.
- * Input pixels should to be scaled, otherwise overflow is possible during
- * addition
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-fir1x7m_sym_nrm(s_1w_1x7_matrix in,
-		s_1w_1x4_matrix coeff,
-		tvector1w out_shift);
-
-/** @brief Symmetric 7 tap filter with normalization at input side
- *
- *  @param[in] in 1x7 matrix with pixels
- *  @param[in] coeff 1x4 matrix with coefficients
- *
- *  @return symmetric 7 tap filter output
- *
- * This function performs symmetric 7 tap filter over input pixels.
- * Filter sum: p0*c3 + p1*c2 + p2*c1 + p3*c0 + p4*c1 + p5*c2 + p6*c3
- *          = (p0 + p6)*c3 + (p1 + p5)*c2 + (p2 + p4)*c1 + p3*c0
- * Input pixels and coefficients are in Qn format, where n =
- * ISP_VEC_ELEMBITS - 1 (ie Q15 for Broxton)
- * To avoid double precision arithmetic input pixel sum and final sum is
- * implemented using avgrnd and coefficient multiplication using qrmul.
- * Final result is in Qm format where m = ISP_VEC_ELEMBITS - 2 (ie Q14 for
- * Broxton)
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-fir1x7m_sym_innrm_approx(s_1w_1x7_matrix in,
-			 s_1w_1x4_matrix coeff);
-
-/** @brief Symmetric 7 tap filter with normalization at output side
- *
- *  @param[in] in 1x7 matrix with pixels
- *  @param[in] coeff 1x4 matrix with coefficients
- *
- *  @return symmetric 7 tap filter output
- *
- * This function performs symmetric 7 tap filter over input pixels.
- * Filter sum: p0*c3 + p1*c2 + p2*c1 + p3*c0 + p4*c1 + p5*c2 + p6*c3
- *          = (p0 + p6)*c3 + (p1 + p5)*c2 + (p2 + p4)*c1 + p3*c0
- * Input pixels are in Qn and coefficients are in Qm format, where n =
- * ISP_VEC_ELEMBITS - 2 and m = ISP_VEC_ELEMBITS - 1 (ie Q14 and Q15
- * respectively for Broxton)
- * To avoid double precision arithmetic input pixel sum and final sum is
- * implemented using addsat and coefficient multiplication using qrmul.
- * Final sum is left shifted by 2 and saturated to produce result is Qm format
- * (ie Q15 for Broxton)
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-fir1x7m_sym_outnrm_approx(s_1w_1x7_matrix in,
-			 s_1w_1x4_matrix coeff);
-
-/** @brief 4 tap filter with normalization
- *
- *  @param[in] in 1x4 matrix with pixels
- *  @param[in] coeff 1x4 matrix with coefficients
- *  @param[in] out_shift output pixel shift value for normalization
- *
- *  @return 4 tap filter output
- *
- * This function performs 4 tap filter over input pixels.
- * Filter sum is normalized by shifting out_shift bits.
- * Filter sum: p0*c0 + p1*c1 + p2*c2 + p3*c3
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-fir1x4m_nrm(s_1w_1x4_matrix in,
-		s_1w_1x4_matrix coeff,
-		tvector1w out_shift);
-
-/** @brief 4 tap filter with normalization for half pixel interpolation
- *
- *  @param[in] in 1x4 matrix with pixels
- *
- *  @return 4 tap filter output with filter tap [-1 9 9 -1]/16
- *
- * This function performs 4 tap filter over input pixels.
- * Filter sum: -p0 + 9*p1 + 9*p2 - p3
- * This filter implementation is completely free from multiplication and double
- * precision arithmetic.
- * Typical usage of this filter is to half pixel interpolation of Bezier
- * surface
- * */
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-fir1x4m_bicubic_bezier_half(s_1w_1x4_matrix in);
-
-/** @brief 4 tap filter with normalization for quarter pixel interpolation
- *
- *  @param[in] in 1x4 matrix with pixels
- *  @param[in] coeff 1x4 matrix with coefficients
- *
- *  @return 4 tap filter output
- *
- * This function performs 4 tap filter over input pixels.
- * Filter sum: p0*c0 + p1*c1 + p2*c2 + p3*c3
- * To avoid double precision arithmetic we implemented multiplication using
- * qrmul and addition using avgrnd. Coefficients( c0 to c3) formats are assumed
- * to be: Qm, Qn, Qo, Qm, where m = n + 2 and o = n + 1.
- * Typical usage of this filter is to quarter pixel interpolation of Bezier
- * surface with filter coefficients:[-9 111 29 -3]/128. For which coefficient
- * values should be: [-9216/2^17  28416/2^15  1484/2^16 -3072/2^17] for
- * ISP_VEC_ELEMBITS = 16.
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-fir1x4m_bicubic_bezier_quarter(s_1w_1x4_matrix in,
-			s_1w_1x4_matrix coeff);
-
-
-/** @brief Symmetric 3 tap filter with normalization
- *
- *  @param[in] in 1x3 matrix with pixels
- *  @param[in] coeff 1x2 matrix with coefficients
- *  @param[in] out_shift output pixel shift value for normalization
- *
- *  @return symmetric 3 tap filter output
- *
- * This function performs symmetric 3 tap filter input pixels.
- * Filter sum is normalized by shifting out_shift bits.
- * Filter sum: p0*c1 + p1*c0 + p2*c1
- * is implemented as: (p0 + p2)*c1 + p1*c0 to reduce multiplication.
- * Input pixels should to be scaled, otherwise overflow is possible during
- * addition
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-fir1x3m_sym_nrm(s_1w_1x3_matrix in,
-		s_1w_1x2_matrix coeff,
-		tvector1w out_shift);
-
-/** @brief Symmetric 3 tap filter with normalization
- *
- *  @param[in] in 1x3 matrix with pixels
- *  @param[in] coeff 1x2 matrix with coefficients
- *
- *  @return symmetric 3 tap filter output
- *
- * This function performs symmetric 3 tap filter over input pixels.
- * Filter sum: p0*c1 + p1*c0 + p2*c1 = (p0 + p2)*c1 + p1*c0
- * Input pixels are in Qn and coefficient c0 is in Qm and c1 is in Qn format,
- * where n = ISP_VEC_ELEMBITS - 1 and m = ISP_VEC_ELEMBITS - 2 ( ie Q15 and Q14
- * respectively for Broxton)
- * To avoid double precision arithmetic input pixel sum is implemented using
- * avgrnd, coefficient multiplication using qrmul and final sum using addsat
- * Final sum is Qm format (ie Q14 for Broxton)
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-fir1x3m_sym_nrm_approx(s_1w_1x3_matrix in,
-		       s_1w_1x2_matrix coeff);
 
 /** @brief Mean of 1x3 matrix
  *
@@ -696,17 +537,6 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean4x4m(
 */
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean2x3m(
 	s_1w_2x3_matrix m);
-
-/** @brief Mean of 1x5 matrix
- *
- *  @param[in] m 1x5 matrix with pixels
- *
- *  @return mean of 1x5 matrix
- *
- * This function calculates the mean of 1x5 matrix with pixels
- * with a factor of 8/5.
-*/
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x5m(s_1w_1x5_matrix m);
 
 /** @brief Mean of 1x6 matrix
  *
@@ -819,19 +649,6 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w sad3x3m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w sad5x5m(
 	s_1w_5x5_matrix a,
 	s_1w_5x5_matrix b);
-
-/** @brief Absolute gradient between two sets of 1x5 matrices
- *
- *  @param[in] m0 first set of 1x5 matrix with pixels
- *  @param[in] m1 second set of 1x5 matrix with pixels
- *
- *  @return absolute gradient between two 1x5 matrices
- *
- * This function computes mean of two input 1x5 matrices and returns
- * absolute difference between two mean values.
- */
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
-absgrad1x5m(s_1w_1x5_matrix m0, s_1w_1x5_matrix m1);
 
 /** @brief Bi-linear Interpolation optimized(approximate)
  *
@@ -1017,10 +834,10 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_14_2 OP_1w_asp_bma_14_2_32way(
  * @param[in] central_pix - central pixel plane
  * @param[in] src_plane - src pixel plane
  *
- * @return   Bilateral filter output
+ * @return   Bilateral filter output pixel
  *
  * This function implements, 7x7 single bilateral filter.
- * Output = {sum(pixel * weight), sum(weight)}
+ * Output = sum(pixel * weight) / sum(weight)
  * Where sum is summation over 7x7 block set.
  * weight = spatial weight * range weight
  * spatial weights are loaded from spatial_weight_lut depending on src pixel
@@ -1032,7 +849,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_14_2 OP_1w_asp_bma_14_2_32way(
  * Piecewise linear approximation technique is used to compute range weight
  * It computes absolute difference between central pixel and 61 src pixels.
  */
-STORAGE_CLASS_REF_VECTOR_FUNC_H bfa_7x7_output OP_1w_single_bfa_7x7(
+STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_single_bfa_7x7(
 	bfa_weights weights,
 	tvector1w threshold,
 	tvector1w central_pix,
@@ -1048,10 +865,10 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bfa_7x7_output OP_1w_single_bfa_7x7(
  * @param[in] central_pix1 - 2nd central pixel plane
  * @param[in] src1_plane - 2nd pixel plane
  *
- * @return   Joint bilateral filter output
+ * @return   Joint bilateral filter output pixel
  *
  * This function implements, 7x7 joint bilateral filter.
- * Output = {sum(pixel * weight), sum(weight)}
+ * Output = sum(pixel * weight) / sum(weight)
  * Where sum is summation over 7x7 block set.
  * weight = spatial weight * range weight
  * spatial weights are loaded from spatial_weight_lut depending on src pixel
@@ -1063,7 +880,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bfa_7x7_output OP_1w_single_bfa_7x7(
  * Piecewise linear approximation technique is used to compute range weight
  * It computes absolute difference between central pixel and 61 src pixels.
  */
-STORAGE_CLASS_REF_VECTOR_FUNC_H bfa_7x7_output OP_1w_joint_bfa_7x7(
+STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_joint_bfa_7x7(
 	bfa_weights weights,
 	tvector1w threshold0,
 	tvector1w central_pix0,

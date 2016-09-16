@@ -65,10 +65,6 @@
 /* Custom format for RAW capture from M10MO 0x3130314d */
 #define V4L2_PIX_FMT_CUSTOM_M10MO_RAW	v4l2_fourcc('M', '1', '0', '1')
 
-/*only for ISP2.7 format*/
-#define V4L2_PIX_FMT_CUSTOM_YCgCo444_16	v4l2_fourcc('Y', 'c', 'g', 'c')
-#define V4L2_PIX_FMT_CUSTOM_YUV420_16	v4l2_fourcc('Y', 'U', '1', '6')
-
 /* Custom media bus formats being used in atomisp */
 #define V4L2_MBUS_FMT_CUSTOM_YUV420	0x8001
 #define V4L2_MBUS_FMT_CUSTOM_YVU420	0x8002
@@ -83,50 +79,6 @@
 
 /* Custom media bus format for M10MO RAW capture */
 #define V4L2_MBUS_FMT_CUSTOM_M10MO_RAW	0x800b
-
-/*only for ISP2.7 format*/
-#define V4L2_MBUS_FMT_CUSTOM_YCgCo444_16	0x800c
-#define V4L2_MBUS_FMT_CUSTOM_YUV420_16	0x800d
-
-#define ATOMISP_BUFFER_TYPE_IS_ION	0x0100
-
-enum ASUS_SHUTTER_SPEED {
-    SHUTTER_SPEED_AUTO,    //0
-    SHUTTER_SPEED_1_2,
-    SHUTTER_SPEED_1_4,
-    SHUTTER_SPEED_1_8,
-    SHUTTER_SPEED_1_15,
-    SHUTTER_SPEED_1_30,    //5
-    SHUTTER_SPEED_1_60,
-    SHUTTER_SPEED_1_125,
-    SHUTTER_SPEED_1_250,
-    SHUTTER_SPEED_1_500,
-    SHUTTER_SPEED_1,       //10
-    SHUTTER_SPEED_2,
-    SHUTTER_SPEED_4,
-    SHUTTER_SPEED_8,
-    SHUTTER_SPEED_16,
-    SHUTTER_SPEED_32,        //15
-    SHUTTER_SPEED_1_640,
-    SHUTTER_SPEED_1_750,
-    SHUTTER_SPEED_1_800,
-    SHUTTER_SPEED_1_1000,
-    SHUTTER_SPEED_1_1250,    //20
-    SHUTTER_SPEED_1_1500,
-    SHUTTER_SPEED_1_1600,
-    SHUTTER_SPEED_1_2000,
-    SHUTTER_SPEED_1_2500,
-    SHUTTER_SPEED_1_3000,    //25
-    SHUTTER_SPEED_1_3200,
-    SHUTTER_SPEED_1_4000,
-    SHUTTER_SPEED_1_5000,
-    SHUTTER_SPEED_1_6000,
-    SHUTTER_SPEED_1_6400,    //30
-    SHUTTER_SPEED_1_8000,
-    SHUTTER_SPEED_1_10000,
-    SHUTTER_SPEED_1_12000,
-    SHUTTER_SPEED_1_16000,   //34
-};
 
 /* Configuration used by Bayer noise reduction and YCC noise reduction */
 struct atomisp_nr_config {
@@ -355,7 +307,6 @@ struct atomisp_3a_statistics {
 	struct atomisp_3a_output __user *data;
 	struct atomisp_3a_rgby_output __user *rgby_data;
 	uint32_t exp_id; /* exposure ID */
-	uint32_t isp_config_id; /* isp config ID */
 };
 
 /**
@@ -600,14 +551,6 @@ struct atomisp_parameters {
 	 * frame, driver will send this id back with output frame together.
 	 */
 	uint32_t	isp_config_id;
-
-	/*
-	 * Switch to control per_frame setting:
-	 * 0: this is a global setting
-	 * 1: this is a per_frame setting
-	 * PLEASE KEEP THIS AT THE END OF THE STRUCTURE!!
-	 */
-	uint32_t	per_frame_setting;
 };
 
 #define ATOMISP_GAMMA_TABLE_SIZE        1024
@@ -727,7 +670,7 @@ struct atomisp_sensor_mode_data {
 	unsigned int output_height;
 	uint8_t binning_factor_x; /* horizontal binning factor used */
 	uint8_t binning_factor_y; /* vertical binning factor used */
-	uint16_t hts;
+	uint8_t reserved[2];
 };
 
 struct atomisp_exposure {
@@ -791,7 +734,7 @@ enum atomisp_flash_status {
  * The frame status value can be found in the "reserved" field in the
  * v4l2_buffer struct. */
 enum atomisp_frame_status {
-	ATOMISP_FRAME_STATUS_OK = 0,
+	ATOMISP_FRAME_STATUS_OK,
 	ATOMISP_FRAME_STATUS_CORRUPTED,
 	ATOMISP_FRAME_STATUS_FLASH_EXPOSED,
 	ATOMISP_FRAME_STATUS_FLASH_PARTIAL,
@@ -868,41 +811,7 @@ enum atomisp_ext_isp_id {
     EXT_ISP_CID_MANUAL_FOCUS,
     EXT_ISP_CID_VIDEO_OPTIMIZE,
     EXT_ISP_CID_EXPOSURETIME_NUMERATOR,
-    EXT_ISP_CID_EXPOSURETIME_DENOMINATOR,
-    EXT_ISP_CID_PREVIEW_EXPOSURETIME_NUMERATOR,
-    EXT_ISP_CID_PREVIEW_EXPOSURETIME_DENOMINATOR,
-    EXT_ISP_CID_OPTICAL_ZOOM_STATUS,
-    EXT_ISP_CID_CANCEL_OPTICAL_ZOOM,
-    EXT_ISP_CID_CANCEL_AF,
-    EXT_ISP_CID_CANCEL_OPTICAL_ZOOM_CMD_STATUS,
-    EXT_ISP_CID_CANCEL_AF_CMD_STATUS,
-    EXT_ISP_CID_PREVIEW_ISO,
-    EXT_ISP_CID_AT_SCENE,
-    EXT_ISP_CID_GET_AF_RESULT,
-    EXT_ISP_CID_M10MO_I2C_ONE_BYTE_WRITE,
-    EXT_ISP_CID_CONTINUOUS_CAPTURE,
-    EXT_ISP_CID_M10MO_I2C_ONE_BYTE_READ,
-    EXT_ISP_CID_GET_OPTICAL_ZOOM_NUMBER,
-    EXT_ISP_CID_SET_BATTERY_CAPACITY,
-    EXT_ISP_CID_SET_3A_LOCK,
-    EXT_ISP_CID_GET_FLASH_NEEDED,
-	EXT_ISP_CID_SET_DIGITAL_ZOOM,
-    EXT_ISP_CID_DIGITAL_ZOOM_STATUS,
-    EXT_ISP_CID_SET_ASUS_CAMERA,
-    EXT_ISP_CID_GET_M10MO_IRQ_STATUS,
-    EXT_ISP_CID_SET_M10MO_START_CAPTURE,
-    EXT_ISP_CID_SET_M10MO_START_PREVIEW,
-    EXT_ISP_CID_GET_DIT_LV,
-    EXT_ISP_CID_GET_DIT_R_GAIN,
-    EXT_ISP_CID_GET_DIT_B_GAIN,
-    EXT_ISP_CID_SET_DIT_R_GAIN,
-    EXT_ISP_CID_SET_DIT_B_GAIN,
-    EXT_ISP_CID_GET_LENS_INITIALIZATION_DONE,
-    EXT_ISP_CID_SET_G_SENSOR_X,
-    EXT_ISP_CID_SET_G_SENSOR_Y,
-    EXT_ISP_CID_SET_G_SENSOR_Z,
-    EXT_ISP_CID_M10MO_I2C_WORD_READ,
-    EXT_ISP_CID_M10MO_I2C_DWORD_READ
+    EXT_ISP_CID_EXPOSURETIME_DENOMINATOR
 };
 
 #define EXT_ISP_FOCUS_MODE_NORMAL	0
@@ -926,25 +835,7 @@ enum atomisp_ext_isp_id {
 #define EXT_ISP_AF_STATUS_INVALID	1
 #define EXT_ISP_AF_STATUS_FOCUSING	2
 #define EXT_ISP_AF_STATUS_SUCCESS	3
-#define EXT_ISP_OPTICAL_ZOOM_STATUS_ZOOMING       4
-#define EXT_ISP_OPTICAL_ZOOM_STATUS_AVAILABLE     5
-#define EXT_ISP_OPTICAL_ZOOM_CANCELING            6
-#define EXT_ISP_OPTICAL_ZOOM_CANCEL_CMD_AVAILABEL 7
-#define EXT_ISP_AF_CANCELING                      8
-#define EXT_ISP_AF_CANCEL_CMD_AVAILABLE           9
-#define EXT_ISP_AF_STATUS_FAIL	                  10
-#define EXT_ISP_LENS_STATUS_INVALID               11
-#define EXT_ISP_AF_RESULT_SUCCESS                 12
-#define EXT_ISP_AF_RESULT_FAIL                    13
-#define EXT_ISP_AF_RESULT_INVALID                 14
-#define EXT_ISP_DIGITAL_ZOOM_STATUS_ZOOMING       15
-#define EXT_ISP_DIGITAL_ZOOM_STATUS_AVAILABLE     16
-#define EXT_ISP_M10MO_IRQ_IDLE                    17
-#define EXT_ISP_M10MO_IRQ_BUSY                    18
-#define EXT_ISP_AF_STATUS_PRE_DONE                19
-#define EXT_ISP_LENS_INITIALIZATION_DONE          20
-#define EXT_ISP_LENS_INITIALIZATION_NOT_DONE      21
-#define EXT_ISP_CID_M10MO_I2C_ONE_BYTE_READ_INVALID (0xFFFFFFFF)
+#define EXT_ISP_AF_STATUS_FAIL		4
 
 enum atomisp_burst_capture_options {
 	EXT_ISP_BURST_CAPTURE_CTRL_START = 0,
@@ -1039,12 +930,6 @@ struct atomisp_acc_fw_load_to_pipe {
 	__u32 type;			/* Binary type */
 	__u32 reserved[3];		/* Set to zero */
 };
-/*
- * Set Senor run mode
- */
-struct atomisp_s_runmode {
-	__u32 mode;
-};
 
 #define ATOMISP_ACC_FW_LOAD_FL_PREVIEW		(1 << 0)
 #define ATOMISP_ACC_FW_LOAD_FL_COPY		(1 << 1)
@@ -1073,13 +958,6 @@ struct atomisp_acc_state {
 	__u32 flags;			/* Flags, see list below */
 #define ATOMISP_STATE_FLAG_ENABLE	ATOMISP_ACC_FW_LOAD_FL_ENABLE
 	unsigned int fw_handle;
-};
-
-struct atomisp_update_exposure {
-	unsigned int gain;
-	unsigned int digi_gain;
-	unsigned int update_gain;
-	unsigned int update_digi_gain;
 };
 
 /*
@@ -1345,6 +1223,9 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define ATOMISP_TEST_CMD_SET_FLASH \
     _IOWR('v', BASE_VIDIOC_PRIVATE + 65, unsigned int)
 
+#define ATOMISP_IOC_S_BINNING_SUM \
+        _IOWR('v', BASE_VIDIOC_PRIVATE + 68, int)
+
 #define ATOMISP_IOC_S_EXPOSURE_WINDOW \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 40, struct atomisp_ae_window)
 
@@ -1372,27 +1253,9 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define ATOMISP_IOC_G_INVALID_FRAME_NUM \
 	_IOR('v', BASE_VIDIOC_PRIVATE + 44, unsigned int)
 
-#define ATOMISP_IOC_S_ARRAY_RESOLUTION \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 45, struct atomisp_resolution)
+#define ATOMISP_IOC_G_EFFECTIVE_RESOLUTION \
+	_IOR('v', BASE_VIDIOC_PRIVATE + 45, struct atomisp_resolution)
 
-#define ATOMISP_IOC_S_MANUALLONGEXPOSURETIME \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 69, unsigned int)
-
-#define ATOMISP_IOC_S_MANUALLONGEXPOSUREMODE \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 70, unsigned int)
-
-/* for depth mode sensor frame sync compensation */
-#define ATOMISP_IOC_G_DEPTH_SYNC_COMP \
-	_IOR('v', BASE_VIDIOC_PRIVATE + 46, unsigned int)
-
-#define ATOMISP_IOC_S_SENSOR_EE_CONFIG \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 47, unsigned int)
-
-#define ATOMISP_IOC_S_SENSOR_RUNMODE \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 48, struct atomisp_s_runmode)
-
-#define ATOMISP_IOC_G_UPDATE_EXPOSURE \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 49, struct atomisp_update_exposure)
 
 /*
  * Reserved ioctls. We have customer implementing it internally.
@@ -1498,20 +1361,15 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define V4L2_CID_TEST_PATTERN_COLOR_GB	(V4L2_CID_CAMERA_LASTP1 + 35)
 #define V4L2_CID_TEST_PATTERN_COLOR_B	(V4L2_CID_CAMERA_LASTP1 + 36)
 
-#define V4L2_CID_ATOMISP_ION_DEVICE_FD	(V4L2_CID_CAMERA_LASTP1 + 37)
-#define V4L2_CID_ATOMISP_SELECT_ISP_VERSION	(V4L2_CID_CAMERA_LASTP1 + 38)
-
 #define V4L2_BUF_FLAG_BUFFER_INVALID       0x0400
 #define V4L2_BUF_FLAG_BUFFER_VALID         0x0800
 
-#define V4L2_BUF_TYPE_VIDEO_CAPTURE_ION (V4L2_BUF_TYPE_PRIVATE + 1024)
+#define V4L2_BUF_TYPE_VIDEO_CAPTURE_ION  (V4L2_BUF_TYPE_PRIVATE + 1024)
 
 #define V4L2_EVENT_ATOMISP_3A_STATS_READY   (V4L2_EVENT_PRIVATE_START + 1)
 #define V4L2_EVENT_ATOMISP_METADATA_READY   (V4L2_EVENT_PRIVATE_START + 2)
 #define V4L2_EVENT_ATOMISP_RAW_BUFFERS_ALLOC_DONE   (V4L2_EVENT_PRIVATE_START + 3)
 #define V4L2_EVENT_ATOMISP_ACC_COMPLETE     (V4L2_EVENT_PRIVATE_START + 4)
-#define V4L2_EVENT_ATOMISP_PAUSE_BUFFER	    (V4L2_EVENT_PRIVATE_START + 5)
-#define V4L2_EVENT_ATOMISP_CSS_RESET       (V4L2_EVENT_PRIVATE_START + 6)
 
 /* Nonstandard color effects for V4L2_CID_COLORFX */
 enum {

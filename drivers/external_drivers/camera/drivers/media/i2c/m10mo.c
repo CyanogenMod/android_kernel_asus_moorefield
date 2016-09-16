@@ -42,12 +42,10 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-device.h>
-#include <linux/m10mo.h>
+#include "m10mo.h"
 #include <linux/HWVersion.h>
 #include <linux/m10mo_workaround.h>
 #include <asm/intel_scu_pmic.h>
-#include <linux/switch.h>
-#include <linux/proc_fs.h>
 
 #define off_c51
 #define PREVIEW_TEST_PATTERN 0
@@ -55,365 +53,15 @@
 //#define NOIRQ
 /* cross component debug message flag */
 int dbglvl = 0;
-static u8 cancel_zoom_protect;
-static u32 last_optical_zoom_step = 1;
-static u32 previous_preview_cmd;
-static int isp_update_status=1;
+
 static u8 m10mo_capture_pre_flag;
 static bool isCaptureMode = false;
 static bool openIntelISP = true;
+static bool AFDone = true;
 static bool isFlashFwFail = false;
-static u32 asus_camera_flag;
-static u8 m10mo_boot_state;
-#ifndef ZX551ML_USER_BUILD //#ifdef CONFIG_ASUS_FACTORY_MODE
-static u32 password_debug;
-static bool CacCalibrationStatus = false;
-#endif
-static u8 m10mo_trace_log_lock = DOWNLOAD_PROTECT;
-u32 fw_version_val1=0, fw_version_val2=0;
-int DIT_version=0;
-int ASUS_flag=0;
-int ois_status = 0;
-int num_LLS = 0;
-static struct v4l2_subdev *sdd = NULL;
+struct v4l2_subdev *sdd;
 module_param(dbglvl, int, 0644);
 MODULE_PARM_DESC(dbglvl, "debug message on/off (default:off)");
-int m10mo_send_still_capture_cmds(struct v4l2_subdev *sd);
-static void m10mo_lens_state_machine(struct v4l2_subdev *sd, m10mo_state_machine_event_t event, u32* data_ptr);
-static int m10mo_set_af_execution(struct v4l2_subdev *sd, s32 val);
-static int m10mo_set_optical_zoom_position(struct v4l2_subdev *sd, u32 data);
-static int m10mo_ispd4(struct m10mo_device *dev);
-static u32 get_m10mo_wait_timeout_val(struct v4l2_subdev *sd, u8 requested_cmd);
-extern int m10mo_break_log_loop;
-
-void m10mo_performance_log(const char *trace_log){
-	struct timeval  tv;
-	long int time_in_mill = 0;
-	do_gettimeofday(&tv);
-	time_in_mill = (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000 ;
-	printk("_PFMS_%s:%ld\n",trace_log,time_in_mill);
-}
-
-#if 0
-void notify_m10mo_atomisp_timeout(){
-    struct m10mo_device *dev = to_m10mo_sensor(sdd);
-    m10mo_ispd4(dev);
-}
-EXPORT_SYMBOL(notify_m10mo_atomisp_timeout);
-#endif
-// = M10MO_START_AF;//M10MO_NO_CMD_REQUEST;
-#define __m10mo_reset_irq_wait_status()                                           \
-	 dev->cmd = dev->requested_cmd;                                               \
-     wake_up(&dev->irq_waitq);                                      \
-	 flush_workqueue(dev->lens_wq);                                               \
-	 dev->cmd = dev->requested_cmd = M10MO_NO_CMD_REQUEST;                        \
-	 dev->wait_irq_flag = M10MO_IRQ_COMMAND_AVAILABDLE
-////////////////////////////////////////////////////////////////////
-
-
-static void optical_zoom_work_routine(struct work_struct *ws){
-    struct m10mo_device *dev = to_m10mo_sensor(sdd);
-    u32 data;
-
-	data = dev->m10mo_request_cmd_lens_data;
-    printk(KERN_INFO "m10mo, @optical_zoom_work_routine before mutex lock, @m10mo_lens_work_lock, data is %d \n", data);
-	mutex_lock(&dev->m10mo_lens_work_lock);
-    printk(KERN_INFO "m10mo, @optical_zoom_work_routine get mutex lock, @m10mo_lens_work_lock\n");
-
-    (void) m10mo_request_cmd_effect(sdd, M10MO_START_OPTICAL_ZOOM, &data);
-
-	mutex_unlock(&dev->m10mo_lens_work_lock);
-     printk(KERN_INFO "m10mo, @optical_zoom_work_routine mutex unlock, @m10mo_lens_work_lock\n");
-}
-static DECLARE_DELAYED_WORK(optical_zoom_work, optical_zoom_work_routine);
-
-static void auto_focus_work_routine(struct work_struct *ws){
-    struct m10mo_device *dev = to_m10mo_sensor(sdd);
-
-    printk(KERN_INFO "m10mo, @auto_focus_work_routine before mutex lock, @m10mo_lens_work_lock\n");
-	mutex_lock(&dev->m10mo_lens_work_lock);
-    printk(KERN_INFO "m10mo, @auto_focus_work_routine get mutex lock, @m10mo_lens_work_lock\n");
-
-    (void) m10mo_request_cmd_effect(sdd, M10MO_START_AF, NULL);
-
-	mutex_unlock(&dev->m10mo_lens_work_lock);
-    printk(KERN_INFO "m10mo, @auto_focus_work_routine mutex unlock, @m10mo_lens_work_lock\n");
-}
-static DECLARE_DELAYED_WORK(auto_focus_work, auto_focus_work_routine);
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-//#if 0
-static void digital_zoom_work_routine(struct work_struct *ws){
-    struct m10mo_device *dev = to_m10mo_sensor(sdd);
-	u32 data, ret;
-	data = dev->m10mo_request_cmd_lens_data;
-	printk(KERN_INFO "m10mo, digital_zoom_work_routine start\n");
-	if(dev->lens_state_machine != LENS_IDLE) {
-	    printk(KERN_INFO "m10mo, digital_zoom_work_routine, WAIT until lens is free.\n");
-	    ret = wait_event_timeout(dev->d_zoom_waitq, dev->lens_state_machine == LENS_IDLE, msecs_to_jiffies(30000));
-		if (ret == 0) {
-		    printk(KERN_ERR "digital_zoom_work_routine, WAIT until lens is free, timed out\n");
-			return;
-		}
-	}
-
-    (void) m10mo_request_cmd_effect(sdd, M10MO_START_DIGITAL_ZOOM, &data);
-
-	printk(KERN_INFO "m10mo, @digital_zoom_work_routine return! \n");
-}
-static DECLARE_DELAYED_WORK(digital_zoom_work, digital_zoom_work_routine);
-//#endif
-static struct switch_dev m10mo_switch_dev;
-static ssize_t m10mo_switch_name(struct switch_dev *sdev, char *buf)
-{
-	return sprintf(buf, "%02x%02x-%05x,V%03x,%x\n", fw_version_val1, fw_version_val2,DIT_version, ene_fw_version,ASUS_flag);
-    //return sprintf(buf, "%02x%02x-%05x ,%x\n", fw_version_val1, fw_version_val2,DIT_version ,ASUS_flag);
-}
-
-static void cancel_auto_focus_work_routine(struct work_struct *ws){
-    struct m10mo_device *dev = to_m10mo_sensor(sdd);
-
-    printk(KERN_INFO "m10mo, @cancel_auto_focus_work_routine before mutex lock, @m10mo_lens_work_lock\n");
-    mutex_lock(&dev->m10mo_lens_work_lock);
-    printk(KERN_INFO "m10mo, @cancel_auto_focus_work_routine get mutex lock, @m10mo_lens_work_lock\n");
-
-    (void) m10mo_request_cmd_effect(sdd, M10MO_ASUS_FOCUS_CANCEL, NULL);
-
-	mutex_unlock(&dev->m10mo_lens_work_lock);
-	printk(KERN_INFO "m10mo, @cancel_auto_focus_work_routine mutex unlock, @m10mo_lens_work_lock\n");
-}
-static DECLARE_DELAYED_WORK(cancel_auto_focus_work, cancel_auto_focus_work_routine);
-
-static void cancel_optical_zoom_work_routine(struct work_struct *ws){
-    struct m10mo_device *dev = to_m10mo_sensor(sdd);
-
-    printk(KERN_INFO "m10mo, @cancel_optical_zoom_work_routine before mutex lock, @m10mo_lens_work_lock\n");
-    mutex_lock(&dev->m10mo_lens_work_lock);
-    printk(KERN_INFO "m10mo, @cancel_optical_zoom_work_routine get mutex lock, @m10mo_lens_work_lock\n");
-
-    (void) m10mo_request_cmd_effect(sdd, M10MO_ASUS_ZOOM_CANCEL, NULL);
-
-	mutex_unlock(&dev->m10mo_lens_work_lock);
-	cancel_zoom_protect = 0;
-	printk(KERN_INFO "m10mo, @cancel_optical_zoom_work_routine mutex unlock, @m10mo_lens_work_lock\n");
-}
-static DECLARE_DELAYED_WORK(cancel_optical_zoom_work, cancel_optical_zoom_work_routine);
-
-//=== OIS, S1 mode for Preview and video. This is the default mode. ===//
-static void m10mo_set_ois_s1_work_routine(struct work_struct *ws){
-//    (void) m10mo_writeb(sdd, CATEGORY_TEST, OIS_LIB_API_START, 0x5);
-    (void) m10mo_writew(sdd, CATEGORY_TEST, OIS_RAMREG_ADDR_H, 0x0107);
-    (void) m10mo_writeb(sdd, CATEGORY_TEST, OIS_DATA31_24, 0x0);
-	(void) m10mo_writeb(sdd, CATEGORY_TEST, OIS_WRITE_READ_TRIG, 0x11);
-
-}
-static DECLARE_DELAYED_WORK(m10mo_set_ois_s1_work, m10mo_set_ois_s1_work_routine);
-
-//=== OIS, S2 mode for Capture and other usages. ===//
-static void m10mo_set_ois_s2_work_routine(struct work_struct *ws){
-//    (void) m10mo_writeb(sdd, CATEGORY_TEST, OIS_LIB_API_START, 0x5);
-    (void) m10mo_writew(sdd, CATEGORY_TEST, OIS_RAMREG_ADDR_H, 0x0107);
-    (void) m10mo_writeb(sdd, CATEGORY_TEST, OIS_DATA31_24, 0x11);
-    (void) m10mo_writeb(sdd, CATEGORY_TEST, OIS_WRITE_READ_TRIG, 0x11);
-}
-static DECLARE_DELAYED_WORK(m10mo_set_ois_s2_work, m10mo_set_ois_s2_work_routine);
-
-//static DECLARE_DELAYED_WORK(optical_zoom_work, lens_work_routine);
-//static DECLARE_DELAYED_WORK(auto_focus_work, lens_work_routine);
-static void m10mo_lens_state_machine(struct v4l2_subdev *sd, m10mo_state_machine_event_t event, u32* data_ptr)
-{
-    struct m10mo_device *dev = to_m10mo_sensor(sd);
-	static s32 af_data;
-	static u32 optical_zoom_data;
-	u32 read_val = 0;
-	u32 ret;
-///////////////////////////////////
-//mutex_lock(&dev->m10mo_lens_state_machine_lock);
-//////////////////////////////////
-    printk("@%s %d LENES state machine is %d , event = %d \n", __func__, __LINE__, dev->lens_state_machine, event);
-	if(data_ptr != NULL){
-	    printk("@%s %d, data = %d \n", __func__, __LINE__, *data_ptr);
-	}else {
-	    printk("@%s %d, No data in. \n", __func__, __LINE__);
-	}
-
-
-	if(data_ptr != NULL){
-	    if(event == AUTO_FOCUS_EVENT){
-            af_data = *data_ptr;
-		}else if(event == OPTICAL_ZOOM_EVENT){
-            optical_zoom_data = *data_ptr;
-		}
-	}
-
-	switch (dev->lens_state_machine) {
-	case LENS_IDLE:
-	    if(event == AUTO_FOCUS_EVENT) {
-		    dev->lens_state_machine = FOCUSING;
-		    (void) m10mo_set_af_execution(sd, af_data);
-
-		} else if (event == OPTICAL_ZOOM_EVENT) {
-		    ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &read_val);
-            if(read_val == optical_zoom_data){
-	             pr_info("m10mo, get optical-zoom step is %d, set optical-zoom data is %d. No need to set\n", read_val, optical_zoom_data);
-				 dev->lens_state_machine = LENS_IDLE;
-	             goto m10mo_lens_state_machine_out;
-            }
-			dev->lens_state_machine = ZOOMING;
-		    (void) m10mo_set_optical_zoom_position(sd, optical_zoom_data);
-		}
-	    break;
-    case FOCUSING:
-	    if(event == AUTO_FOCUS_EVENT) {
-			dev->lens_state_machine = FOCUS_CANCELING_WOZ_WF;
-			dev->cancel_irq_flag = 1;
-		    __m10mo_reset_irq_wait_status();
-			printk("@%s %d, 006 Before queue_delayed_work(dev->cancel_auto_focus_wq). \n", __func__, __LINE__);
-			queue_delayed_work(dev->cancel_auto_focus_wq, &cancel_auto_focus_work, 0);
-
-		} else if (event == OPTICAL_ZOOM_EVENT) {
-		    dev->lens_state_machine = FOCUS_CANCELING_WZ_WOF;
-			dev->cancel_irq_flag = 1;
-		    __m10mo_reset_irq_wait_status();
-			printk("@%s %d, 005 Before queue_delayed_work(dev->cancel_auto_focus_wq). \n", __func__, __LINE__);
-			queue_delayed_work(dev->cancel_auto_focus_wq, &cancel_auto_focus_work, 0);
-
-		} else if (event == M10MO_IRQ_EVENT) {
-		    dev->lens_state_machine = LENS_IDLE;
-		}
-	    break;
-	case FOCUS_CANCELING_WZ_WOF:
-	    if(event == AUTO_FOCUS_EVENT) {
-		    dev->lens_state_machine = FOCUS_CANCELING_WZ_WF;
-
-		} else if (event == OPTICAL_ZOOM_EVENT) {
-		    dev->lens_state_machine = FOCUS_CANCELING_WZ_WF;
-
-		}else if (event == M10MO_IRQ_EVENT) {
-		    dev->lens_state_machine = LENS_IDLE;
-		    ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &read_val);
-            if(read_val == optical_zoom_data){
-                  pr_info("m10mo, get optical-zoom step is %d, set optical-zoom data is %d. No need to set\n", read_val, optical_zoom_data);
-                  goto m10mo_lens_state_machine_out;
-            }
-		    dev->lens_state_machine = ZOOMING;
-            (void) m10mo_set_optical_zoom_position(sd, optical_zoom_data);
-		}
-        break;
-	case FOCUS_CANCELING_WOZ_WF:
-	    if(event == AUTO_FOCUS_EVENT) {
-		    dev->lens_state_machine = FOCUS_CANCELING_WOZ_WF;
-
-		} else if (event == OPTICAL_ZOOM_EVENT) {
-		    dev->lens_state_machine = FOCUS_CANCELING_WZ_WOF;
-
-		}else if (event == M10MO_IRQ_EVENT) {
-	         dev->lens_state_machine = FOCUSING;
-		    (void) m10mo_set_af_execution(sd, af_data);
-		}
-	    break;
-	case FOCUS_CANCELING_WZ_WF:
-	    if(event == AUTO_FOCUS_EVENT) {
-		    dev->lens_state_machine = FOCUS_CANCELING_WZ_WF;
-
-		} else if (event == OPTICAL_ZOOM_EVENT) {
-		    dev->lens_state_machine = FOCUS_CANCELING_WZ_WOF;
-
-		}else if (event == M10MO_IRQ_EVENT) {
-		    ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &read_val);
-            if(read_val == optical_zoom_data){
-                 pr_info("m10mo, get optical-zoom step is %d, set optical-zoom data is %d. No need to set\n", read_val, optical_zoom_data);
-				 dev->lens_state_machine = FOCUSING;
-				 (void) m10mo_set_af_execution(sd, af_data);
-                 goto m10mo_lens_state_machine_out;
-            }
-		    (void) m10mo_set_optical_zoom_position(sd, optical_zoom_data);
-		    dev->lens_state_machine = ZOOMING_WF;
-		}
-	    break;
-    case ZOOMING:
-	    if(event == AUTO_FOCUS_EVENT) {
-		    dev->lens_state_machine = ZOOMING_WF;
-
-		} else if (event == OPTICAL_ZOOM_EVENT) {
-		    dev->lens_state_machine = ZOOM_CANCELING_WZ_WOF;
-			dev->cancel_irq_flag = 1;
-		    __m10mo_reset_irq_wait_status();
-			printk("@%s %d, 000 Before queue_delayed_work(dev->cancel_optical_zoom_wq). \n", __func__, __LINE__);
-			cancel_zoom_protect = 1;
-			queue_delayed_work(dev->cancel_optical_zoom_wq, &cancel_optical_zoom_work, 0);
-
-		}else if (event == M10MO_IRQ_EVENT) {
-		   dev->lens_state_machine = LENS_IDLE;
-		}
-	    break;
-	case ZOOMING_WF:
-	    if(event == AUTO_FOCUS_EVENT) {
-		    dev->lens_state_machine = ZOOMING_WF;
-
-		} else if (event == OPTICAL_ZOOM_EVENT) {
-		    dev->lens_state_machine = ZOOM_CANCELING_WZ_WOF;
-			dev->cancel_irq_flag = 1;
-            __m10mo_reset_irq_wait_status();
-			printk("@%s %d, 001 Before queue_delayed_work(dev->cancel_optical_zoom_wq). \n", __func__, __LINE__);
-			cancel_zoom_protect = 1;
-			queue_delayed_work(dev->cancel_optical_zoom_wq, &cancel_optical_zoom_work, 0);
-
-		}else if (event == M10MO_IRQ_EVENT) {
-		   dev->lens_state_machine = FOCUSING;
-		   (void) m10mo_set_af_execution(sd, af_data);
-		}
-	    break;
-	case ZOOM_CANCELING_WZ_WOF:
-	    if(event == AUTO_FOCUS_EVENT) {
-		    dev->lens_state_machine = ZOOM_CANCELING_WZ_WF;
-
-		} else if (event == OPTICAL_ZOOM) {
-		    dev->lens_state_machine = ZOOM_CANCELING_WZ_WOF;
-
-		}else if (event == M10MO_IRQ_EVENT) {
-		    ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &read_val);
-            if(read_val == last_optical_zoom_step){
-                dev->lens_state_machine = LENS_IDLE;
-                pr_info("m10mo, get zoom step is %d, set zoom data is %d. No need to set\n", read_val, last_optical_zoom_step);
-				goto m10mo_lens_state_machine_out;
-            }
-			dev->lens_state_machine = ZOOMING;
-		    (void) m10mo_set_optical_zoom_position(sd, last_optical_zoom_step);
-		}
-	    break;
-	case ZOOM_CANCELING_WZ_WF:
-	    if(event == AUTO_FOCUS_EVENT) {
-		    dev->lens_state_machine = ZOOM_CANCELING_WZ_WF;
-
-		} else if (event == OPTICAL_ZOOM_EVENT) {
-		    dev->lens_state_machine = ZOOM_CANCELING_WZ_WOF;
-
-		}else if (event == M10MO_IRQ_EVENT) {
-		    ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &read_val);
-            if(read_val == last_optical_zoom_step){
-			     dev->lens_state_machine = FOCUSING;
-                 pr_info("m10mo, get optical-zoom step is %d, set optical-zoom data is %d. No need to set\n", read_val, last_optical_zoom_step);
-                 (void) m10mo_set_af_execution(sd, af_data);
-				 goto m10mo_lens_state_machine_out;
-            }
-		    (void) m10mo_set_optical_zoom_position(sd, last_optical_zoom_step);
-		    dev->lens_state_machine = ZOOMING_WF;
-		}
-	    break;
-    default:
-	    dev->lens_state_machine = LENS_IDLE;
-		break;
-
-    }
-m10mo_lens_state_machine_out:
-    if(dev->lens_state_machine == LENS_IDLE) {
-        wake_up(&dev->d_zoom_waitq);
-	}
-//    mutex_unlock(&dev->m10mo_lens_state_machine_lock);
-	return;
-}
 
 /*
  * m10mo_read -  I2C read function
@@ -423,7 +71,7 @@ m10mo_lens_state_machine_out:
  *
  * Returns 0 on success, or else negative errno.
 */
-
+int m10mo_s_power_fac(int on);
 int getOpenIntelISP(void){
     return openIntelISP;
 }
@@ -437,41 +85,17 @@ void setOpenIntelISP(bool b){
 
 EXPORT_SYMBOL(setOpenIntelISP);
 
-void m10mo_startCapture(void){
+void startCapture(void){
     struct m10mo_device *dev = to_m10mo_sensor(sdd);
-    u32 val;
 	if(dev->capture_mode == M10MO_CAPTURE_MODE_ZSL_BURST){
 	    printk("m10mo, @%s. During Burst mode, not called by atomisp driver. \n", __func__);
 		return;
 	}
-	printk("m10mo, @%s, Wait start! called by atomisp driver. \n", __func__);
-
-    val = get_m10mo_wait_timeout_val(sdd, dev->requested_cmd);
-    (void) m10mo_wait_mode_change(sdd, dev->requested_cmd, val);
-	dev->wait_irq_flag = M10MO_IRQ_COMMAND_AVAILABDLE;
-	printk("m10mo, @%s, Wait End!  \n", __func__);
-    mutex_unlock(&dev->m10mo_request_cmd_lock);
-    printk("@%s %d, UNLOCK m10mo_request_cmd_lock.\n", __func__, __LINE__);
-    m10mo_performance_log("CAPTURE_B_KSIGCAP-");
+	printk("m10mo, @%s, called by atomisp driver. \n", __func__);
+    m10mo_set_still_capture(sdd);
 }
 
-EXPORT_SYMBOL(m10mo_startCapture);
-
-void notify_m10mo_atomisp_dead(void) {
-    struct m10mo_device *dev = to_m10mo_sensor(sdd);
-	u8 previous_state;
-	if(m10mo_trace_log_lock != DOWNLOAD_AVAILABLE) {
-	      return;
-	}
-	if(dev->power == 1){
-	      previous_state = m10mo_trace_log_lock;
-	      dev->lock_i2c_write_flag = 0;
-		  m10mo_trace_log_lock = DOWNLOADING;
-          m10mo_ispd4(dev);
-		  m10mo_trace_log_lock = previous_state;
-	}
-}
-EXPORT_SYMBOL(notify_m10mo_atomisp_dead);
+EXPORT_SYMBOL(startCapture);
 
 static int m10mo_read(struct v4l2_subdev *sd, u8 len, u8 category, u8 reg, u32 *val)
 {
@@ -538,7 +162,6 @@ static int m10mo_read(struct v4l2_subdev *sd, u8 len, u8 category, u8 reg, u32 *
 static int m10mo_write(struct v4l2_subdev *sd, u8 len, u8 category, u8 reg, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct m10mo_device *dev = to_m10mo_sensor(sd);
 	u8 data[len + 4];
 	struct i2c_msg msg;
 	int ret;
@@ -555,10 +178,6 @@ static int m10mo_write(struct v4l2_subdev *sd, u8 len, u8 category, u8 reg, u32 
 		"%s len :%d cat, reg, val: 0x%02x, 0x%02x, 0x%02x\n",
 		__func__, len, category, reg, val);
 
-	if(dev->lock_i2c_write_flag) {
-	     printk("%s After we do ZSL capture, ILLIGAL to send i2c cmds until preview streaming\n", __func__);
-		 return -EINVAL;
-	}
 	msg.addr = client->addr;
 	msg.flags = 0;
 	msg.len = sizeof(data);
@@ -591,10 +210,12 @@ static int m10mo_write(struct v4l2_subdev *sd, u8 len, u8 category, u8 reg, u32 
 	usleep_range(200, 200);
 
 	ret = i2c_transfer(client->adapter, &msg, 1);
-
+	if(len ==1)
 	printk("@%s, Write reg. len = %d, Category=0x%02X Reg=0x%02X Value=0x%X ret=%s\n", __func__,
-		len, category, reg, val, (ret == num_msg) ? "OK" : "Error");
-
+		len, category, reg, data[4], (ret == 1) ? "OK" : "Error");
+	else
+	printk("@%s, Write reg. len = %d, Category=0x%02X Reg=0x%02X Value=0x%X ret=%s\n", __func__,
+		len, category, reg, val, (ret == 1) ? "OK" : "Error");
 	return ret == num_msg ? 0 : -EIO;
 }
 
@@ -636,14 +257,7 @@ int m10mo_memory_write(struct v4l2_subdev *sd, u8 cmd, u16 len, u32 addr, u8 *va
 	u8 *data = m10mo_dev->message_buffer;
 	int i, ret;
 
-	if(len==1)
-	    dev_err(&client->dev, "Write mem. cmd=0x%02X len=%d addr=0x%X val=0x%X\n", cmd, len, addr, *val);
-	else{
-	   	dev_dbg(&client->dev, "Write mem. cmd=0x%02X len=%d addr=0x%X\n", cmd, len, addr);
-	    for(i=0;i<len;i++){
-	   	dev_dbg(&client->dev, "i=%d val=0x%X  ",i, val[i]);
-	    }
-	}
+	dev_dbg(&client->dev, "Write mem. cmd=0x%02X len=%d addr=0x%X\n", cmd, len, addr);
 
 	if (!client->adapter)
 		return -ENODEV;
@@ -755,37 +369,6 @@ int m10mo_memory_read(struct v4l2_subdev *sd, u16 len, u32 addr, u8 *val)
 	return 0;
 }
 
-static ssize_t asus_camera_show(struct file *dev, char *buffer, size_t count, loff_t *ppos)
-{
-    char *buff = NULL;
-    ssize_t ret = 0;
-    int len = 0;
-    int status = (int) asus_camera_flag;
-
-    len += sprintf(buff+len, "%d\n", status);
-    ret = simple_read_from_buffer(buffer, count, ppos, buff, len);
-    kfree(buff);
-    return ret;
-}
-
-static ssize_t asus_camera_store(struct file *dev, const char *buf, size_t count, loff_t *loff)
-{
-    int camera_status = -1;
-
-    sscanf(buf, "%d ", &camera_status);
-	printk("@%s %d, camera_status is %d\n", __func__, __LINE__, camera_status);
-    if(camera_status > 0){
-        asus_camera_flag = 1;
-    }else{
-        asus_camera_flag = 0;
-    }
-    return count;
-}
-
-static const struct file_operations asus_camera_proc_fops = {
-     .read = asus_camera_show,
-     .write = asus_camera_store,
-};
 /**
  * m10mo_setup_flash_controller - initialize flash controller
  *
@@ -821,10 +404,6 @@ static int m10mo_enable_interrupt(struct v4l2_subdev *sd, u8 requested_cmd){
 	     enable_interrupt_bit = 0x06;
 		 break;
 
-    case M10MO_ASUS_ZOOM_CANCEL:
-	case M10MO_ASUS_FOCUS_CANCEL:
-	case M10MO_MANUAL_ZOOM:
-    case M10MO_MANUAL_FOCUS:
     case M10MO_START_AF:
 	case M10MO_START_OPTICAL_ZOOM:
 	     enable_interrupt_bit = 0x02;
@@ -835,8 +414,8 @@ static int m10mo_enable_interrupt(struct v4l2_subdev *sd, u8 requested_cmd){
          enable_interrupt_bit = 0x08;
 	     break;
 
-    	case M10MO_MONITOR_MODE_ZSL_REQUEST_CMD:
-	case M10MO_HEAD_HALF_HOME_SEARCHING_MODE:
+    case M10MO_MONITOR_MODE_ZSL_REQUEST_CMD:
+	case M10MO_HOME_SEARCHING_MODE:
          enable_interrupt_bit = 0x0F;
 	     break;
 
@@ -859,275 +438,85 @@ static int m10mo_enable_interrupt(struct v4l2_subdev *sd, u8 requested_cmd){
     return ret;
 }
 
-static u32 get_m10mo_wait_timeout_val(struct v4l2_subdev *sd, u8 requested_cmd){
-    u32 timeout_val = 0;
-    u32 read_val = 0xFF;
-
-	switch (requested_cmd) {
-
-	case M10MO_MOVE_LENS_TO_PR:
-	     timeout_val = M10MO_BACK_TO_PR_TIMEOUT;
-		 break;
-
-    case M10MO_ASUS_ZOOM_CANCEL:
-	case M10MO_ASUS_FOCUS_CANCEL:
-	case M10MO_MANUAL_ZOOM:
-    case M10MO_MANUAL_FOCUS:
-    case M10MO_START_AF:
-	case M10MO_START_OPTICAL_ZOOM:
-	     timeout_val = M10MO_INIT_TIMEOUT;
-	     break;
-
-	case M10MO_CAMERA_START:
-	     timeout_val = M10MO_INIT_TIMEOUT;
-	     break;
-
-	case M10MO_SINGLE_CAPTURE_MODE:
-         (void) m10mo_readb(sd, CATEGORY_ASUS, ASUS_SHUTTER_SPEED, &read_val);
-
-		 if(read_val == SHUTTER_SPEED_32) { // Means exposure time is 32s, set the timeout is 40s.
-		      timeout_val = 40000;
-		 } else {
-              timeout_val = M10MO_INIT_TIMEOUT;
-		 }
-	     break;
-
-    case M10MO_MONITOR_MODE_ZSL_REQUEST_CMD:
-	case M10MO_HEAD_HALF_HOME_SEARCHING_MODE:
-         timeout_val = M10MO_INIT_TIMEOUT;
-	     break;
-
-	case M10MO_PARAMETER_MODE_REQUEST_CMD:
-	     timeout_val = M10MO_PARAMETER_MODE_TIMEOUT;
-         break;
-
-	case M10MO_START_DIGITAL_ZOOM:
-	     timeout_val = M10MO_INIT_TIMEOUT;
-         break;
-
-	case M10MO_WRITE_SHD_TABLE:
-	     timeout_val = M10MO_INIT_TIMEOUT;
-		 break;
-    default:
-	     printk("@%s, unexpected request cmd effect: %d \n",__func__, requested_cmd);
-	     timeout_val = M10MO_INIT_TIMEOUT;
-		 break;
-	}
-    printk("@%s, request cmd effect is %d, related timeout is %d ms\n",__func__, requested_cmd, timeout_val);
-    return timeout_val;
-}
-
 int m10mo_request_cmd_effect(struct v4l2_subdev *sd, u8 requested_cmd, void* data)
 {
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
 //	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
-	u32 val = 0;
-	u32 optical_zoom_check = 0;
-
-	wake_lock_timeout(&dev->m10mo_wake_lock, msecs_to_jiffies(60000));
-	printk("@%s %d start, requested_cmd = %d. Try to get the mutex lock. TRYing...TRYing...\n", __func__, __LINE__, requested_cmd);
-	mutex_lock(&dev->m10mo_request_cmd_lock);
-	dev->m10mo_request_cmd_lock_flag = 1;
-	if(!dev->stream) {
-	    if(requested_cmd == M10MO_START_AF ||
-		     requested_cmd == M10MO_START_OPTICAL_ZOOM) {
-			    printk("@%s %d start, requested_cmd is %d. app already stop preview, break here!!! \n", __func__, __LINE__, requested_cmd);
-			    goto out_m10mo_request_cmd_effect;
-			 }
-	}
     dev->requested_cmd = requested_cmd;
-    printk("@%s %d start, dev->requested_cmd = %d. Successful to get the mutex lock.\n", __func__, __LINE__, dev->requested_cmd);
+    printk("@%s %d start, requested_cmd = %d\n", __func__, __LINE__, requested_cmd);
 
-//    m10mo_enable_interrupt(sd, requested_cmd);
+    m10mo_enable_interrupt(sd, requested_cmd);
 
 	switch (dev->requested_cmd) {
 	case M10MO_CAMERA_START:
-	    m10mo_enable_interrupt(sd, M10MO_CAMERA_START);
 		ret = m10mo_writeb(sd, CATEGORY_FLASHROM, FLASH_CAM_START, 0x01);
 		break;
 
 	case M10MO_PARAMETER_MODE_REQUEST_CMD:
-	    m10mo_enable_interrupt(sd, M10MO_PARAMETER_MODE_REQUEST_CMD);
         ret = m10mo_writeb(sd, CATEGORY_SYSTEM, SYSTEM_SYSMODE, 0x01);
 		break;
 
 	case M10MO_MONITOR_MODE_ZSL_REQUEST_CMD:
-	    m10mo_enable_interrupt(sd, M10MO_MONITOR_MODE_ZSL_REQUEST_CMD);
 		ret = m10mo_writeb(sd, CATEGORY_SYSTEM, SYSTEM_SYSMODE, 0x02);
 		break;
 
 	case M10MO_SINGLE_CAPTURE_MODE:
-//		ret = m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL,0x05, 0x01);
-        m10mo_send_still_capture_cmds(sd);
-		ret = 0;
+		ret = m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL,0x05, 0x01);
 //		gpio_set_value(60, 0);
-//		printk(KERN_INFO "m10mo driver, gpio 60 set low\n");
+		printk(KERN_INFO "m10mo driver, gpio 60 set low\n");
 		break;
 
-	case M10MO_HEAD_HALF_HOME_SEARCHING_MODE:
-	    m10mo_enable_interrupt(sd, M10MO_HEAD_HALF_HOME_SEARCHING_MODE);
-		ret = m10mo_writeb(sd, CATEGORY_PARAM, 0x50, 0x03);
-		isp_update_status = M10MO_HEAD_HALF_HOME_SEARCHING_MODE;
+	case M10MO_HOME_SEARCHING_MODE:
+		ret = m10mo_writeb(sd, CATEGORY_PARAM, 0x50, 0x02);
         break;
 
 	case M10MO_MOVE_LENS_TO_PR:
-	    m10mo_enable_interrupt(sd, M10MO_MOVE_LENS_TO_PR);
 		ret = m10mo_writeb(sd, CATEGORY_PARAM, 0x50, 0x10);
-		isp_update_status = M10MO_MOVE_LENS_TO_PR;
         break;
 
 	case M10MO_START_OPTICAL_ZOOM:
-	    ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
-	    if(val == *(u32*)data){
-	        pr_info("m10mo, get optical-zoom step is %d, set optical-zoom data is %d. No need to set\n", val, *(u32*)data);
-			mutex_unlock(&dev->m10mo_request_cmd_lock);
-			printk("@%s, UNLOCK m10mo_request_cmd_lock\n", __func__);
-	        return 0;
-	    }
-		m10mo_enable_interrupt(sd, M10MO_START_OPTICAL_ZOOM);
 		ret = m10mo_writeb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, *(u32*)data);
-        printk("@%s %d, zoom_check, write zoom position succeed, step is %d \n", __func__, __LINE__, *(u32*)data);
+        printk("@%s %d, write zoom position succeed, step is %d \n", __func__, __LINE__, *(u32*)data);
         break;
-
-	case M10MO_MANUAL_FOCUS:
-	    m10mo_enable_interrupt(sd, M10MO_MANUAL_FOCUS);
-		ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_FOCUS_STEP, *(u32*)data);
-        break;
-
-	case M10MO_MANUAL_ZOOM:
-	    m10mo_enable_interrupt(sd, M10MO_MANUAL_ZOOM);
-		ret = m10mo_writew(sd, CATEGORY_TEST, MANUAL_ZOOM_CTRL_H, *(u32*)data);
-        break;
-
-	case M10MO_ASUS_FOCUS_CANCEL:
-	    m10mo_enable_interrupt(sd, M10MO_ASUS_FOCUS_CANCEL);
-	    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_FOCUS_CANCEL, 0x01);
-		break;
-
-	case M10MO_ASUS_ZOOM_CANCEL:
-	    m10mo_enable_interrupt(sd, M10MO_ASUS_ZOOM_CANCEL);
-	    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_ZOOM_CANCEL, 0x01);
-		break;
 
 	case M10MO_START_AF:
-	    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_FOCUS_RESULT, 0x00); //=== Reset the Af result. ===//
-	    m10mo_enable_interrupt(sd, M10MO_START_AF);
 		ret = m10mo_writeb(sd, CATEGORY_LENS, 0x2, 0x13);
         break;
 
 	case M10MO_START_DIGITAL_ZOOM:
-	     m10mo_enable_interrupt(sd, M10MO_START_DIGITAL_ZOOM);
 		 ret = m10mo_writeb(sd, CATEGORY_MONITOR, DIGIT_ZOOM, *(u32*)data);
 	     break;
 
     case M10MO_WRITE_SHD_TABLE:
-	     m10mo_enable_interrupt(sd, M10MO_WRITE_SHD_TABLE);
 	     ret = m10mo_writeb(sd, CATEGORY_LOGLEDFLASH, 0xaf, 0x01);
 		 break;
 	default:
-        printk("@%s %d, UNLOCK m10mo_request_cmd_lock. Invalid Mode is %d, break!\n", __func__, __LINE__, requested_cmd);
-//        if (dev->m10mo_request_cmd_lock_flag == 1){
-		    mutex_unlock(&dev->m10mo_request_cmd_lock);
-//			dev->m10mo_request_cmd_lock_flag = 0;
-//        }
+        printk("@%s %d, Invalid Mode is %d, break!\n", __func__, __LINE__, requested_cmd);
 		return -ENODEV;
 	}
 
     printk("m10mo, 45678\n");
-    if(dev->requested_cmd == M10MO_START_AF || dev->requested_cmd == M10MO_MANUAL_FOCUS){
-	      dev->wait_irq_flag = M10MO_FOCUSING;
+    if(dev->requested_cmd == M10MO_START_AF){
+	      dev->wait_irq_flag = EXT_ISP_AF_STATUS_FOCUSING;
 		  printk(KERN_INFO "%s dev->wait_irq_flag is %d \n", __func__, dev->wait_irq_flag);
-    }else if(dev->requested_cmd == M10MO_START_OPTICAL_ZOOM || dev->requested_cmd == M10MO_MANUAL_ZOOM){
-	      dev->wait_irq_flag = M10MO_ZOOMING;
+    }else if(dev->requested_cmd == M10MO_START_DIGITAL_ZOOM || dev->requested_cmd == M10MO_START_OPTICAL_ZOOM){
+	      dev->wait_irq_flag = 1;
 		  printk(KERN_INFO "%s dev->wait_irq_flag is %d \n", __func__, dev->wait_irq_flag);
-	}else if (dev->requested_cmd == M10MO_ASUS_ZOOM_CANCEL){
-	      dev->wait_irq_flag = M10MO_OPTICAL_ZOOM_CANCELING;
-		  printk(KERN_INFO "%s dev->wait_irq_flag is %d \n", __func__, dev->wait_irq_flag);
-	}else if (dev->requested_cmd == M10MO_ASUS_FOCUS_CANCEL){
-	      dev->wait_irq_flag = M10MO_AF_CANCELING;
-		  printk(KERN_INFO "%s dev->wait_irq_flag is %d \n", __func__, dev->wait_irq_flag);
-	}else if (dev->requested_cmd == M10MO_START_DIGITAL_ZOOM) {
-	      dev->wait_irq_flag = M10MO_DIGITAL_ZOOMING;
-		  printk(KERN_INFO "%s dev->wait_irq_flag is %d \n", __func__, dev->wait_irq_flag);
-	}else {
-	      dev->wait_irq_flag = M10MO_NOT_LENS_RELATED_BUSYING;
-		  printk(KERN_INFO "%s dev->wait_irq_flag is %d \n", __func__, dev->wait_irq_flag);
+	}else{
+          ret = m10mo_wait_mode_change(sd, dev->requested_cmd, M10MO_INIT_TIMEOUT);
 	}
-	if (dev->requested_cmd == M10MO_START_OPTICAL_ZOOM
-	    || dev->requested_cmd == M10MO_START_AF
-	    || dev->requested_cmd == M10MO_ASUS_ZOOM_CANCEL
-	    || dev->requested_cmd == M10MO_ASUS_FOCUS_CANCEL) {
-              ret = m10mo_readb(sd, CATEGORY_LENS, 0x0b, &val);
-			  printk("@%s Lens status is %d, requested_cmd is %d \n", __func__, val, dev->requested_cmd);
-			  if(val == 0) {
-			      printk("@%s  IRQ before wait!!! requested_cmd is %d \n", __func__, dev->requested_cmd);
-				  if(dev->cancel_irq_flag == 1) {
-	                     dev->cancel_irq_flag = 0;
-				  }
-                  m10mo_lens_state_machine(sd, M10MO_IRQ_EVENT, NULL);
-				  goto out_m10mo_request_cmd_effect;
-			  }
-
-	}
-	val = get_m10mo_wait_timeout_val(sd, dev->requested_cmd);
-    ret = m10mo_wait_mode_change(sd, dev->requested_cmd, val);
-//	}
 	printk("m10mo, 87654\n");
-//#if 0
-    if(dev->cancel_irq_flag == 1) {printk("m10mo, 76543\n");
-	    dev->cancel_irq_flag = 0;
-	}else {printk("m10mo, 65432\n");
-        if (dev->requested_cmd == M10MO_START_AF
-             || dev->requested_cmd == M10MO_START_OPTICAL_ZOOM
-             || dev->requested_cmd == M10MO_ASUS_ZOOM_CANCEL
-             || dev->requested_cmd == M10MO_ASUS_FOCUS_CANCEL) {printk("m10mo, 54321\n");
-		        m10mo_lens_state_machine(sd, M10MO_IRQ_EVENT, NULL);
-        }
-	}printk("m10mo, 43210\n");
-//#endif
-    if(m10mo_boot_state == 0) {
-		if(dev->requested_cmd == M10MO_MONITOR_MODE_ZSL_REQUEST_CMD) {
-		    dev->requested_cmd = M10MO_BOTTOM_HALF_HOME_SEARCHING_MODE;
-		    printk("@%s            dev->requested_cmd = %d, start to do BOTTOM_HALF home-searching. Successful to keep the mutex lock.\n", __func__, dev->requested_cmd);
-            (void) m10mo_writeb(sd, 0x0D, 0x39, 0x01);
-			m10mo_boot_state = 1;
-			isp_update_status = M10MO_BOTTOM_HALF_HOME_SEARCHING_MODE;
-//			dev->wait_irq_flag = M10MO_IRQ_COMMAND_AVAILABDLE;
-			dev->m10mo_mode = M10MO_MONITOR_MODE_ZSL;
-			dev->cmd = M10MO_NO_CMD_REQUEST;
-			return 0;
-	    }
-	}
-    if(dev->requested_cmd == M10MO_START_OPTICAL_ZOOM) {
-	    ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &optical_zoom_check);
-		if(optical_zoom_check != *(u32*)data) {
-		     printk("@%s, zoom_check. optical_zoom_check is %d, previously optical_zoom set is %d, NOT equal, Zoom FAIL!!!!!\n", __func__, optical_zoom_check, *(u32*)data);
-		} else {
-		     printk("@%s, zoom_check. optical_zoom_check is %d, previously optical_zoom set is %d, equal!\n", __func__, optical_zoom_check, *(u32*)data);
-		}
-	}
-out_m10mo_request_cmd_effect:
-	if(requested_cmd == M10MO_PARAMETER_MODE_REQUEST_CMD){
+
+    if(requested_cmd == M10MO_PARAMETER_MODE_REQUEST_CMD){
 	    dev->m10mo_mode = M10MO_PARAMETER_MODE;
 
 	}else if( requested_cmd == M10MO_MONITOR_MODE_ZSL_REQUEST_CMD ){
 	    dev->m10mo_mode = M10MO_MONITOR_MODE_ZSL;
     }
 
-	dev->cmd = dev->requested_cmd = M10MO_NO_CMD_REQUEST;
+	dev->cmd = M10MO_NO_CMD_REQUEST;
 
-	if(requested_cmd == M10MO_HEAD_HALF_HOME_SEARCHING_MODE || requested_cmd == M10MO_MOVE_LENS_TO_PR)
-		isp_update_status = M10MO_NO_CMD_REQUEST;
-
-	dev->wait_irq_flag = M10MO_IRQ_COMMAND_AVAILABDLE;
-
-//	if (dev->m10mo_request_cmd_lock_flag == 1){
-	    mutex_unlock(&dev->m10mo_request_cmd_lock);
-		printk("@%s %d, UNLOCK m10mo_request_cmd_lock.\n", __func__, __LINE__);
-//		dev->m10mo_request_cmd_lock_flag = 0;
-//    }
-    wake_unlock(&dev->m10mo_wake_lock);
 	return ret;
 }
 
@@ -1144,35 +533,73 @@ static int is_m10mo_in_monitor_mode(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static int m10mo_set_monitor_parameters(struct v4l2_subdev *sd)
+{
+	struct m10mo_device *dev = to_m10mo_sensor(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	/*int id = M10MO_GET_FOCUS_MODE(dev->fw_type);*/
+	int ret=0;
+
+	dev_info(&client->dev,
+		 "%s: af_mode: 0x%x exe_mode: 0x%x posx: 0x%x, posy: 0x%x\n",
+		 __func__, dev->monitor_params.af_mode,
+		 dev->monitor_params.exe_mode,
+		 dev->monitor_params.af_touch_posx,
+		 dev->monitor_params.af_touch_posy);
+
+	/*ret = m10mo_writeb(sd, CATEGORY_LENS,*/
+			   /*m10m0_af_parameters[id].af_mode,*/
+			   /*dev->monitor_params.af_mode);*/
+	/*if (ret)*/
+		/*return ret;*/
+
+	/*ret = m10mo_writew(sd, CATEGORY_LENS,*/
+			   /*m10m0_af_parameters[id].af_touch_posx,*/
+			   /*dev->monitor_params.af_touch_posx);*/
+	/*if (ret)*/
+		/*return ret;*/
+
+	/*ret = m10mo_writew(sd, CATEGORY_LENS,*/
+			   /*m10m0_af_parameters[id].af_touch_posy,*/
+			   /*dev->monitor_params.af_touch_posy);*/
+	/*if (ret)*/
+		/*return ret;*/
+
+	/*ret = m10mo_writeb(sd, CATEGORY_LENS,*/
+			   /*m10m0_af_parameters[id].af_execution,*/
+			   /*dev->monitor_params.exe_mode);*/
+
+	/*if (ret)*/
+		/*return ret;*/
+
+	/*if (dev->monitor_params.flash_mode == LED_TORCH)*/
+		/*ret = m10mo_writeb(sd, CATEGORY_LOGLEDFLASH,*/
+				   /*LED_TORCH,*/
+				   /*dev->monitor_params.torch);*/
+	/*else*/
+		/*ret = m10mo_writeb(sd, CATEGORY_LOGLEDFLASH,*/
+				   /*FLASH_MODE,*/
+				   /*dev->monitor_params.flash_mode);*/
+
+	return ret;
+}
+
 int m10mo_wait_mode_change(struct v4l2_subdev *sd, u8 mode, u32 timeout)
 {
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-	u8 previous_state;
-//    printk("m10mo, 56789  dev->cmd = 0x%x mode = 0x%x\n",dev->cmd, mode);
-//	ret = wait_event_timeout(dev->irq_waitq, dev->cmd == mode, msecs_to_jiffies(timeout));
-//	printk("m10mo, 98765  dev->cmd = 0x%x mode = 0x%x, ret is %d\n",dev->cmd, mode, ret);
-    printk("m10mo, 56789  dev->cmd = 0x%x mode = 0x%x\n",dev->cmd, dev->requested_cmd);
-	ret = wait_event_timeout(dev->irq_waitq, dev->cmd == dev->requested_cmd, msecs_to_jiffies(timeout));
-	printk("m10mo, 98765  dev->cmd = 0x%x mode = 0x%x, ret is %d\n",dev->cmd, dev->requested_cmd, ret);
+    printk("m10mo, 56789  \n");
+	ret = wait_event_interruptible_timeout(dev->irq_waitq, dev->cmd == mode, msecs_to_jiffies(timeout));
+	printk("m10mo, 98765  \n");
 	if (ret > 0) {
+		if (0&is_m10mo_in_monitor_mode(sd)){
+			return m10mo_set_monitor_parameters(sd);
+        }
 		return 0;
 	} else if (ret == 0) {
-		dev_err(&client->dev, "m10mo_wait_mode_change timed out. dev->cmd = %x dev->requested_cmd = %x, timeout is %d\n",dev->cmd, dev->requested_cmd, timeout);
-		if(dev->requested_cmd == M10MO_MOVE_LENS_TO_PR) {
-		    printk("@m10mo_wait_mode_change. It is PR position timeout. Ignore it. dev->requested_cmd is %d \n", dev->requested_cmd);
-			return 0;
-		}
-		if(m10mo_trace_log_lock != DOWNLOAD_AVAILABLE) {
-              return -ETIMEDOUT;
-		}
-		mutex_unlock(&dev->input_lock);
-        dev->lock_i2c_write_flag = 0;
-		previous_state = m10mo_trace_log_lock;
-		m10mo_trace_log_lock = DOWNLOADING;
-		m10mo_ispd4(dev);
-		m10mo_trace_log_lock = previous_state;
+		dev_err(&client->dev, "m10mo_wait_mode_change timed out\n");
 		return -ETIMEDOUT;
 	}
 
@@ -1183,28 +610,13 @@ int __m10mo_param_mode_set(struct v4l2_subdev *sd)
 {
 	int ret;
 	u32 read_val;
-	u8 requested_cmd;
-	struct m10mo_device *dev = to_m10mo_sensor(sd);
+
     printk("@%s %d start\n", __func__, __LINE__);
 	(void) m10mo_readb(sd, CATEGORY_SYSTEM, SYSTEM_SYSMODE, &read_val);
 	if(read_val == M10MO_PARAMETER_MODE_REQUEST_CMD){
 	    printk(KERN_INFO "@%s, Already in parameter mode, no need to set again. \n", __func__);
 		return 0;
 	}
-	requested_cmd = dev->requested_cmd;
-	read_val = 0;
-	(void) m10mo_readb(sd, CATEGORY_LENS, 0x0b, &read_val);
-
-	if(requested_cmd == M10MO_START_AF) {
-		    dev->cancel_irq_flag = 1;
-		    __m10mo_reset_irq_wait_status();
-		    (void) m10mo_request_cmd_effect(sd, M10MO_ASUS_FOCUS_CANCEL, NULL);
-	} else if(requested_cmd == M10MO_START_OPTICAL_ZOOM) {
-		    dev->cancel_irq_flag = 1;
-		    __m10mo_reset_irq_wait_status();
-	        (void) m10mo_request_cmd_effect(sd, M10MO_ASUS_ZOOM_CANCEL, NULL);
-	}
-
 	ret = m10mo_request_cmd_effect(sd, M10MO_PARAMETER_MODE_REQUEST_CMD, NULL);
 	if (ret)
 		return ret;
@@ -1234,6 +646,7 @@ static int __m10mo_fw_start(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
     printk("@%s %d start\n", __func__, __LINE__);
+    printk("@%s %d scorpio 1\n", __func__, __LINE__);
 	/*
 	 * Correct the pll value before fw start
 	 */
@@ -1244,7 +657,7 @@ static int __m10mo_fw_start(struct v4l2_subdev *sd)
 	ret = m10mo_setup_flash_controller(sd);
 	if (ret < 0)
 		return ret;
-
+    printk("@%s %d scorpio 2\n", __func__, __LINE__);
 	ret = m10mo_request_cmd_effect(sd, M10MO_CAMERA_START, NULL);
 	if (ret)
 		return ret;
@@ -1252,13 +665,13 @@ static int __m10mo_fw_start(struct v4l2_subdev *sd)
 	ret = m10mo_detect(sd);
 	if (ret)
 		return ret;
-
+    printk("@%s %d scorpio 3\n", __func__, __LINE__);
 	dev_info(&client->dev, "ISP Booted Successfully\n");
-
-//    ret = m10mo_request_cmd_effect(sd, M10MO_HEAD_HALF_HOME_SEARCHING_MODE, NULL);
+    printk("@%s %d scorpio 4\n", __func__, __LINE__);
+//    ret = m10mo_request_cmd_effect(sd, M10MO_HOME_SEARCHING_MODE, NULL);
     if (ret)
         return ret;
-
+    printk("@%s %d scorpio 5\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -1269,9 +682,9 @@ static int m10mo_fw_start(struct v4l2_subdev *sd, u32 val)
     printk("@%s %d start\n", __func__, __LINE__);
 
 	mutex_lock(&dev->input_lock);
-
+    printk("@%s %d scorpio a\n", __func__, __LINE__);
 	ret = __m10mo_fw_start(sd);
-
+    printk("@%s %d scorpio b\n", __func__, __LINE__);
 	mutex_unlock(&dev->input_lock);
 
 	return ret;
@@ -1282,26 +695,27 @@ static int m10mo_set_af_mode(struct v4l2_subdev *sd, unsigned int val)
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
 	int ret = 0;
 	int polling_times = 10;
+	u32 normal_mode = 1;
 	u32 read_back = 0;
-
-    printk("@%s value %d start\n", __func__, val);
+    printk("@%s %d start\n", __func__, __LINE__);
 
     if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
 	    pr_info("%s, illegal to set AF during M10MO_PARAMETER_MODE, break!\n", __func__);
 		return -EINVAL;
 	}
+	//======= Hard code here
+	//========because temporarily there is one mode (normal mode).
+    (void) m10mo_readb(sd, CATEGORY_LENS, 0x00, &read_back);
+    if(read_back != normal_mode){
+	        (void) m10mo_writeb(sd, CATEGORY_LENS, 0x00, normal_mode);
 
-	//======= Hard code here for polling status by Derek says so.
-	(void) m10mo_readb(sd, CATEGORY_ASUS,ASUS_FOCUS_MODE,&read_back);
-	if(read_back != val){
-		(void) m10mo_writeb(sd, CATEGORY_ASUS,ASUS_FOCUS_MODE,val);
-		for(polling_times = 10; polling_times > 0; --polling_times){
-			(void) m10mo_readb(sd, CATEGORY_ASUS,ASUS_FOCUS_MODE,&read_back);
-			if(read_back == val){
-				printk("@%s %d success !\n", __func__, __LINE__);
-				return 0;
-			}
-		}
+            for(polling_times = 10; polling_times > 0; --polling_times){
+		        (void) m10mo_readb(sd, CATEGORY_LENS, 0x00, &read_back);
+                if(read_back == normal_mode){
+		             printk("@%s %d success !\n", __func__, __LINE__);
+			         return 0;
+	            }
+		    }
 	}else{
 	         printk("@%s, already in AF normal mode, no need to set! \n", __func__);
 			 return 0;
@@ -1404,13 +818,7 @@ static int m10mo_set_af_execution(struct v4l2_subdev *sd, s32 val)
 				   dev->monitor_params.exe_mode);
 #else
 	if(val == EXT_ISP_FOCUS_SEARCH){
-//	    dev->les_wq_requested_cmd = M10MO_START_AF;
-//	    dev->m10mo_request_cmd_lens_data = 0;
-//		cancel_delayed_work(&lens_work);
-//	    flush_workqueue(dev->auto_focus_wq);
-        printk("@%s %d, 007 Before queue_delayed_work(dev->lens_wq, &auto_focus_work). \n", __func__, __LINE__);
-        queue_delayed_work(dev->lens_wq, &auto_focus_work, 0);
-//		ret = m10mo_request_cmd_effect(sd, M10MO_START_AF, NULL);
+		ret = m10mo_request_cmd_effect(sd, M10MO_START_AF, NULL);
 		if (ret < 0)
 			return ret;
 #endif
@@ -1424,16 +832,12 @@ static int m10mo_set_af_position_x(struct v4l2_subdev *sd, unsigned int x)
 	int ret = 0;
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
 	int id = M10MO_GET_FOCUS_MODE(dev->fw_type);
-	if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	    pr_info("%s, illegal to set during M10MO_PARAMETER_MODE, break!\n", __func__);
-		return -EINVAL;
-	}
     printk("@%s: set DIT AF x = %d\n", __func__, x);
 
 	dev->monitor_params.af_touch_posx = x;
 
     /* Set X Position to DIT*/
-    ret = m10mo_writew(sd, CATEGORY_ASUS, ASUS_TOUCH_ROI_LEFT_UPPER_X, dev->monitor_params.af_touch_posx);
+    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_TOUCH_ROI_LEFT_UPPER_X, dev->monitor_params.af_touch_posx);
 	if (ret){
 		dev_err(&client->dev, "set DIT AF position x failed %d\n", ret);
         return ret;
@@ -1462,16 +866,12 @@ static int m10mo_set_af_position_y(struct v4l2_subdev *sd, unsigned int y)
 	int ret = 0;
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
 	int id = M10MO_GET_FOCUS_MODE(dev->fw_type);
-	if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	    pr_info("%s, illegal to set during M10MO_PARAMETER_MODE, break!\n", __func__);
-		return -EINVAL;
-	}
     printk("@%s: set DIT AF y = %d\n", __func__, y);
 
 	dev->monitor_params.af_touch_posy = y;
 
     /* Set Y Position to DIT*/
-    ret = m10mo_writew(sd, CATEGORY_ASUS, ASUS_TOUCH_ROI_LEFT_UPPER_Y, dev->monitor_params.af_touch_posy);
+    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_TOUCH_ROI_LEFT_UPPER_Y, dev->monitor_params.af_touch_posy);
 	if (ret){
 		dev_err(&client->dev, "set DIT AF position y failed %d\n", ret);
         return ret;
@@ -1499,10 +899,6 @@ static int m10mo_set_af_width(struct v4l2_subdev *sd, unsigned int w)
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     int ret = 0;
     struct m10mo_device *dev = to_m10mo_sensor(sd);
-	if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	    pr_info("%s, illegal to set during M10MO_PARAMETER_MODE, break!\n", __func__);
-		return -EINVAL;
-	}
     printk("@%s: set DIT AF ROI width = %d\n", __func__, w);
     dev->monitor_params.af_touch_width = w;
 
@@ -1520,10 +916,6 @@ static int m10mo_set_af_height(struct v4l2_subdev *sd, unsigned int h)
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     int ret = 0;
     struct m10mo_device *dev = to_m10mo_sensor(sd);
-	if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	    pr_info("%s, illegal to set during M10MO_PARAMETER_MODE, break!\n", __func__);
-		return -EINVAL;
-	}
     printk("@%s: set DIT AF ROI height = %d\n", __func__, h);
     dev->monitor_params.af_touch_height = h;
 
@@ -1541,11 +933,8 @@ static int m10mo_set_ae_position_x(struct v4l2_subdev *sd, unsigned int x)
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     int ret = 0;
     struct m10mo_device *dev = to_m10mo_sensor(sd);
-	if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	    pr_info("%s, illegal to set during M10MO_PARAMETER_MODE, break!\n", __func__);
-		return -EINVAL;
-	}
     printk("@%s: set DIT AE x = %d\n", __func__, x);
+
     dev->monitor_params.ae_touch_posx = x;
 
     /* Set AE X Position to DIT */
@@ -1562,11 +951,6 @@ static int m10mo_set_ae_position_y(struct v4l2_subdev *sd, unsigned int y)
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     int ret = 0;
     struct m10mo_device *dev = to_m10mo_sensor(sd);
-
-	if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	    pr_info("%s, illegal to set during M10MO_PARAMETER_MODE, break!\n", __func__);
-		return -EINVAL;
-	}
 
     dev->monitor_params.ae_touch_posy = y;
 
@@ -1658,345 +1042,31 @@ static int m10mo_get_caf_status(struct v4l2_subdev *sd, unsigned int *status)
 	return ret;
 }
 
-
-static int m10mo_set_hal_i2c_write(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 reg_val;
-	u8 cat, reg_addr;
-	int ret;
-
-	reg_val  = *status & 0xFF;
-	reg_addr = (*status >> 8) & 0xFF;
-	cat      = (*status >> 16) & 0xFF;
-
-	ret = m10mo_writeb(sd, cat, reg_addr, reg_val);
-	return ret;
-}
-
-static int m10mo_get_hal_i2c_read(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 reg_val;
-	u8 cat, reg_addr;
-	int ret;
-
-	reg_addr = (*status >> 8) & 0xFF;
-	cat      = (*status >> 16) & 0xFF;
-
-	ret = m10mo_readb(sd, cat, reg_addr, &reg_val);
-
-	if(!ret){
-	     *status = reg_val;
-	} else {
-	     *status = EXT_ISP_CID_M10MO_I2C_ONE_BYTE_READ_INVALID;
-	}
-
-	return ret;
-}
-
-static int m10mo_get_hal_i2c_wread(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 reg_val;
-	u8 cat, reg_addr;
-	int ret;
-
-	reg_addr = (*status >> 8) & 0xFF;
-	cat      = (*status >> 16) & 0xFF;
-
-	ret = m10mo_readw(sd, cat, reg_addr, &reg_val);
-	printk("EXT_ISP_CID_M10MO_I2C_WORD_READ  %x\n",reg_val);
-	if(!ret){
-	     *status = reg_val;
-	} else {
-	     *status = EXT_ISP_CID_M10MO_I2C_ONE_BYTE_READ_INVALID;
-	}
-
-	return ret;
-}
-
-static int m10mo_get_hal_i2c_lread(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 reg_val;
-	u8 cat, reg_addr;
-	int ret;
-
-	reg_addr = (*status >> 8) & 0xFF;
-	cat      = (*status >> 16) & 0xFF;
-
-	ret = m10mo_readl(sd, cat, reg_addr, &reg_val);
-
-	if(!ret){
-	     *status = reg_val;
-	} else {
-	     *status = EXT_ISP_CID_M10MO_I2C_ONE_BYTE_READ_INVALID;
-	}
-
-	return ret;
-}
-
-static int m10mo_get_asus_flash_needed(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 val;
-	int ret;
-	ret = m10mo_readb(sd, CATEGORY_ASUS, ASUS_FLASH_NEEDED, &val);
-	*status = val;
-
-	return ret;
-}
-
-static int m10mo_get_irq_status(struct v4l2_subdev *sd, unsigned int *status)
-{
-    struct m10mo_device *dev = to_m10mo_sensor(sd);
-
-    if(dev->wait_irq_flag == M10MO_IRQ_COMMAND_AVAILABDLE
-	     && dev->lens_state_machine == LENS_IDLE){
-	      *status = EXT_ISP_M10MO_IRQ_IDLE;
-    } else {
-	       *status = EXT_ISP_M10MO_IRQ_BUSY;
-	}
-	return 0;
-}
-
-static int m10mo_get_optical_zoom_number(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 val;
-	int ret;
-	ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
-	*status = val;
-
-	return ret;
-}
-
-static int m10mo_set_battery_capacity(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 val;
-	int ret;
-    val = *status;
-
-	ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_BATTERY_CAPACITY, val);
-	return ret;
-}
-
-static int m10mo_get_lens_initailzation_done(struct v4l2_subdev *sd, unsigned int *status)
-{
-    if(m10mo_boot_state == 2) {
-	    *status = EXT_ISP_LENS_INITIALIZATION_DONE;
-	} else {
-	    *status = EXT_ISP_LENS_INITIALIZATION_NOT_DONE;
-	}
-
-	return 0;
-}
-
-static int m10mo_get_LV(struct v4l2_subdev *sd, unsigned int *status)
-{
-	u32 val;
-	int ret;
-
-	ret = m10mo_readw(sd, CATEGORY_ASUS, ASUS_LV, &val);
-	*status = val;
-	return ret;
-}
-
-static int m10mo_set_R_GAIN(struct v4l2_subdev *sd, unsigned int *status)
-{
-	u32 val;
-	int ret;
-    val = *status;
-
-	ret = m10mo_writew(sd, CATEGORY_ASUS, ASUS_GAIN2_RGAIN, val);
-	return ret;
-}
-
-static int m10mo_get_R_GAIN(struct v4l2_subdev *sd, unsigned int *status)
-{
-	u32 val;
-	int ret;
-
-	ret = m10mo_readw(sd, CATEGORY_ASUS, ASUS_GAIN1_RGAIN, &val);
-	*status = val;
-	return ret;
-}
-
-static int m10mo_set_B_GAIN(struct v4l2_subdev *sd, unsigned int *status)
-{
-	u32 val;
-	int ret;
-    val = *status;
-
-	ret = m10mo_writew(sd, CATEGORY_ASUS, ASUS_GAIN2_BGAIN, val);
-	return ret;
-}
-
-static int m10mo_get_B_GAIN(struct v4l2_subdev *sd, unsigned int *status)
-{
-	u32 val;
-	int ret;
-
-	ret = m10mo_readw(sd, CATEGORY_ASUS, ASUS_GAIN1_BGAIN, &val);
-	*status = val;
-	return ret;
-}
-
-static int m10mo_set_3A_lock(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 val;
-	int ret;
-    val = *status;
-
-	ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_3A_LOCK, val);
-	return ret;
-}
-
-static int m10mo_set_g_sensor_x(struct v4l2_subdev *sd, unsigned int *status)
-{
-	u32 val;
-	int ret;
-    val = *status;
-
-	ret = m10mo_writew(sd, CATEGORY_ASUS, 0x3C, val);
-	return ret;
-}
-
-static int m10mo_set_g_sensor_y(struct v4l2_subdev *sd, unsigned int *status)
-{
-	u32 val;
-	int ret;
-    val = *status;
-
-	ret = m10mo_writew(sd, CATEGORY_ASUS, 0x3E, val);
-	return ret;
-}
-
-static int m10mo_set_g_sensor_z(struct v4l2_subdev *sd, unsigned int *status)
-{
-	u32 val;
-	int ret;
-    val = *status;
-
-	ret = m10mo_writew(sd, CATEGORY_ASUS, 0x40, val);
-	return ret;
-}
-
-static int m10mo_get_af_result(struct v4l2_subdev *sd, unsigned int *status)
-{
-//  struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 read_val = 0;
-	int ret;
-
-	ret = m10mo_readb(sd, CATEGORY_ASUS, ASUS_FOCUS_RESULT, &read_val);
-
-	if (read_val == AF_SUCCESS) {
-	    *status = EXT_ISP_AF_RESULT_SUCCESS;
-
-	} else if (read_val == AF_FAIL) {
-	    *status = EXT_ISP_AF_RESULT_FAIL;
-
-	} else if (read_val == AF_INVALID) {
-	    *status = EXT_ISP_AF_RESULT_INVALID;
-
-	} else {
-	     *status = EXT_ISP_AF_RESULT_INVALID;
-		 printk(KERN_ERR "@%s, Error, value (%d) not defined! \n", __func__, read_val);
-		 return -EINVAL;
-	}
-	return ret;
-}
-
 static int m10mo_get_af_status(struct v4l2_subdev *sd, unsigned int *status)
 {
     struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 read_val = 0;
 
-    (void) m10mo_readb(sd, CATEGORY_ASUS, ASUS_FOCUS_RESULT, &read_val);
-	if(read_val == AF_PRE_DONE) {
-	      *status = EXT_ISP_AF_STATUS_PRE_DONE;
-		  return 0;
-	}
-
-	if(dev->wait_irq_flag == M10MO_FOCUSING){
+	if(dev->wait_irq_flag == EXT_ISP_AF_STATUS_FOCUSING){
 	      *status = EXT_ISP_AF_STATUS_FOCUSING;
-	}else if (dev->wait_irq_flag == M10MO_IRQ_COMMAND_AVAILABDLE){
+	}else{
 	       *status = EXT_ISP_AF_STATUS_SUCCESS;
-	}else{
-	       *status = EXT_ISP_LENS_STATUS_INVALID;
 	}
 	return 0;
 }
 
-static int m10mo_get_optical_zoom_status(struct v4l2_subdev *sd, unsigned int *status)
-{
-    struct m10mo_device *dev = to_m10mo_sensor(sd);
-
-	if(dev->wait_irq_flag == M10MO_ZOOMING){
-	      *status = EXT_ISP_OPTICAL_ZOOM_STATUS_ZOOMING;
-	}else if (dev->wait_irq_flag == M10MO_IRQ_COMMAND_AVAILABDLE){
-	       *status = EXT_ISP_OPTICAL_ZOOM_STATUS_AVAILABLE;
-	}else{
-	       *status = EXT_ISP_LENS_STATUS_INVALID;
-	}
-	return 0;
-}
-
-static int m10mo_get_digital_zoom_status(struct v4l2_subdev *sd, unsigned int *status)
-{
-    struct m10mo_device *dev = to_m10mo_sensor(sd);
-
-	if(dev->wait_irq_flag == M10MO_DIGITAL_ZOOMING){
-	      *status = EXT_ISP_DIGITAL_ZOOM_STATUS_ZOOMING;
-	}else if (dev->wait_irq_flag == M10MO_IRQ_COMMAND_AVAILABDLE){
-	       *status = EXT_ISP_DIGITAL_ZOOM_STATUS_AVAILABLE;
-	}else{
-	       *status = EXT_ISP_LENS_STATUS_INVALID;
-	}
-	return 0;
-
-}
-
-static int m10mo_get_cancel_af_cmd_status(struct v4l2_subdev *sd, unsigned int *status)
-{
-//    struct m10mo_device *dev = to_m10mo_sensor(sd);
-//    if(dev->wait_irq_flag == M10MO_AF_CANCELING){
-//	      *status = EXT_ISP_AF_CANCELING;
-//	}else if (dev->wait_irq_flag == M10MO_IRQ_COMMAND_AVAILABDLE){
-	       *status = EXT_ISP_AF_CANCEL_CMD_AVAILABLE;
-//	}else{
-//	       *status = EXT_ISP_LENS_STATUS_INVALID;
-//	}
-	return 0;
-}
-
-static int m10mo_get_cancel_optical_zoom_cmd_status(struct v4l2_subdev *sd, unsigned int *status)
-{
-//    struct m10mo_device *dev = to_m10mo_sensor(sd);
-//    if(dev->wait_irq_flag == M10MO_OPTICAL_ZOOM_CANCELING){
-//	      *status = EXT_ISP_OPTICAL_ZOOM_CANCELING;
-//	}else if (dev->wait_irq_flag == M10MO_IRQ_COMMAND_AVAILABDLE){
-	       *status = EXT_ISP_OPTICAL_ZOOM_CANCEL_CMD_AVAILABEL;
-//	}else{
-//	       *status = EXT_ISP_LENS_STATUS_INVALID;
-//	}
-	return 0;
-}
 /* Adding this as requested by HAL. Can be removed if HAL is saving af mode */
 static int m10mo_get_af_mode(struct v4l2_subdev *sd, unsigned int *status)
 {
 	int ret;
 	u32 af_mode;
+	struct m10mo_device *dev = to_m10mo_sensor(sd);
+	int id = M10MO_GET_FOCUS_MODE(dev->fw_type);
 
-	ret =  m10mo_readb(sd, CATEGORY_ASUS,ASUS_FOCUS_MODE,&af_mode);
+	ret = m10mo_read(sd, 1, CATEGORY_LENS,
+			m10m0_af_parameters[id].af_result, &af_mode);
 	if (ret)
 		return ret;
-	*status = af_mode;
-	return ret;
-#if 0
+
 	af_mode = m10mo_af_parameter_transform(sd, af_mode);
 
 	switch (af_mode) {
@@ -2029,14 +1099,14 @@ static int m10mo_get_af_mode(struct v4l2_subdev *sd, unsigned int *status)
 	}
 
 	return ret;
-#endif
 }
 
 static int m10mo_get_exposure_time_numerator(struct v4l2_subdev *sd, unsigned int *status)
 {
 	int ret;
 	u32 numerator;
-	ret = m10mo_readl(sd, CATEGORY_EXIF,EXIF_INFO_EXPTIME_NU, &numerator);
+	ret = m10mo_readl(sd, CATEGORY_EXIF,
+			EXIF_INFO_EXPTIME_NU, &numerator);
 	*status = numerator;
 	return ret;
 }
@@ -2045,74 +1115,10 @@ static int m10mo_get_exposure_time_denominator(struct v4l2_subdev *sd, unsigned 
 {
 	int ret;
 	u32 denominator;
-	ret = m10mo_readl(sd, CATEGORY_EXIF,EXIF_INFO_EXPTIME_DE, &denominator);
+	ret = m10mo_readl(sd, CATEGORY_EXIF,
+			EXIF_INFO_EXPTIME_DE, &denominator);
 	*status = denominator;
 	return ret;
-}
-
-static int m10mo_get_preview_exposure_time_numerator(struct v4l2_subdev *sd, unsigned int *status)
-{
-	int ret;
-	u32 numerator;
-	ret = m10mo_readl(sd, CATEGORY_ASUS,ASUS_PREVIEW_INFO_EXP_NUMERATOR, &numerator);
-	*status = numerator;
-	return ret;
-}
-
-static int m10mo_get_preview_exposure_time_denominator(struct v4l2_subdev *sd, unsigned int *status)
-{
-	int ret;
-	u32 denominator;
-	ret = m10mo_readl(sd, CATEGORY_ASUS,ASUS_PREVIEW_INFO_EXP_DENOMINATOR, &denominator);
-	*status = denominator;
-	return ret;
-}
-
-static int m10mo_get_preview_iso(struct v4l2_subdev *sd, unsigned int *status)
-{
-	int ret;
-	u32 denominator;
-	ret = m10mo_readw(sd, CATEGORY_ASUS,ASUS_PREVIEW_ISO, &denominator);
-	*status = denominator;
-	return ret;
-}
-
-static int m10mo_set_digital_zoom_position(struct v4l2_subdev *sd, u32 data)
-{
-    int ret = 0;
-	u32 val = 0;
-	struct m10mo_device *dev = to_m10mo_sensor(sd);
-	pr_info("%s, data is %d \n", __func__, data);
-
-    if(data < 1 || data > 31 ){
-	   pr_info("m10mo, wrong digital zoom data is %d \n", data);
-	   return -EINVAL;;
-	}
-
-	if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	    pr_info("%s, illegal to set digital-zoom during M10MO_PARAMETER_MODE, break!\n", __func__);
-		return -EINVAL;
-	}
-
-	ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
-	if(val != 0x20){
-	    pr_info("%s, illegal to set digital-zoom because steps of optical-zoom is %d, break!\n", __func__, val);
-		return -EINVAL;
-	}
-	ret = m10mo_readb(sd, CATEGORY_MONITOR, DIGIT_ZOOM, &val);
-
-	if(val == data){
-	    pr_info("m10mo, get digital-zoom step is %d, set digital-zoom data is %d. No need to set\n", val, data);
-	    return 0;
-	}
-
-	//ret = m10mo_request_cmd_effect(sd, M10MO_START_DIGITAL_ZOOM, &data);
-	dev->m10mo_request_cmd_lens_data = data;
-	queue_delayed_work(dev->auto_update_wq, &digital_zoom_work, 0);
-    if (ret)
-        return ret;
-
-    return 0;
 }
 
 static int m10mo_set_optical_zoom_position(struct v4l2_subdev *sd, u32 data)
@@ -2121,8 +1127,7 @@ static int m10mo_set_optical_zoom_position(struct v4l2_subdev *sd, u32 data)
 	u32 val = 0;
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
 	pr_info("%s, data is %d \n", __func__, data);
-#if 0
-    if(data < 1 || data > 33 ){
+    if(data < 1 || data > 9 ){
 	   pr_info("m10mo, wrong optical zoom data is %d \n", data);
 	   return -EINVAL;;
 	}
@@ -2131,30 +1136,19 @@ static int m10mo_set_optical_zoom_position(struct v4l2_subdev *sd, u32 data)
 	    pr_info("%s, illegal to set AF during M10MO_PARAMETER_MODE, break!\n", __func__);
 		return -EINVAL;
 	}
-#endif
-
 	ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
-#if 0
 	if(val == data){
 	    pr_info("m10mo, get zoom step is %d, set zoom data is %d. No need to set\n", val, data);
 	    return 0;
 	}
-#endif
-//	dev->les_wq_requested_cmd = M10MO_START_OPTICAL_ZOOM;
-	dev->m10mo_request_cmd_lens_data = data;
-//	cancel_delayed_work(&lens_work);
-//	flush_workqueue(dev->optical_zoom_wq);
-	pr_info("%s, Before adding into workqueue. \n", __func__);
-	printk("@%s %d, 009 Before queue_delayed_work(dev->lens_wq, &optical_zoom_work). \n", __func__, __LINE__);
-    queue_delayed_work(dev->lens_wq, &optical_zoom_work, 0);
-//	ret = m10mo_request_cmd_effect(sd, M10MO_START_OPTICAL_ZOOM, &data);
+    ret = m10mo_request_cmd_effect(sd, M10MO_START_OPTICAL_ZOOM, &data);
     if (ret)
         return ret;
 
 
     return 0;
 }
-extern int set_torch_on_via_SOC(bool enable);
+
 static int m10mo_set_flash_mode(struct v4l2_subdev *sd, unsigned int val)
 {
 	int ret = 0;
@@ -2168,10 +1162,6 @@ static int m10mo_set_flash_mode(struct v4l2_subdev *sd, unsigned int val)
 	switch (val) {
 	case EXT_ISP_FLASH_MODE_OFF:
 		dev->monitor_params.flash_mode = FLASH_MODE_OFF;
-		if(dev->m10mo_mode == M10MO_PARAMETER_MODE) {
-		    printk("@%s %d, parameter mode.\n", __func__, __LINE__);
-		    set_torch_on_via_SOC(0);
-		}
 		break;
 	case EXT_ISP_FLASH_MODE_ON:
 		dev->monitor_params.flash_mode = FLASH_MODE_ON;
@@ -2180,20 +1170,12 @@ static int m10mo_set_flash_mode(struct v4l2_subdev *sd, unsigned int val)
 		dev->monitor_params.flash_mode = FLASH_MODE_AUTO;
 		break;
 	case EXT_ISP_LED_TORCH_OFF:
-		dev->monitor_params.flash_mode = LED_TORCH_OFF;
+		dev->monitor_params.flash_mode = LED_TORCH;
 		dev->monitor_params.torch = LED_TORCH_OFF;
-		if(dev->m10mo_mode == M10MO_PARAMETER_MODE) {
-		    printk("@%s %d, parameter mode.\n", __func__, __LINE__);
-		    set_torch_on_via_SOC(0);
-		}
 		break;
 	case EXT_ISP_LED_TORCH_ON:
-		dev->monitor_params.flash_mode = LED_TORCH_ON;
+		dev->monitor_params.flash_mode = LED_TORCH;
 		dev->monitor_params.torch = LED_TORCH_ON;
-		if(dev->m10mo_mode == M10MO_PARAMETER_MODE) {
-		    printk("@%s %d, parameter mode.\n", __func__, __LINE__);
-		    set_torch_on_via_SOC(1);
-		}
 		break;
 	default:
 		return -EINVAL;
@@ -2208,7 +1190,12 @@ static int m10mo_set_flash_mode(struct v4l2_subdev *sd, unsigned int val)
 
 	/* TODO get current flash mode, and apply new setting only when needed? */
 
-	ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_FLASH,dev->monitor_params.flash_mode);
+	if (dev->monitor_params.flash_mode == LED_TORCH)
+		ret = m10mo_writeb(sd, CATEGORY_LOGLEDFLASH, LED_TEST,
+				   dev->monitor_params.torch);
+	else
+		ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_FLASH,
+				   dev->monitor_params.flash_mode);
 
 #endif
 	return ret;
@@ -2229,10 +1216,6 @@ static int power_up(struct v4l2_subdev *sd)
 	int ret;
 
 	pr_info("%s\n", __func__);
-
-	ret = gpio_request(52, "flash_enable");
-	gpio_direction_output(52, 1);
-	printk("Higher the GPIO52 for camera on\n");
 
 	if (dev->pdata->common.power_ctrl) {
 		ret = dev->pdata->common.power_ctrl(sd, 1);
@@ -2270,10 +1253,6 @@ static int power_down(struct v4l2_subdev *sd)
 	int ret;
 
 	pr_info("%s\n", __func__);
-
-	ret = gpio_request(52, "flash_enable");
-	gpio_direction_output(52, 0);
-	printk("Lower the GPIO52 for camera off\n");
 
 	ret = dev->pdata->common.gpio_ctrl(sd, 0);
 	if (ret)
@@ -2315,41 +1294,22 @@ static int __m10mo_bootrom_mode_start(struct v4l2_subdev *sd)
 static int __m10mo_s_power(struct v4l2_subdev *sd, int on, bool fw_update_mode)
 {
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 read_val;
 	int ret;
-
     struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u32 fw_version_val1, fw_version_val2;
 
 	pr_info("%s: on: %d, fw_update_mode is %d\n", __func__, on, fw_update_mode);
     dev->m10mo_mode = M10MO_PARAMETER_MODE;
 	if (dev->power == on)
 		return 0;
-
-	dev->stream = 0;
-    m10mo_boot_state = 0;
-	num_LLS = 0;
-	m10mo_capture_pre_flag = 0;
-	last_optical_zoom_step = 1;
-	cancel_zoom_protect = 0;
-	dev->lens_state_machine = LENS_IDLE;
-	dev->lock_i2c_write_flag = 0;
-	dev->cancel_irq_flag = 0;
-	isCaptureMode = false;
-    cancel_delayed_work(&optical_zoom_work);
-	cancel_delayed_work(&auto_focus_work);
-	__m10mo_reset_irq_wait_status();//(dev, &lens_work);
-//	if (dev->m10mo_request_cmd_lock_flag == 1){
-	mutex_unlock(&dev->m10mo_request_cmd_lock);
-	printk("@%s %d, UNLOCK m10mo_request_cmd_lock.\n", __func__, __LINE__);
-//		dev->m10mo_request_cmd_lock_flag = 0;
-//    }
-
+		    printk("@%s %d scorpio a1  %d\n", __func__, __LINE__, fw_update_mode);
+	dev->wait_irq_flag = 0;
 	if (on) {
 	    if(dev->disable_irq_flag){
 	        enable_irq(client->irq);
 			dev->disable_irq_flag = 0;
 		}
-//		dev->cmd = M10MO_POWERING_ON;
+		dev->cmd = M10MO_POWERING_ON;
 		ret = power_up(sd);
 		if (ret)
 			return ret;
@@ -2360,22 +1320,17 @@ static int __m10mo_s_power(struct v4l2_subdev *sd, int on, bool fw_update_mode)
 			goto startup_failure;
 
 		if (!fw_update_mode) {
-
+		    printk("@%s %d scorpio aa\n", __func__, __LINE__);
 			ret = __m10mo_fw_start(sd);
 			if (ret)
 				goto startup_failure;
 
-		ret = m10mo_request_cmd_effect(sd, M10MO_HEAD_HALF_HOME_SEARCHING_MODE, NULL);
+		    ret = m10mo_request_cmd_effect(sd, M10MO_HOME_SEARCHING_MODE, NULL);
+		    //=== For debugging, to see the ISP FW version ===//
+		    (void) m10mo_readb(sd, 0x00, 0x02, &fw_version_val1);
+		    (void) m10mo_readb(sd, 0x00, 0x03, &fw_version_val2);
+            printk(KERN_INFO "m10mo, FW version is %X%X  \n", fw_version_val1, fw_version_val2);
 
-		//=== For debugging, to see the ISP FW version ===//
-		(void) m10mo_readb(sd, 0x00, 0x02, &fw_version_val1);
-		(void) m10mo_readb(sd, 0x00, 0x03, &fw_version_val2);
-        printk(KERN_INFO "m10mo, FW version is %X%X-%x  \n", fw_version_val1, fw_version_val2,DIT_version);
-
-        //===  Category:0x0D, Byte: 0x26, line blanking (Upper byte) (0x00～0x0F)  ===//
-        //===  Category:0x0D, Byte: 0x27, line blanking (Lower byte) (0x00～0xFF)  ===//
-		(void) m10mo_writeb(sd, CATEGORY_TEST, 0x26, 0x01);
-		(void) m10mo_writeb(sd, CATEGORY_TEST, 0x27, 0xFF);
 #ifdef CONFIG_ASUS_FACTORY_MODE
             //=== Only for factory, tell m10mo in fac image now! ===//
             (void) m10mo_writeb(sd, CATEGORY_ASUS, 0x02, 0x01);
@@ -2383,19 +1338,13 @@ static int __m10mo_s_power(struct v4l2_subdev *sd, int on, bool fw_update_mode)
 		}
 	} else {
 	    if (!fw_update_mode) {
-		(void) m10mo_readb(sd, CATEGORY_SYSTEM, SYSTEM_SYSMODE, &read_val);
-	        if(read_val == M10MO_PARAMETER_MODE_REQUEST_CMD) {  //legally power down, set lens to PR,
-		        ret = m10mo_set_lens_position(sd);              //otherwise directly power down.
-			    if (ret)
-				    goto startup_failure;
-            	}
-	    }
-		asus_camera_flag = 0;
-		wake_unlock(&dev->m10mo_wake_lock);
+		    ret = m10mo_set_lens_position(sd);
+			if (ret)
+				goto startup_failure;
+		}
 		disable_irq(client->irq);
 		dev->disable_irq_flag = 1;
 		ret = power_down(sd);
-		set_torch_on_via_SOC(0);
 		dev->power = 0;
 	}
 
@@ -2502,11 +1451,8 @@ int m10mo_set_zsl_monitor(struct v4l2_subdev *sd)
     const struct m10mo_resolution *capture_res =
 			resolutions[M10MO_MODE_CAPTURE_INDEX];
 	int ret;
-	u32 read_val = 1;
-	u32 polling_times = 10;
     /*u32 fmt;*/
 
-	previous_preview_cmd = dev->curr_res_table[dev->fmt_idx].command;
 	dev_info(&client->dev,
 		"%s dev->cmd: %d width: %d, height: %d, cmd: 0x%x vdis: %d\n",
 		__func__, dev->cmd, dev->curr_res_table[dev->fmt_idx].width,
@@ -2521,7 +1467,7 @@ int m10mo_set_zsl_monitor(struct v4l2_subdev *sd)
 /*
 	if (dev->cmd != M10MO_CAMERA_START &&
 		dev->cmd != M10MO_PARAMETER_MODE_REQUEST_CMD &&
-        dev->cmd != M10MO_HEAD_HALF_HOME_SEARCHING_MODE) {
+        dev->cmd != M10MO_HOME_SEARCHING_MODE) {
 		//
 		// At this stage means we are already at ZSL. So switch to
 		// param mode first and reset all the parameters.
@@ -2532,32 +1478,11 @@ int m10mo_set_zsl_monitor(struct v4l2_subdev *sd)
 			goto out;
 	}
 */
-    //=== For  monitor size 1920x1440, add line-blanking to 0x122, other sizes to 0x1FF ===//
-    //=== to avoid buffer-overflow from Intel ISP.                                      ===//
-    if(dev->curr_res_table[dev->fmt_idx].command == 0x52) {
-         (void) m10mo_writeb(sd, CATEGORY_TEST, 0x26, 0x01);
-		 (void) m10mo_writeb(sd, CATEGORY_TEST, 0x27, 0x22);
-    } else if(dev->curr_res_table[dev->fmt_idx].command == 0x18
-	           || dev->curr_res_table[dev->fmt_idx].command == 0x5E) {
-         (void) m10mo_writeb(sd, CATEGORY_TEST, 0x26, 0x02);
-		 (void) m10mo_writeb(sd, CATEGORY_TEST, 0x27, 0x58);
-    } else {
-         (void) m10mo_writeb(sd, CATEGORY_TEST, 0x26, 0x1);
-	     (void) m10mo_writeb(sd, CATEGORY_TEST, 0x27, 0xFF);
-    }
     /* Change the Monitor Size */
-	if(dev->shot_mode == CAP_HILIGHT && dev->run_mode == CI_MODE_PREVIEW) {
-	     if(dev->curr_res_table[dev->fmt_idx].command == 0x28) {
-		        (void) m10mo_writeb(sd, CATEGORY_PARAM, PARAM_MON_SIZE, 0x53);
-		 }else if(dev->curr_res_table[dev->fmt_idx].command == 0x52) {
-		        (void) m10mo_writeb(sd, CATEGORY_PARAM, PARAM_MON_SIZE, 0x52);
-		 }
-	} else { //=== Binning mode only provided in preview, didn't provided with recording. ===//
-	        ret = m10mo_writeb(sd, CATEGORY_PARAM, PARAM_MON_SIZE,
-			      dev->curr_res_table[dev->fmt_idx].command);
-	        if (ret)
-		          goto out;
-    }
+	ret = m10mo_writeb(sd, CATEGORY_PARAM, PARAM_MON_SIZE,
+			dev->curr_res_table[dev->fmt_idx].command);
+	if (ret)
+		goto out;
 
 	/* Set ZSL mode */
 	ret = m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, CAPTURE_MODE,
@@ -2574,9 +1499,8 @@ int m10mo_set_zsl_monitor(struct v4l2_subdev *sd)
 		/*goto out;*/
 
 	/* Select monitor/movie mode */
-	//=== Here always use Monitor mode since Intel ISP are not available to use virtual channel. ===///
-
-	ret = m10mo_write(sd, 1, CATEGORY_PARAM, MOVIE_MODE, 0x00);
+	ret = m10mo_write(sd, 1, CATEGORY_PARAM, MOVIE_MODE,
+			dev->run_mode == CI_MODE_VIDEO ? 0x01 : 0x00);
 	if (ret)
 		goto out;
 
@@ -2597,16 +1521,6 @@ int m10mo_set_zsl_monitor(struct v4l2_subdev *sd)
 	if (ret)
 		goto out;
 
-	ret = m10mo_writeb(sd, CATEGORY_MONITOR, IQCMD_CAP_GRP_NO, 0x02);
-
-	for(polling_times = 10; polling_times > 0; --polling_times) {
-	    (void) m10mo_readb(sd, CATEGORY_MONITOR, IQCMD_CAP_GRP_UPDATE,&read_val);
-		if(read_val == 0x00){
-		   break;
-		}
-    }
-	//For DIT request, enable shot mode for
-	(void) m10mo_writeb(sd, CATEGORY_ASUS, ASUS_AE_SCENE_MODE, dev->shot_mode + PRE_AUTO);
 	return 0;
 out:
 	dev_err(&client->dev, "m10mo_set_zsl_monitor failed %d\n", ret);
@@ -2792,115 +1706,16 @@ static int m10mo_set_hdr_mode(struct v4l2_subdev *sd, unsigned int val)
 	}
 	return 0;
 }
-/*
-#define EXT_ISP_VIDEO_MODE_NORMAL 40
-#define EXT_ISP_VIDEO_MODE_PRO 41
-#define EXT_ISP_VIDEO_MODE_MMS 42
-#define EXT_ISP_VIDEO_MODE_MINIATURE 43
-#define EXT_ISP_VIDEO_MODE_SLOWMOTION 44
-#define EXT_ISP_VIDEO_MODE_HISPEED 45
-#define EXT_ISP_VIDEO_MODE_TIMELAPSE 46
-#define EXT_ISP_VIDEO_MODE_LOWLIGHT 47
-#define EXT_ISP_VIDEO_MODE_EFFECT 48
-*/
-static u32 movie_scene_mode_cmds (u32 val){
-    switch (val) {
-        case EXT_ISP_VIDEO_MODE_NORMAL:
-		return VID_NORMAL;
 
-        case EXT_ISP_VIDEO_MODE_PRO:
-		return VID_NORMAL;
-
-        case EXT_ISP_VIDEO_MODE_MMS:
-        return VID_MMS;
-
-        case EXT_ISP_VIDEO_MODE_MINIATURE:
-	    return VID_MINIATURE;
-
-        case EXT_ISP_VIDEO_MODE_SLOWMOTION:
-		return VID_SLOWMOTION;
-
-        case EXT_ISP_VIDEO_MODE_HISPEED:
-		return VID_HISPEED;
-
-        case EXT_ISP_VIDEO_MODE_TIMELAPSE:
-		return VID_TIMELAPSE;
-
-        case EXT_ISP_VIDEO_MODE_LOWLIGHT:
-		return VID_HILIGHT;
-
-        case EXT_ISP_VIDEO_MODE_EFFECT:
-		return VID_NORMAL;
-    }
-	return 0;
-}
 static int m10mo_set_shot_mode(struct v4l2_subdev *sd, unsigned int val)
 {
-    struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 movie_cmd;
-	printk("@%s %d val is %d \n", __func__, __LINE__, val);
+	struct m10mo_device *dev = to_m10mo_sensor(sd);
+	int shot_mode_support = M10MO_SHOT_MODES_SUPPORTED(dev->fw_type);
 
-	if(val >= 40) {
-        movie_cmd = movie_scene_mode_cmds(val);
-	    return m10mo_writeb(sd, CATEGORY_ASUS, ASUS_AE_SCENE_MODE, movie_cmd);
-	}
+	if (!shot_mode_support)
+		return -EINVAL;
 
 	switch (val) {
-    case EXT_ISP_SHOT_MODE_PRO:
-	    dev->shot_mode = CAP_AUTO;
-		break;
-	case EXT_ISP_SHOT_MODE_NORMAL:
-	    dev->shot_mode = CAP_AUTO;
-	    break;
-	case EXT_ISP_SHOT_MODE_EFFECT:
-	    dev->shot_mode = CAP_AUTO;
-	    break;
-	case EXT_ISP_VIDEO_MODE_TIMELAPSE:
-	    dev->shot_mode = CAP_AUTO;
-		break;
-	case EXT_ISP_SHOT_MODE_SUPERRESOLUTION:
-	    dev->shot_mode = CAP_AUTO;
-	    break;
-	case EXT_ISP_SHOT_MODE_BEAUTY_FACE:
-	    dev->shot_mode = CAP_BEAUTY;
-	    break;
-	case EXT_ISP_SHOT_MODE_BEST_FACE:
-		dev->shot_mode = CAP_ALLSMILES;
-	    break;
-	case EXT_ISP_SHOT_MODE_RICH_TONE_HDR:
-	    dev->shot_mode = CAP_HDR;
-	    break;
-	case EXT_ISP_SHOT_MODE_LOWLIGHT:
-	    dev->shot_mode = CAP_HILIGHT;
-	    break;
-	case EXT_ISP_SHOT_MODE_NIGHT:
-	    dev->shot_mode = CAP_NIGHT;
-		break;
-	case EXT_ISP_SHOT_MODE_DEFOCUS:
-	    dev->shot_mode = CAP_DEFOCUS;
-	    break;
-	case EXT_ISP_SHOT_MODE_SELFIE:
-	    dev->shot_mode = CAP_SELFIE;
-		break;
-	case EXT_ISP_SHOT_MODE_ANIMATED_PHOTO:
-	    dev->shot_mode = CAP_GIF;
-		break;
-	case EXT_ISP_SHOT_MODE_PANORAMA:
-	    dev->shot_mode = CAP_PANORAMA;
-		break;
-	case EXT_ISP_SHOT_MODE_MINIATURE:
-	    dev->shot_mode = CAP_MINIATURE;
-		break;
-	case EXT_ISP_SHOT_MODE_ERASER:
-	    dev->shot_mode = CAP_SMARTREMOVE;
-		break;
-	case EXT_ISP_SHOT_MODE_TIMEREWIND:
-	    dev->shot_mode = CAP_TIMEREWIND;
-		break;
-	case EXT_ISP_SHOT_MODE_PANOSELFIE:
-	    dev->shot_mode = CAP_SPHERE;
-		break;
-#if 0
 	case EXT_ISP_SHOT_MODE_AUTO:
 		dev->shot_mode = SHOT_MODE_AUTO;
 		break;
@@ -2937,12 +1752,9 @@ static int m10mo_set_shot_mode(struct v4l2_subdev *sd, unsigned int val)
 	case EXT_ISP_SHOT_MODE_SPORTS:
 		dev->shot_mode = SHOT_MODE_SPORTS;
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}
-	                                 //=== See ASUS_AE_SCENE_MODE_ in m10mo.h ===//
-	(void) m10mo_writeb(sd, CATEGORY_ASUS, ASUS_AE_SCENE_MODE, dev->shot_mode + PRE_AUTO);
 
 	return 0;
 }
@@ -2951,11 +1763,7 @@ static int m10mo_s_power(struct v4l2_subdev *sd, int on)
 {
 	int ret;
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
-	if(dev->m10mo_gpio_set_after_power_on_before_streaming_flag) {
-	    dev->m10mo_gpio_set_after_power_on_before_streaming_flag = 0;
-		m10mo_USB_status(0);
-	}
-	dev->hal_to_driver_power_on = on;
+
 	mutex_lock(&dev->input_lock);
 	ret = __m10mo_s_power(sd, on, false);
 	mutex_unlock(&dev->input_lock);
@@ -3044,7 +1852,7 @@ static irqreturn_t m10mo_irq_thread(int irq, void *dev_id)
             openIntelISP = true;
 			dev->fw_ops->single_capture_process(sd);
 //			gpio_set_value(60, 1);
-//			printk(KERN_INFO "m10mo driver, gpio 60 set high\n");
+			printk(KERN_INFO "m10mo driver, gpio 60 set high\n");
 		}
 		break;
 	case M10MO_BURST_CAPTURE_MODE:
@@ -3057,10 +1865,10 @@ static irqreturn_t m10mo_irq_thread(int irq, void *dev_id)
 			dev->cmd = M10MO_MONITOR_MODE_HIGH_SPEED;
 		}
 		break;
-    case M10MO_HEAD_HALF_HOME_SEARCHING_MODE:
-        printk("%s %d, HEAD_HALF, home search finished\n", __func__, __LINE__);
+    case M10MO_HOME_SEARCHING_MODE:
+        printk("%s %d, home search finished\n", __func__, __LINE__);
         if (int_factor & 0X06) {
-            dev->cmd = M10MO_HEAD_HALF_HOME_SEARCHING_MODE;
+            dev->cmd = M10MO_HOME_SEARCHING_MODE;
         }
         break;
     case M10MO_MOVE_LENS_TO_PR:
@@ -3078,33 +1886,10 @@ static irqreturn_t m10mo_irq_thread(int irq, void *dev_id)
         }
         break;
     	case M10MO_START_AF:
+		AFDone = true;
         printk("%s %d, AF start finished\n", __func__, __LINE__);
         if (int_factor & 0x2) {
             dev->cmd = M10MO_START_AF;
-        }
-		break;
-	case M10MO_ASUS_ZOOM_CANCEL:
-        printk("%s %d, ASUS_ZOOM_CANCEL finished\n", __func__, __LINE__);
-        if (int_factor & 0x2) {
-            dev->cmd = M10MO_ASUS_ZOOM_CANCEL;
-        }
-		break;
-	case M10MO_ASUS_FOCUS_CANCEL:
-        printk("%s %d, ASUS_FOCUS_CANCEL finished\n", __func__, __LINE__);
-        if (int_factor & 0x2) {
-            dev->cmd = M10MO_ASUS_FOCUS_CANCEL;
-        }
-        break;
-    case M10MO_MANUAL_FOCUS:
-        printk("%s %d, MANUAL_FOCUS finished\n", __func__, __LINE__);
-        if (int_factor & 0x2) {
-            dev->cmd = M10MO_MANUAL_FOCUS;
-        }
-        break;
-    case M10MO_MANUAL_ZOOM:
-        printk("%s %d, MANUAL_ZOOM finished\n", __func__, __LINE__);
-        if (int_factor & 0x2) {
-            dev->cmd = M10MO_MANUAL_ZOOM;
         }
         break;
 	case M10MO_START_DIGITAL_ZOOM:
@@ -3120,51 +1905,22 @@ static irqreturn_t m10mo_irq_thread(int irq, void *dev_id)
             dev->cmd = M10MO_WRITE_SHD_TABLE;
         }
 		break;
-	case M10MO_BOTTOM_HALF_HOME_SEARCHING_MODE:
-	    printk("%s %d, BOTTOM_HALF, home search finished\n", __func__, __LINE__);
-        if (int_factor & 0X06) {
-		    if(m10mo_boot_state == 1) {
-	            m10mo_boot_state = 2;
-			    if(isp_update_status != 0) {
-			        isp_update_status = M10MO_NO_CMD_REQUEST;
-					dev->wait_irq_flag = M10MO_IRQ_COMMAND_AVAILABDLE;
-	                dev->cmd = dev->requested_cmd = M10MO_NO_CMD_REQUEST;
-					mutex_unlock(&dev->m10mo_request_cmd_lock);
-		            printk("@%s %d, UNLOCK m10mo_request_cmd_lock.\n", __func__, __LINE__);
-                    wake_unlock(&dev->m10mo_wake_lock);
-				}
-		    }
-		}
-		break;
 	default:
 		dev_err(&client->dev, "m10mo_irq_thread :default case\n");
 		return IRQ_HANDLED;
 	}
 pr_info("m10mo, 1111111111\n");
-#if 0
-    if (0&&dev->requested_cmd == M10MO_START_AF
-         || dev->requested_cmd == M10MO_START_DIGITAL_ZOOM
-         || dev->requested_cmd == M10MO_START_OPTICAL_ZOOM
-         || dev->requested_cmd == M10MO_MANUAL_FOCUS
-         || dev->requested_cmd == M10MO_MANUAL_ZOOM
-         || dev->requested_cmd == M10MO_ASUS_ZOOM_CANCEL
-         || dev->requested_cmd == M10MO_ASUS_FOCUS_CANCEL) {
-#endif
+    if(dev->requested_cmd == M10MO_START_AF || dev->requested_cmd == M10MO_START_DIGITAL_ZOOM || dev->requested_cmd == M10MO_START_OPTICAL_ZOOM){
+	      dev->wait_irq_flag = 0;
+	}else{
+	      wake_up_interruptible(&dev->irq_waitq);
+	}
 
-    wake_up(&dev->irq_waitq);
-////////////////////////////////////////////////////////////////////////
-#if 0
-    if (dev->requested_cmd == M10MO_START_AF
-         || dev->requested_cmd == M10MO_START_OPTICAL_ZOOM
-         || dev->requested_cmd == M10MO_ASUS_ZOOM_CANCEL
-         || dev->requested_cmd == M10MO_ASUS_FOCUS_CANCEL) {
-		    m10mo_lens_state_machine(sd, M10MO_IRQ_EVENT, NULL);
+	if (dev->requested_cmd == dev->cmd){
+		dev->requested_cmd = M10MO_NO_CMD_REQUEST;
     }
-#endif
-///////////////////////////////////////////////////////////////////////////
-
-pr_info("m10mo, 2222222222, m10mo_irq_thread return !\n");
-//	printk(KERN_INFO "%s dev->wait_irq_flag is %d \n", __func__, dev->wait_irq_flag);
+pr_info("m10mo, 2222222222\n");
+	printk(KERN_INFO "%s dev->wait_irq_flag is %d \n", __func__, dev->wait_irq_flag);
 
 	return IRQ_HANDLED;
 }
@@ -3469,7 +2225,7 @@ static int m10mo_set_run_mode(struct v4l2_subdev *sd)
 {
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
 	int ret = 0;
-//	u32 read_val;
+	u32 read_val;
 
     printk("@%s %d start, capture_mode = %d, run_mode = 0x%x\n", __func__, __LINE__, dev->capture_mode, dev->run_mode);
 #if 0
@@ -3490,43 +2246,25 @@ static int m10mo_set_run_mode(struct v4l2_subdev *sd)
 #endif
 	switch (dev->run_mode) {
 	case CI_MODE_STILL_CAPTURE:
-	    dev->lock_i2c_write_flag = 0;
-	    (void) m10mo_writeb(sd, 0x0c, 0x09, 0x1);
-		dev->lock_i2c_write_flag = 1;
 #ifndef off_c51
         ret = m10mo_set_still_capture(sd);
 #endif
 		break;
     case CI_MODE_PREVIEW:
 	case CI_MODE_VIDEO:
-            if(!isCaptureMode || dev->capture_mode == M10MO_CAPTURE_MODE_ZSL_BURST){
+            if(!isCaptureMode){
                 printk("@%s %d, preview set monitor mode\n", __func__, __LINE__);
                 ret = m10mo_set_zsl_monitor(sd);
             }
             else{
                 printk("@%s %d, after capturing, start the preview frame \n", __func__, __LINE__);
-				dev->lock_i2c_write_flag = 0;
-#if 0
-				//=== Hard code to set OIS S1 mode for preview. ===//
-//				(void) m10mo_writeb(sd, CATEGORY_TEST, OIS_LIB_API_START, 0x5);
-				(void) m10mo_writew(sd, CATEGORY_TEST, OIS_RAMREG_ADDR_H, 0x0107);
-                (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_DATA31_24, 0x0);
-	            (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_WRITE_READ_TRIG, 0x11);
-#endif
-//				(void) m10mo_readb(sd, CATEGORY_CAPTURE_CTRL, AFT_CAP_SELECT, &read_val);
-//				if(read_val == 0x01 || dev->capture_mode == M10MO_CAPTURE_MODE_ZSL_RAW){
-				    //=== Send command to stop Capture, and start streaming preview frames. ===//
-//                    (void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, 0x05, STOP_RAW_CAP);
-                    if(previous_preview_cmd != dev->curr_res_table[dev->fmt_idx].command) {
-					    __m10mo_param_mode_set(sd);
-					    m10mo_set_zsl_monitor(sd);
-					}else {
-					    (void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, 0x05, 0x03);
-					}
-//				}
+				(void) m10mo_readb(sd, CATEGORY_CAPTURE_CTRL, AFT_CAP_SELECT, &read_val);
+				if(read_val == 0x01){
+				    //=== Send command to stop Raw-Capture  ===//
+                    (void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, 0x05, STOP_RAW_CAP);
+				}
                 ret = 0;
             }
-		(void) m10mo_writeb(sd, CATEGORY_ASUS, ASUS_AE_SCENE_MODE, dev->shot_mode + PRE_AUTO);
         isCaptureMode = false;
 		break;
 	default:
@@ -3565,8 +2303,6 @@ static void m10mo_check_app_cap_mode(struct v4l2_subdev *sd)
 	    (void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, REQUEST_MULTI_CAP_FRAMES, APP_HDR_CAP_MODE_ZSL);
 	    break;
 	case APP_LLS_CAP_MODE_ZSL:
-		printk(KERN_INFO "m10mo, APP set %d frame for LLS capture mode.\n",num_LLS);
-		(void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, 0xC, num_LLS);
 	    printk(KERN_INFO "m10mo, APP LLS capture mode.\n");
 		(void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, REQUEST_MULTI_CAP_FRAMES, APP_LLS_CAP_MODE_ZSL);
 		break;
@@ -3648,68 +2384,13 @@ static void m10mo_mipi_initialization(struct v4l2_subdev *sd)
 		dev->mipi_params.jpeg_width, dev->mipi_params.jpeg_height,
 		dev->mipi_params.raw_width, dev->mipi_params.raw_height);
 }
-//=========== TEST START ============//
-int m10mo_send_still_capture_cmds(struct v4l2_subdev *sd)
-{
-	struct m10mo_device *dev = to_m10mo_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-	u8 res_cmd;
-	u32 read_val;
-    openIntelISP = false;
-    isCaptureMode = true;
-	res_cmd = dev->curr_res_table[dev->fmt_idx].command;
-	printk("@%s %d start\n", __func__, __LINE__);
 
-	dev_info(&client->dev, "%s mode: %d width: %d, height: %d, cmd: 0x%x\n",
-		__func__, dev->cmd, dev->curr_res_table[dev->fmt_idx].width,
-		dev->curr_res_table[dev->fmt_idx].height,
-		dev->curr_res_table[dev->fmt_idx].command);
-
-    //=== Set capture resolution command, but no need to set this command during binning capture. ===//
-	if(res_cmd != BINNING_CAP_CMD){
-	    ret = m10mo_writeb(sd, CATEGORY_CAPTURE_PARAM, PARAM_CAP_SIZE, res_cmd);
-    }
-	//=== Check "application capture mode" and send command to m10mo if needed. ===//
-    m10mo_check_app_cap_mode(sd);
-
-	//=== Choose the action of preview frame after capturing ===//
-	// 0x00: start YUV Preview output directly
-	// 0x01: start YUV Preview output if CateC/5 = 0x2
-//	ret = m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, AFT_CAP_SELECT, 0x1);
-
-    //=== Send shot_mode to m10mo for DIT AE. ===//
-	ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_AE_SCENE_MODE, dev->shot_mode);
-
-	(void) m10mo_readb(sd, CATEGORY_SYSTEM, SYSTEM_SYSMODE, &read_val);
-	if(read_val == M10MO_PARAMETER_MODE_REQUEST_CMD){
-          printk(KERN_INFO "@%s, In parameter mode, ILLIGAL!!! ILLIGAL!!! ILLIGAL to CAPTURE!!! \n", __func__);
-	}else if(read_val == 0x02){
-          printk(KERN_INFO "@%s, In monitor mode, It is legal to CAPTURE. \n", __func__);
-	}
-	(void) m10mo_readb(sd, CATEGORY_MONITOR, IQCMD_CAP_GRP_UPDATE, &read_val);
-
-	m10mo_enable_interrupt(sd, M10MO_SINGLE_CAPTURE_MODE);
-    //=== If size is smaller than 1920x1080, need to add delay between INT and capture frame. ===//
-    if(0 && res_cmd <= 0x19) {
-        ret = m10mo_writeb(sd, 0x04, 0x42, 0x01);
-    }
-    m10mo_performance_log("CAPTURE_B_KSIGCAP+");
-    //=== Send command to capture  ===//
-    ret = m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL,0x05, 0x01);
-
-	return ret;
-}
-//=========== TEST END ==============//
 int m10mo_set_still_capture(struct v4l2_subdev *sd)
 {
-int ret;
-#if 0
 	struct m10mo_device *dev = to_m10mo_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 	u8 res_cmd;
-	u32 read_val;
     openIntelISP = false;
     isCaptureMode = true;
 	res_cmd = dev->curr_res_table[dev->fmt_idx].command;
@@ -3730,18 +2411,8 @@ int ret;
 	//=== Choose the action of preview frame after capturing ===//
 	// 0x00: start YUV Preview output directly
 	// 0x01: start YUV Preview output if CateC/5 = 0x2
-//	ret = m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, AFT_CAP_SELECT, 0x1);
+	ret = m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, AFT_CAP_SELECT, 0x1);
 
-    //=== Send shot_mode to m10mo for DIT AE. ===//
-	ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_AE_SCENE_MODE, dev->shot_mode);
-
-	(void) m10mo_readb(sd, CATEGORY_SYSTEM, SYSTEM_SYSMODE, &read_val);
-	if(read_val == M10MO_PARAMETER_MODE_REQUEST_CMD){
-          printk(KERN_INFO "@%s, In parameter mode, ILLIGAL!!! ILLIGAL!!! ILLIGAL to CAPTURE!!! \n", __func__);
-	}else if(read_val == 0x02){
-          printk(KERN_INFO "@%s, In monitor mode, It is legal to CAPTURE. \n", __func__);
-	}
-#endif
 	//=== Send command to capture  ===//
     ret = m10mo_request_cmd_effect(sd, M10MO_SINGLE_CAPTURE_MODE, NULL);
 
@@ -3779,9 +2450,6 @@ int m10mo_set_burst_capture_streamon(struct v4l2_subdev *sd)
 	ret = m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, CAPTURE_MODE, CAPTURE_MODE);
 	if (ret) goto fail_out;
 
-	//=== Send shot_mode to m10mo for DIT AE. ===//
-	ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_AE_SCENE_MODE, dev->shot_mode);
-
 	/* Go to ZSL Monitor mode */
 	ret = m10mo_request_cmd_effect(sd, M10MO_MONITOR_MODE_ZSL_REQUEST_CMD, NULL);
 	if (ret) goto fail_out;
@@ -3801,9 +2469,7 @@ static int m10mo_burst_run(struct v4l2_subdev *sd)
 
 	switch (dev->run_mode) {
 	case CI_MODE_STILL_CAPTURE:
-        m10mo_performance_log("CAPTURE_B_KBURSTCAP+");
         ret = m10mo_set_burst_capture_streamon(sd);
-        m10mo_performance_log("CAPTURE_B_KBURSTCAP-");
 		break;
     case CI_MODE_PREVIEW:
         printk("@%s %d, preview set monitor mode\n", __func__, __LINE__);
@@ -3829,7 +2495,6 @@ static int m10mo_burst_run(struct v4l2_subdev *sd)
 
 int m10mo_normal_streamoff(struct v4l2_subdev *sd)
 {
-//    struct m10mo_device *dev = to_m10mo_sensor(sd);
     pr_info("%s, m10mo_capture_pre_flag is %d", __func__, m10mo_capture_pre_flag);
 
     switch(m10mo_capture_pre_flag){
@@ -3839,11 +2504,9 @@ int m10mo_normal_streamoff(struct v4l2_subdev *sd)
 	case M10MO_CAP_BEFORE_1ST_STREAMOFF_1:
 	    pr_info("m10mo, 1st fake stream off during capture\n");
 		m10mo_capture_pre_flag = M10MO_CAP_BETWEEN_1ST_AND_2ND_STREAMOFF_2;
-//		previous_preview_cmd = dev->curr_res_table[dev->fmt_idx].command;
 		return 0;
 
     case M10MO_CAP_BETWEEN_1ST_AND_2ND_STREAMOFF_2:
-    	m10mo_performance_log("CAPTURE_B_KCAPSTROFF");
 	    pr_info("m10mo, 2nd fake stream off during capture\n");
 		m10mo_capture_pre_flag = M10MO_NOT_CAPTURE_0;
 		return 0;
@@ -3868,7 +2531,6 @@ static int m10mo_burst_streamoff(struct v4l2_subdev *sd)
 		break;
 
     case M10MO_CAP_BETWEEN_1ST_AND_2ND_STREAMOFF_2:
-    	m10mo_performance_log("CAPTURE_B_KBURSTSTROFF");
 		printk("@%s 2nd real stream off during burst capture. \n", __func__);
 		m10mo_capture_pre_flag = M10MO_NOT_CAPTURE_0;
 		break;
@@ -3935,7 +2597,7 @@ static int m10mo_s_config(struct v4l2_subdev *sd, int irq)
 	mutex_lock(&dev->input_lock);
 
 	init_waitqueue_head(&dev->irq_waitq);
-    init_waitqueue_head(&dev->d_zoom_waitq);
+
 	dev->fw_type = dev->pdata->def_fw_type;
 	dev->ref_clock = 19200000;//dev->pdata->ref_clock_rate[id];
 
@@ -3956,7 +2618,7 @@ static int m10mo_s_config(struct v4l2_subdev *sd, int irq)
 		return ret;
 	}
 #else
-	wake_up(&dev->irq_waitq);
+	wake_up_interruptible(&dev->irq_waitq);
 #endif
 	ret = __m10mo_s_power(sd, 1, true);
 	if (ret) {
@@ -4055,10 +2717,7 @@ static int m10mo_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	pr_info("%s, enable: %d\n", __func__, enable);
-    if(dev->stream == enable)
-        return 0;
 
-    dev->stream = enable;
 	mutex_lock(&dev->input_lock);
 	if (enable) {
 
@@ -4220,7 +2879,7 @@ static const struct media_entity_operations m10mo_entity_ops = {
 
 static int m10mo_set_flicker_freq(struct v4l2_subdev *sd, s32 val)
 {
-#if 1
+#if 0
 	unsigned int flicker_freq;
 
 	switch (val) {
@@ -4240,20 +2899,7 @@ static int m10mo_set_flicker_freq(struct v4l2_subdev *sd, s32 val)
 		return -EINVAL;
 	}
 #endif
-	printk("Flicker_freq (%d/%d)",val,flicker_freq);
-	return m10mo_writeb(sd, CATEGORY_ASUS, ASUS_FLICKER, (u32)flicker_freq);
-}
-
-static int m10mo_get_metering(struct v4l2_subdev *sd, s32 *val)
-{
-	int ret;
-	u32 metering;
-
-	ret = m10mo_readb(sd, CATEGORY_ASUS, ASUS_METERING_MODE, &metering);
-	if (ret)
-		return ret;
-	*val = metering;
-	return 0;
+	return m10mo_writeb(sd, CATEGORY_ASUS, ASUS_FLICKER, (u32)val);
 }
 
 static int m10mo_set_metering(struct v4l2_subdev *sd, s32 val)
@@ -4274,7 +2920,6 @@ static int m10mo_set_metering(struct v4l2_subdev *sd, s32 val)
 	default:
 		return -EINVAL;
 	}
-
 #endif
 	return m10mo_writeb(sd, CATEGORY_ASUS, ASUS_METERING_MODE, (u32) val);
 }
@@ -4284,16 +2929,18 @@ static int m10mo_set_white_balance(struct v4l2_subdev *sd, s32 val)
 //=== The value of white-balance please refer to the below file:  ===//
 //=== linux/kernel/include/uapi/linux/v4l2-controls.h             ===//
     int ret;
-    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_WB_MANUAL, val);
-    return ret;
+	ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_WB_MANUAL, val);
+	return ret;
 }
 
 static int m10mo_set_ev_bias(struct v4l2_subdev *sd, s32 val)
 {
 	/* 0x06 refers to 0.0EV value in m10mo HW */
+	/* val refers to EV units, where the */
+	/* value 1000 stands for +1EV */
 	int ret;
-	int ev_bias = 0x06 + val;
-	printk("V4L2_CID_EXPOSURE (%d)",ev_bias);
+	int ev_bias = 0x06 + (val/M10MO_EV_STEP);
+
 	ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_EV, ev_bias);
 	return ret;
 }
@@ -4390,24 +3037,51 @@ static int m10mo_set_cb_cr(struct v4l2_subdev *sd, u8 cfixb, u8 cfixr)
 
 static int m10mo_set_color_effect(struct v4l2_subdev *sd, s32 val)
 {
-	int ret;
+	struct m10mo_device *dev = to_m10mo_sensor(sd);
+
+	int i, ret;
 
 	switch (val) {
 	case V4L2_COLORFX_NONE:
-	    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_EFFECT, NONE);
+	case V4L2_COLORFX_NEGATIVE:
+	case V4L2_COLORFX_WARM:
+	case V4L2_COLORFX_COLD:
+	case V4L2_COLORFX_WASHED:
+		for (i = 0; i < ARRAY_SIZE(ce_lut); i++) {
+			if (val == ce_lut[i][0])
+				break;
+		}
+
+		if (i == ARRAY_SIZE(ce_lut))
+			return -EINVAL;
+
+		ret = m10mo_writeb(sd, CATEGORY_MONITOR,
+				   MONITOR_COLOR_EFFECT, ce_lut[i][1]);
 		break;
 	case V4L2_COLORFX_SEPIA:
-	    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_EFFECT, SEPIA);
-		break;
 	case V4L2_COLORFX_BW:
-	    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_EFFECT, MONO);
+	case V4L2_COLORFX_ANTIQUE:
+	case V4L2_COLORFX_RED:
+	case V4L2_COLORFX_GREEN:
+	case V4L2_COLORFX_BLUE:
+	case V4L2_COLORFX_PINK:
+	case V4L2_COLORFX_YELLOW:
+	case V4L2_COLORFX_PURPLE:
+		for (i = 0; i < ARRAY_SIZE(cbcr_lut); i++) {
+			if (val == cbcr_lut[i][0])
+				break;
+		}
+
+		if (i == ARRAY_SIZE(cbcr_lut))
+			return -EINVAL;
+
+		ret = m10mo_set_cb_cr(sd, cbcr_lut[i][1], cbcr_lut[i][2]);
 		break;
-	case V4L2_COLORFX_NEGATIVE:
-	    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_EFFECT, NEGATIVE);
+	case V4L2_COLORFX_SET_CBCR:
+		ret = m10mo_set_cb_cr(sd, dev->colorfx_cb, dev->colorfx_cr);
 		break;
 	default:
 		ret = -EINVAL;
-		break;
 	};
 
 	return ret;
@@ -4436,30 +3110,13 @@ static int m10mo_set_color_effect_cbcr(struct v4l2_subdev *sd, s32 val)
 
 static int m10mo_get_focal(struct v4l2_subdev *sd, s32 *val)
 {
-	struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 optical_step;
-	printk(KERN_INFO "@%s \n", __func__);
-	while(dev->wait_irq_flag == M10MO_ZOOMING){
-	      msleep(1);
-	      printk(KERN_INFO "@%s: Warning!!! WAIT! Still moving zoom les!!!!! Cannot get f number. \n", __func__);
-	}
-
-	(void) m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &optical_step);
-	*val = (s32) m10mo_focus_data_table[optical_step].focal_len;
+	*val = (M10MO_FOCAL_LENGTH_NUM << 16) | M10MO_FOCAL_LENGTH_DEM;
 	return 0;
 }
 
 static int m10mo_get_fnumber(struct v4l2_subdev *sd, s32 *val)
 {
-	struct m10mo_device *dev = to_m10mo_sensor(sd);
-	u32 optical_step;
-	printk(KERN_INFO "@%s \n", __func__);
-	while(dev->wait_irq_flag == M10MO_ZOOMING){
-	      msleep(1);
-	      printk(KERN_INFO "@%s: Warning!!! WAIT! Still moving zoom les!!!!! Cannot get f number. \n", __func__);
-	}
-	(void) m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &optical_step);
-	*val = (s32) m10mo_focus_data_table[optical_step].f_number;
+	*val = (M10MO_F_NUMBER_DEFAULT_NUM << 16) | M10MO_F_NUMBER_DEM;
 	return 0;
 }
 
@@ -4484,6 +3141,7 @@ static int m10mo_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_POWER_LINE_FREQUENCY:
 	/*	We need to set Flicker frequence mode
 		Please verify this. */
+		printk("DDDD Flicker_freq (%d)",ctrl->val);
 		ret = m10mo_set_flicker_freq(&dev->sd, ctrl->val);
 		break;
 	case V4L2_CID_EXPOSURE_METERING:
@@ -4501,6 +3159,8 @@ static int m10mo_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = 0;
 		break;
 	case V4L2_CID_EXPOSURE:
+	/*	Should be OK now.
+	*/  printk("DDDD V4L2_CID_EXPOSURE (%d)",ctrl->val);
 		ret = m10mo_set_ev_bias(&dev->sd, ctrl->val);
 		break;
 	case V4L2_CID_ISO_SENSITIVITY:
@@ -4516,7 +3176,6 @@ static int m10mo_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = m10mo_set_iso_mode(&dev->sd, ctrl->val);
 		break;
 	case V4L2_CID_COLORFX:
-	    printk("DDDD V4L2_CID_COLORFX (%d)",ctrl->val);
 		ret = m10mo_set_color_effect(&dev->sd, ctrl->val);
 		break;
 	case V4L2_CID_COLORFX_CBCR:
@@ -4613,13 +3272,11 @@ static long m10mo_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 	struct atomisp_ext_isp_ctrl *m10mo_ctrl
 		= (struct atomisp_ext_isp_ctrl *)arg;
 	int ret = 0;
-	int read = 0;
 
 	dev_info(&client->dev, "m10mo ioctl id is %d, data 0x%x\n",
 			m10mo_ctrl->id, m10mo_ctrl->data);
 	printk("dev->m10mo_mode == M10MO_PARAMETER_MODE (%d) / (%d)\n",dev->m10mo_mode == M10MO_PARAMETER_MODE,dev->m10mo_mode);
 	printk("m10mo ioctl id is %d, data 0x%x, dev->wait_irq_flag is %d\n",m10mo_ctrl->id, m10mo_ctrl->data, dev->wait_irq_flag);
-#if 0
 	if(dev->wait_irq_flag){
 	    printk(KERN_INFO "m10mo_ioctl, dev->wait_irq_flag is %d \n", dev->wait_irq_flag);
 	    if(m10mo_ctrl->id == EXT_ISP_CID_FOCUS_EXECUTION
@@ -4631,8 +3288,6 @@ static long m10mo_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 		       return -EBUSY;
 		}
 	}
-#endif
-
 	mutex_lock(&dev->input_lock);
 	switch(m10mo_ctrl->id)
 	{
@@ -4643,44 +3298,19 @@ static long m10mo_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 		ret = m10mo_set_hdr_mode(sd, m10mo_ctrl->data);
 		break;
 	case EXT_ISP_CID_CAPTURE_LLS:
-
+		ret = m10mo_set_lls_mode(sd, m10mo_ctrl->data);
 		break;
 	case EXT_ISP_CID_FOCUS_MODE:
-	/*	We need to set AF mode (like Smart AF/CAF/infinity/MANUAL)
-		Maybe it need modify Gategory 04/0x3B*/
+	/*	We need to set AF mode (like AF/CAF/MANUAL)
+		Maybe it need modify Gategory 0A/0x00*/
 
 		ret = m10mo_set_af_mode(sd, m10mo_ctrl->data);
 //Workaround first
-		printk("FORCE EXT_ISP_CID_FOCUS_MODE (%d)",m10mo_ctrl->data);
+		printk("DDDD FORCE EXT_ISP_CID_FOCUS_MODE");
 		ret = 0;
 		break;
 	case EXT_ISP_CID_FOCUS_EXECUTION:
-        printk("FORCE EXT_ISP_CID_FOCUS_EXECUTION (%d)",m10mo_ctrl->data);
-
-        if(m10mo_ctrl->data != EXT_ISP_FOCUS_SEARCH){
-	       ret = -EINVAL;
-		   goto m10mo_ioctl_out;
-	    }
-        if(m10mo_capture_pre_flag){
-	       ret = -EINVAL;
-		   goto m10mo_ioctl_out;
-	    }
-	    if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	        pr_info("%s, illegal to set AF during M10MO_PARAMETER_MODE, break!\n", __func__);
-		    ret = -EINVAL;
-			goto m10mo_ioctl_out;
-        }
-		m10mo_lens_state_machine(sd, AUTO_FOCUS_EVENT, &(m10mo_ctrl->data));
-		ret = 0;
-#if 0
-        if (dev->wait_irq_flag == M10MO_FOCUSING) {
-		    dev->cancel_irq_flag = 1;
-		    __m10mo_reset_irq_wait_status();//(dev, &lens_work);
-			queue_delayed_work(dev->cancel_auto_focus_wq, &cancel_auto_focus_work, 0);
-			queue_delayed_work(dev->lens_wq, &dummy_work, 0);
-		}
 		ret = m10mo_set_af_execution(sd, m10mo_ctrl->data);
-#endif
 		break;
 	case EXT_ISP_CID_TOUCH_POSX:
 	/*	We need to set Focus X position
@@ -4746,57 +3376,20 @@ static long m10mo_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 		ret = 0;
 
 		break;
-	case EXT_ISP_CID_OPTICAL_ZOOM_STATUS:
-        printk("DDDD FORCE EXT_ISP_CID_OPTICAL_ZOOM_STATUS");
-		ret = m10mo_get_optical_zoom_status(sd, &m10mo_ctrl->data);
-	    break;
-	case EXT_ISP_CID_DIGITAL_ZOOM_STATUS:
-        printk("DDDD FORCE EXT_ISP_CID_DIGITAL_ZOOM_STATUS");
-		ret = m10mo_get_digital_zoom_status(sd, &m10mo_ctrl->data);
-	    break;
-	case EXT_ISP_CID_CANCEL_OPTICAL_ZOOM:
-        printk("DDDD FORCE EXT_ISP_CID_CANCEL_OPTICAL_ZOOM");
-	    ret = 0;
-//		dev->cancel_irq_flag = 1;
-//		__m10mo_reset_irq_wait_status();
-//		dev->cancel_irq_flag = 0;
-//	    ret = m10mo_request_cmd_effect(sd, M10MO_ASUS_ZOOM_CANCEL, NULL);
-		break;
-    case EXT_ISP_CID_CANCEL_AF:
-	    printk("DDDD FORCE EXT_ISP_CID_CANCEL_AF");
-		ret = 0;
-//		dev->cancel_irq_flag = 1;
-//        __m10mo_reset_irq_wait_status();
-//		dev->cancel_irq_flag = 0;
- //       ret = m10mo_request_cmd_effect(sd, M10MO_ASUS_FOCUS_CANCEL, NULL);
-        break;
-	case EXT_ISP_CID_CANCEL_OPTICAL_ZOOM_CMD_STATUS:
-	    printk("DDDD FORCE EXT_ISP_CID_CANCEL_OPTICAL_ZOOM_CMD_STATUS");
-        ret = m10mo_get_cancel_optical_zoom_cmd_status(sd, &m10mo_ctrl->data);
-        break;
-	case EXT_ISP_CID_CANCEL_AF_CMD_STATUS:
-	    printk("DDDD FORCE EXT_ISP_CID_CANCEL_FOCUS_CMD_STATUS");
-		ret = m10mo_get_cancel_af_cmd_status(sd, &m10mo_ctrl->data);
-        break;
 	case EXT_ISP_CID_GET_AF_MODE:
-	/*	We need to set AF mode (like Smart AF/CAF/infinity/MANUAL)
-		Maybe it need modify Gategory 04/0x3B*/
+	/*	We need to get now AF mode (like AF/CAF/MANUAL)
+		Maybe it need modify Gategory 0A/0x00*/
 
 		ret = m10mo_get_af_mode(sd, &m10mo_ctrl->data);
 //Workaround first
-		printk("DDDD FORCE EXT_ISP_FOCUS_MODE_NORMAL (%d)",m10mo_ctrl->data);
+		printk("DDDD FORCE EXT_ISP_FOCUS_MODE_NORMAL");
+		m10mo_ctrl->data = EXT_ISP_FOCUS_MODE_NORMAL;
 		break;
 	case EXT_ISP_CID_CAPTURE_BURST:
 	/*	We need to set now Burst Capture mode (for 5 frame to super resolution)
 		Maybe it need modify Gategory 0C/0x0A ?*/
 		printk("DDDD force EXT_ISP_CID_CAPTURE_BURST (%d)", m10mo_ctrl->data);
-		if( m10mo_ctrl->data > 0 ){
-			num_LLS = m10mo_ctrl->data;
-		}else{
-			num_LLS = 0;
-		}
-//		ret = m10mo_set_burst_mode(sd, m10mo_ctrl->data);
-        ret = m10mo_set_lls_mode(sd, m10mo_ctrl->data);
+		ret = m10mo_set_burst_mode(sd, m10mo_ctrl->data);
 		break;
 	case EXT_ISP_CID_FLASH_MODE:
 	/*	We need to set Flash mode (AUTO/OFF/ON/TORCH)
@@ -4812,76 +3405,10 @@ static long m10mo_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 		printk("DDDD FORCE EXT_ISP_CID_FLASH_MODE (%d)",m10mo_ctrl->data);
 		ret = 0;
 		break;
-	case EXT_ISP_CID_ZOOM:  //=== Optical-zoom. ===//
-	    printk(KERN_INFO "DDDD FORCE EXT_ISP_CID_ZOOM (%d) \n", m10mo_ctrl->data);
-
-		if(dev->m10mo_mode == M10MO_PARAMETER_MODE) {
-		    ret = -EINVAL;
-		    goto m10mo_ioctl_out;
-		}
-        if(m10mo_ctrl->data > 32 || m10mo_ctrl->data < 1){
-	           pr_info("m10mo, wrong optical zoom data is %d \n", m10mo_ctrl->data);
-	       ret = -EINVAL;
-		   goto m10mo_ioctl_out;
-	    }
-
-		while(dev->requested_cmd == M10MO_START_DIGITAL_ZOOM) {
-		    pr_info("%s, Digital-zooming, Wait!!!!!\n", __func__);
-			msleep(5);
-		}
-		ret = m10mo_readb(sd, CATEGORY_MONITOR, DIGIT_ZOOM, &read);
-        if(read != 0x1){
-            pr_info("%s, get digital-zoom step is %d, illegal to set Optical-zoom, break!\n", __func__, read);
-//	        ret = -EINVAL;
-//		    goto m10mo_ioctl_out;
-            read = 0x1;
-            (void) m10mo_request_cmd_effect(sd, M10MO_START_DIGITAL_ZOOM, &read);
-	    }
-
-		if(m10mo_capture_pre_flag){
-	       ret = -EINVAL;
-		   goto m10mo_ioctl_out;
-	    }
-
-	    if(dev->m10mo_mode == M10MO_PARAMETER_MODE){
-	        pr_info("%s, illegal to set Optical-zoom during M10MO_PARAMETER_MODE, break!\n", __func__);
-		    ret = -EINVAL;
-			goto m10mo_ioctl_out;
-	    }
-
-		last_optical_zoom_step = m10mo_ctrl->data;
-		if(cancel_zoom_protect == 1 ) {
-		   pr_info("m10mo, zoom canceling, do not zoom, zoom data is %d \n", m10mo_ctrl->data);
-	       ret = -EINVAL;
-		   goto m10mo_ioctl_out;
-		}
-		m10mo_lens_state_machine(sd, OPTICAL_ZOOM_EVENT, &last_optical_zoom_step);
-		ret = 0;
-#if 0
-		ret = m10mo_readb(sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &read);
-	    if(read == m10mo_ctrl->data){
-		    pr_info("%s, read_step is %d, step is %d, no need to set again! \n", __func__, read, m10mo_ctrl->data);
-		}
-#endif
-#if 0
-		cancel_delayed_work(&optical_zoom_work);
-		cancel_delayed_work(&auto_focus_work);
-
-		if (dev->wait_irq_flag == M10MO_FOCUSING) {
-			dev->cancel_irq_flag = 1;
-		    __m10mo_reset_irq_wait_status();//(dev, &lens_work);
-            queue_delayed_work(dev->cancel_auto_focus_wq, &cancel_auto_focus_work, 0);
-			queue_delayed_work(dev->lens_wq, &dummy_work, 0);
-		}else if (dev->wait_irq_flag == M10MO_ZOOMING) {
-		    dev->cancel_irq_flag = 1;
-		    __m10mo_reset_irq_wait_status();//(dev, &lens_work);
-		    queue_delayed_work(dev->cancel_optical_zoom_wq, &cancel_optical_zoom_work, 0);
-		    queue_delayed_work(dev->lens_wq, &dummy_work, 0);
-		}
+	case EXT_ISP_CID_ZOOM:
 		m10mo_ctrl->data = clamp_t(unsigned int, m10mo_ctrl->data,
 						ZOOM_POS_MIN, ZOOM_POS_MAX);
 		ret = m10mo_set_optical_zoom_position(sd, m10mo_ctrl->data);
-#endif
 		break;
 	case EXT_ISP_CID_SHOT_MODE:
 /*
@@ -4919,46 +3446,38 @@ static long m10mo_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 #define EXT_ISP_VIDEO_MODE_EFFECT 48
 */
 		/*	We need to set Asus Camera mode  */
-		printk("DDDD FORCE EXT_ISP_CID_SHOT_MODE (%d)",m10mo_ctrl->data);
 		ret = m10mo_set_shot_mode(sd, m10mo_ctrl->data);
+		printk("DDDD FORCE EXT_ISP_CID_SHOT_MODE (%d)",m10mo_ctrl->data);
 		break;
 	case EXT_ISP_M10MO_SET_CAPTURE_MODE:
-	        //=== Hard code to set ois s2 mode. ===//
-#ifndef CONFIG_ASUS_FACTORY_MODE
-#if 0
-      (void) m10mo_writew(sd, CATEGORY_TEST, OIS_RAMREG_ADDR_H, 0x0110);
-      (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_DATA31_24, 0x00);
-      (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_WRITE_READ_TRIG, 0x11);
-		msleep(10);
-      (void) m10mo_writew(sd, CATEGORY_TEST, OIS_RAMREG_ADDR_H, 0x0107);
-      (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_DATA31_24, 0x11);
-      (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_WRITE_READ_TRIG, 0x11);
-		msleep(10);
-      (void) m10mo_writew(sd, CATEGORY_TEST, OIS_RAMREG_ADDR_H, 0x0102);
-      (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_DATA31_24, 0x02);
-      (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_WRITE_READ_TRIG, 0x11);
-		msleep(10);
-      (void) m10mo_writew(sd, CATEGORY_TEST, OIS_RAMREG_ADDR_H, 0x0110);
-      (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_DATA31_24, 0x03);
-      (void) m10mo_writeb(sd, CATEGORY_TEST, OIS_WRITE_READ_TRIG, 0x11);
-		msleep(10);
-#endif
-#endif
 	    m10mo_capture_pre_flag = M10MO_CAP_BEFORE_1ST_STREAMOFF_1;
 		ret = 0;
 		break;
 	case EXT_ISP_CID_GET_METERING_MODE:
-	/*	We need to get now AE metering mode (Average(0x00)/Center(0x01)/Spot(0x02))
-		Maybe it need modify Gategory 04/0x16  */
-		m10mo_get_metering(sd, &m10mo_ctrl->data);
-		printk("EXT_ISP_CID_GET_METERING_MODE (%d)", m10mo_ctrl->data);
+	/*	We need to get now AE metering mode (Average/spot/Center)
+		Maybe it need modify Gategory 04/0x16
+enum v4l2_exposure_metering {
+	V4L2_EXPOSURE_METERING_AVERAGE		= 0,
+	V4L2_EXPOSURE_METERING_CENTER_WEIGHTED	= 1,
+	V4L2_EXPOSURE_METERING_SPOT		= 2,
+	V4L2_EXPOSURE_METERING_MATRIX		= 3,
+};
+*/
+		printk("DDDD force EXT_ISP_CID_GET_METERING_MODE (%d)", m10mo_ctrl->data);
+		m10mo_ctrl->data = 0;
 		ret = 0;
 		break;
 	case EXT_ISP_CID_SET_METERING_MODE:
-	/*	We need to get now AE metering mode (Average(0x00)/Center(0x01)/Spot(0x02))
-		Maybe it need modify Gategory 04/0x16*/
-		m10mo_set_metering(sd, m10mo_ctrl->data);
-		printk("EXT_ISP_CID_SET_METERING_MODE (%d)", m10mo_ctrl->data);
+	/*	We need to set now AE metering mode (Average/spot/Center)
+		Maybe it need modify Gategory 04/0x16
+enum v4l2_exposure_metering {
+	V4L2_EXPOSURE_METERING_AVERAGE		= 0,
+	V4L2_EXPOSURE_METERING_CENTER_WEIGHTED	= 1,
+	V4L2_EXPOSURE_METERING_SPOT		= 2,
+	V4L2_EXPOSURE_METERING_MATRIX		= 3,
+};
+*/      m10mo_set_metering(sd, m10mo_ctrl->data);
+		printk("DDDD force EXT_ISP_CID_SET_METERING_MODE (%d)", m10mo_ctrl->data);
 		ret = 0;
 		break;
 	case EXT_ISP_CID_EIS_MODE:
@@ -4969,13 +3488,19 @@ static long m10mo_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 		ret = 0;
 		break;
 	case EXT_ISP_CID_VIDEO_OPTIMIZE:
-	/*	We need to set video AE mode
-		Just bypass the HAL value.
+	/*	We need to set video preference for AE (0/1)
+		It need to check wit DIT
 		*/
-		printk("EXT_ISP_CID_VIDEO_OPTIMIZE (0x%x)", m10mo_ctrl->data);
-	    ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_AE_SCENE_MODE,m10mo_ctrl->data);
+		printk("DDDD force EXT_ISP_CID_VIDEO_OPTIMIZE (%d)", m10mo_ctrl->data);
+		ret = 0;
 		break;
 	case EXT_ISP_CID_SHUTTER_SPEED:
+	/*	We need to set shutter speed to AE
+		It need to check wit DIT.
+		If value > 2000, it means value/2000 second.
+		If value < 2000, it means 1/value second.
+		If value = 0 , it means auto.
+		*/
 		printk("DDDD force EXT_ISP_CID_SHUTTER_SPEED (%d)", m10mo_ctrl->data);
 		ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_SHUTTER_SPEED, m10mo_ctrl->data);
 		break;
@@ -4992,226 +3517,40 @@ static long m10mo_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 		It need to check wit DIT.
 		If value = 0 , it means auto.
 		*/
-		printk("EXT_ISP_CID_MANUAL_FOCUS (%d)\n", m10mo_ctrl->data);
-		if(m10mo_ctrl->data != 0){
-			ret = m10mo_readb(sd, CATEGORY_ASUS, ASUS_FOCUS_MODE, &read);
-			if(read != 3){
-				printk("EXT_ISP_CID_MANUAL_FOCUS now FOCUS_MODE = %d, force to MANUAL_MODE.\n", read);
-				ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_FOCUS_MODE, 3);
-			}
-			ret = m10mo_request_cmd_effect(sd, M10MO_MANUAL_FOCUS, &m10mo_ctrl->data);
-		}
+		printk("DDDD force EXT_ISP_CID_MANUAL_FOCUS (%d)", m10mo_ctrl->data);
+		ret = 0;
 		break;
 	case EXT_ISP_CID_SATURATION:
 	/*	We need to set saturation
 		It need to check wit DIT.
 		The value should be  value/100.
 		*/
-		printk("EXT_ISP_CID_SATURATION (%d)", m10mo_ctrl->data);
-		ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_SATURATION, m10mo_ctrl->data);
+		printk("DDDD force EXT_ISP_CID_SATURATION (%d)", m10mo_ctrl->data);
+		ret = 0;
 		break;
 	case EXT_ISP_CID_CONTRAST:
 	/*	We need to set saturation
 		It need to check wit DIT.
 		The value should be  value/100.
 		*/
-		printk("EXT_ISP_CID_CONTRAST (%d)", m10mo_ctrl->data);
-		ret = m10mo_writeb(sd, CATEGORY_ASUS, ASUS_CONTRAST, m10mo_ctrl->data);
+		printk("DDDD force EXT_ISP_CID_CONTRAST (%d)", m10mo_ctrl->data);
+		ret = 0;
 		break;
 	case EXT_ISP_CID_EXPOSURETIME_NUMERATOR:
 		ret = m10mo_get_exposure_time_numerator(sd, &m10mo_ctrl->data);
-		printk("EXT_ISP_CID_EXPOSURETIME_NUMERATOR (%d)", m10mo_ctrl->data);
+		printk("DDDD force EXT_ISP_CID_EXPOSURETIME_NUMERATOR (%d)", m10mo_ctrl->data);
 		ret = 0;
 		break;
 	case EXT_ISP_CID_EXPOSURETIME_DENOMINATOR:
 		ret = m10mo_get_exposure_time_denominator(sd, &m10mo_ctrl->data);
-		printk("EXT_ISP_CID_EXPOSURETIME_DENOMINATOR (%d)", m10mo_ctrl->data);
+		printk("DDDD force EXT_ISP_CID_EXPOSURETIME_DENOMINATOR (%d)", m10mo_ctrl->data);
 		ret = 0;
 		break;
-	case EXT_ISP_CID_PREVIEW_EXPOSURETIME_NUMERATOR:
-		ret = m10mo_get_preview_exposure_time_numerator(sd, &m10mo_ctrl->data);
-		printk("EXT_ISP_CID_PREVIEW_EXPOSURETIME_NUMERATOR (%d)", m10mo_ctrl->data);
-		ret = 0;
-		break;
-	case EXT_ISP_CID_PREVIEW_EXPOSURETIME_DENOMINATOR:
-		ret = m10mo_get_preview_exposure_time_denominator(sd, &m10mo_ctrl->data);
-		printk("EXT_ISP_CID_PREVIEW_EXPOSURETIME_DENOMINATOR (%d)", m10mo_ctrl->data);
-		ret = 0;
-		break;
-	case EXT_ISP_CID_PREVIEW_ISO:
-		ret = m10mo_get_preview_iso(sd, &m10mo_ctrl->data);
-		printk("EXT_ISP_CID_PREVIEW_ISO (%d)", m10mo_ctrl->data);
-		ret = 0;
-		break;
-	case EXT_ISP_CID_AT_SCENE:
-		ret = m10mo_writew(sd, CATEGORY_ASUS, ASUS_AT_SCENE, m10mo_ctrl->data);
-		printk("EXT_ISP_CID_AT_SCENE (%d)", m10mo_ctrl->data);
-		ret = 0;
-		break;
-	case EXT_ISP_CID_GET_AF_RESULT:
-	    ret = m10mo_get_af_result(sd, &m10mo_ctrl->data);
-        printk("EXT_ISP_CID_GET_AF_RESULT (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_M10MO_I2C_ONE_BYTE_WRITE:
-        printk("EXT_ISP_CID_M10MO_I2C_ONE_BYTE_WRITE (%d)", m10mo_ctrl->data);
-		if(dev->wait_irq_flag != M10MO_IRQ_COMMAND_AVAILABDLE
-		   || dev->lens_state_machine != LENS_IDLE) {
-		    printk("EXT_ISP_CID_M10MO_I2C_ONE_BYTE_WRITE, dev->wait_irq_flag is %d, dev->lens_state_machine is %d, illegal for HAL to do i2c-write, skip this cmd.\n",
-                   dev->wait_irq_flag, dev->lens_state_machine);
-			if(dev->wait_irq_flag == M10MO_IRQ_COMMAND_AVAILABDLE && dev->lens_state_machine == LENS_IDLE) {
-			      while (1){
-				      printk(KERN_INFO "Warning!!! EXT_ISP_CID_M10MO_I2C_ONE_BYTE_WRITE, it is ILLIGAL to set i2c cmds during irq_staus is busy!!!\n");
-				      msleep(1);
-				  }
-			}
-		    ret = -EINVAL;
-		    goto m10mo_ioctl_out;
-		}
-        ret = m10mo_set_hal_i2c_write(sd, &m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_CONTINUOUS_CAPTURE:
-	    printk("EXT_ISP_CID_CONTINUOUS_CAPTURE (%d)", m10mo_ctrl->data);
-		if(m10mo_ctrl->data > 0){
-			if( m10mo_ctrl->data > 10 ){
-				//This should be real continuous mode, for DIT request, should set to 1.
-				(void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, 0xC, 1);
-			}else{
-				//This should be NR mode, for DIT request, should set to 3.
-				(void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, 0xC, 3);
-			}
-		}else{
-			(void) m10mo_writeb(sd, CATEGORY_CAPTURE_CTRL, 0xC, 0);
-		}
-		ret = m10mo_set_burst_mode(sd, m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_M10MO_I2C_ONE_BYTE_READ:
-	    printk("Before EXT_ISP_CID_M10MO_I2C_ONE_BYTE_READ (%d)", m10mo_ctrl->data);
-	    ret = m10mo_get_hal_i2c_read(sd, &m10mo_ctrl->data);
-		printk("After EXT_ISP_CID_M10MO_I2C_ONE_BYTE_READ (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_M10MO_I2C_WORD_READ:
-	    printk("Before EXT_ISP_CID_M10MO_I2C_WORD_READ (%d)", m10mo_ctrl->data);
-	    ret = m10mo_get_hal_i2c_wread(sd, &m10mo_ctrl->data);
-		printk("After EXT_ISP_CID_M10MO_I2C_WORD_READ (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_M10MO_I2C_DWORD_READ:
-	    printk("Before EXT_ISP_CID_M10MO_I2C_DWORD_READ (%d)", m10mo_ctrl->data);
-	    ret = m10mo_get_hal_i2c_lread(sd, &m10mo_ctrl->data);
-		printk("After EXT_ISP_CID_M10MO_I2C_DWORD_READ (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_GET_OPTICAL_ZOOM_NUMBER:
-	    ret = m10mo_get_optical_zoom_number(sd, &m10mo_ctrl->data);
-	    printk("EXT_ISP_CID_GET_OPTICAL_ZOOM_NUMBER (%d)", m10mo_ctrl->data);
-	    break;
-	case EXT_ISP_CID_SET_BATTERY_CAPACITY:
-	    printk("EXT_ISP_CID_SET_BATTERY_CAPACITY (%d)", m10mo_ctrl->data);
-	    ret = m10mo_set_battery_capacity(sd, &m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_SET_3A_LOCK:
-	    printk("EXT_ISP_CID_SET_3A_LOCK (%d)", m10mo_ctrl->data);
-		ret = m10mo_set_3A_lock(sd, &m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_GET_FLASH_NEEDED:
-	    ret = m10mo_get_asus_flash_needed(sd, &m10mo_ctrl->data);
-		printk("EXT_ISP_CID_GET_FLASH_NEEDED (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_SET_DIGITAL_ZOOM:
-	    printk("EXT_ISP_CID_SET_DIGITAL_ZOOM (%d)", m10mo_ctrl->data);
-		ret = m10mo_set_digital_zoom_position(sd, m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_SET_ASUS_CAMERA:
-	    printk("EXT_ISP_CID_SET_ASUS_CAMERA (%d)", m10mo_ctrl->data);
-	    break;
-	case EXT_ISP_CID_GET_M10MO_IRQ_STATUS:
-		ret = m10mo_get_irq_status(sd, &m10mo_ctrl->data);
-	    printk("EXT_ISP_CID_GET_M10MO_IRQ_STATUS (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_SET_M10MO_START_CAPTURE:
-	    printk("EXT_ISP_CID_SET_M10MO_START_CAPTURE (0x%x)", m10mo_ctrl->data);
-		if(dev->capture_mode == M10MO_CAPTURE_MODE_ZSL_BURST){
-	        printk("m10mo, @%s. During Burst mode, do not send capture cmds here. \n", __func__);
-		    ret = 0;
-		    goto m10mo_ioctl_out;
-	    }
-		{
-		int entries, idx;
-		u32 width, height;
-		const struct m10mo_resolution *res;
-		dev->entries_curr_table = resolutions_sizes[M10MO_MODE_CAPTURE_INDEX];
-	    dev->curr_res_table = resolutions[M10MO_MODE_CAPTURE_INDEX];
-		res = resolutions[M10MO_MODE_CAPTURE_INDEX];
-        entries = resolutions_sizes[M10MO_MODE_CAPTURE_INDEX];
-        /* check if the given resolutions are spported */
-		width = (m10mo_ctrl->data & 0xFFFF0000) >> 16;
-	    height = m10mo_ctrl->data & 0xFFFF;
-        /* check if the given resolutions are spported */
-	    idx = get_resolution_index(res, entries, width, height);
-        if (idx < 0) {
-		    dev_err(&client->dev, "%s unsupported resolution: %dx%d\n",
-			__func__, width, height);
-		    ret = -EINVAL;
-			goto m10mo_ioctl_out;
-	    }
-		dev->capture_res_idx = dev->fmt_idx = idx;
-
-		printk("@%s %d start, requested_cmd = %d. Try to get the mutex lock. TRYing...TRYing...\n", __func__, __LINE__, M10MO_SINGLE_CAPTURE_MODE);
-	    mutex_lock(&dev->m10mo_request_cmd_lock);
-		dev->requested_cmd = M10MO_SINGLE_CAPTURE_MODE;
-		dev->cmd = M10MO_NO_CMD_REQUEST;
-		dev->wait_irq_flag = M10MO_NOT_LENS_RELATED_BUSYING;
-		printk("@%s %d start, dev->requested_cmd = %d. Successful to get the mutex lock.\n", __func__, __LINE__, dev->requested_cmd);
-        m10mo_send_still_capture_cmds(sdd);
-	    dev->lock_i2c_write_flag = 1;
-		}
-
-		break;
-    case EXT_ISP_CID_SET_M10MO_START_PREVIEW:
-	    printk("EXT_ISP_CID_SET_M10MO_START_PREVIEW (%d)", m10mo_ctrl->data);
-        ret = 0;
-		break;
-    case EXT_ISP_CID_GET_LENS_INITIALIZATION_DONE:
-		ret = m10mo_get_lens_initailzation_done(sd, &m10mo_ctrl->data);
-	    printk("EXT_ISP_CID_GET_LENS_INITIALIZATION_DONE (%d)", m10mo_ctrl->data);
-        break;
-	case EXT_ISP_CID_GET_DIT_LV:
-		ret = m10mo_get_LV(sd, &m10mo_ctrl->data);
-	    printk("EXT_ISP_CID_GET_DIT_LV (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_GET_DIT_R_GAIN:
-		ret = m10mo_get_R_GAIN(sd, &m10mo_ctrl->data);
-	    printk("EXT_ISP_CID_GET_DIT_R_GAIN (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_GET_DIT_B_GAIN:
-		ret = m10mo_get_B_GAIN(sd, &m10mo_ctrl->data);
-	    printk("EXT_ISP_CID_GET_DIT_B_GAIN (%d)", m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_SET_DIT_R_GAIN:
-	    printk("EXT_ISP_CID_SET_DIT_R_GAIN (%d)", m10mo_ctrl->data);
-		ret = m10mo_set_R_GAIN(sd, &m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_SET_DIT_B_GAIN:
-	    printk("EXT_ISP_CID_SET_DIT_B_GAIN (%d)", m10mo_ctrl->data);
-		ret = m10mo_set_B_GAIN(sd, &m10mo_ctrl->data);
-		break;
-	case EXT_ISP_CID_SET_G_SENSOR_X:
-	    printk("EXT_ISP_CID_SET_G_SENSOR_X (%d)", m10mo_ctrl->data);
-		ret = m10mo_set_g_sensor_x(sd, &m10mo_ctrl->data);
-        break;
-	case EXT_ISP_CID_SET_G_SENSOR_Y:
-	    printk("EXT_ISP_CID_SET_G_SENSOR_Y (%d)", m10mo_ctrl->data);
-		ret = m10mo_set_g_sensor_y(sd, &m10mo_ctrl->data);
-        break;
-	case EXT_ISP_CID_SET_G_SENSOR_Z:
-	    printk("EXT_ISP_CID_SET_G_SENSOR_Y (%d)", m10mo_ctrl->data);
-		ret = m10mo_set_g_sensor_z(sd, &m10mo_ctrl->data);
-        break;
 	default:
 		ret = -EINVAL;
 		dev_err(&client->dev, "m10mo ioctl: Unsupported ID\n");
-		break;
 	};
 
-m10mo_ioctl_out:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
@@ -5274,7 +3613,7 @@ static const struct v4l2_ctrl_config ctrls[] = {
 		.min = M10MO_MIN_EV,
 		.def = 0,
 		.max = M10MO_MAX_EV,
-		.step = 1,
+		.step = M10MO_EV_STEP
 	},
 	{
 		.ops = &m10mo_ctrl_ops,
@@ -5438,18 +3777,6 @@ static int m10mo_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-int m10mo_g_frame_interval(struct v4l2_subdev *sd,
-		struct v4l2_subdev_frame_interval *interval)
-{
-	struct m10mo_device *dev = to_m10mo_sensor(sd);
-
-	mutex_lock(&dev->input_lock);
-	interval->interval.denominator = 30;
-	interval->interval.numerator = 1;
-	mutex_unlock(&dev->input_lock);
-	return 0;
-}
-
 static const struct v4l2_subdev_video_ops m10mo_video_ops = {
 	.try_mbus_fmt = m10mo_try_mbus_fmt,
 	.s_mbus_fmt = m10mo_set_mbus_fmt,
@@ -5459,7 +3786,6 @@ static const struct v4l2_subdev_video_ops m10mo_video_ops = {
 	.enum_framesizes = m10mo_enum_framesizes,
 	.s_routing = m10mo_s_routing,
 	.s_frame_interval = m10mo_s_frame_interval,
-	.g_frame_interval = m10mo_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops m10mo_core_ops = {
@@ -5525,22 +3851,6 @@ leave:
 	return ret;
 }
 
-static int dump_cali_data(struct m10mo_device *dev)
-{
-	int ret = 0;
-	mutex_lock(&dev->input_lock);
-	if (dev->power == 1) {
-		ret = -EBUSY;
-		goto leave;
-	}
-	__m10mo_s_power(&dev->sd, 1, true);
-	m10mo_dump_cali_data(dev);
-	__m10mo_s_power(&dev->sd, 0, true);
-leave:
-	mutex_unlock(&dev->input_lock);
-	return ret;
-}
-
 static int read_fw_checksum(struct m10mo_device *dev, u16 *result)
 {
 	int ret;
@@ -5577,7 +3887,7 @@ leave:
 }
 
 
-static int update_fw(struct m10mo_device *dev, int erase_all)
+static int update_fw(struct m10mo_device *dev)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
 	int ret = 0;
@@ -5589,16 +3899,7 @@ static int update_fw(struct m10mo_device *dev, int erase_all)
 		goto leave;
 	}
 	__m10mo_s_power(&dev->sd, 1, true);
-	if(erase_all == 0)
-		ret = m10mo_program_device(dev, 0, (fw_version_val1 << 8 |  fw_version_val2), DIT_version);
-	else if(erase_all == 1)
-		ret = m10mo_program_device_erase_all_flash_partial(dev);
-	else if(erase_all == 2)
-		ret = m10mo_program_device_erase_all_flash_all(dev);
-	else{
-		__m10mo_s_power(&dev->sd, 0, true);
-		goto leave;
-	}
+	ret = m10mo_program_device(dev);
 	__m10mo_s_power(&dev->sd, 0, true);
 	if (ret)
 		goto leave;
@@ -5622,107 +3923,56 @@ leave:
 	return ret;
 }
 
-static void auto_Update_fw(struct work_struct *ws)
+
+static ssize_t m10mo_optical_zoom_cur_read(struct device *dev,	struct device_attribute *attr, char *buf)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sdd);
-        struct m10mo_device *dev = to_m10mo_sensor(sdd);
-	int ret = 0, flag=0, timeout=6000;
-	u16 result=0;
+    int ret = 0;
+    u32 val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
 
-	m10mo_USB_status(1);
-	wake_lock_timeout(&dev->m10mo_update_wake_lock, msecs_to_jiffies(180000));
-	mutex_lock(&dev->input_lock);
-
-	while ((dev->power == 1) && --timeout){
-		printk("m10mo Auto FW upgrade timeout = %x !!!!!!!!!!!!!!!!!!!!!\n", timeout);
-		msleep(10);
-	}
-	if (!timeout) {
-		printk("m10mo Auto FW upgrade fail!!!!!!!!!!!!!!!!!!!!!\n");
-		goto leave;
-	}
-
-	isp_update_status = 0;
-
-	__m10mo_s_power(sdd, 1, true);
-	ret = m10mo_fw_checksum(dev, &result);
-	__m10mo_s_power(sdd, 0, true);
-	dev_info(&client->dev, "m10mo FW checksum: %d\n", result);
-	if(result != 0){
-		isp_update_status = 0;
-		msleep(200);
-		__m10mo_s_power(sdd, 1, true);
-		ret = m10mo_program_device(dev, 1, 0, 0);
-		__m10mo_s_power(sdd, 0, true);
-		if (ret)
-			goto leave;
-		goto readFWversion;
-	}
-
-	msleep(200);
-        io3730_auto_fw_update(dev);
-
-
-	printk("m10mo Auto FW upgrade isp_update_status=%x\n",isp_update_status);
-	//read fw version
-	msleep(200);
-	m10mo_s_power_fac(1);
-	ASUS_flag = flag = readFwForceUpdateFlag(dev);
-	DIT_version = readDitVersion(dev);
-	m10mo_s_power_fac(0);
-
-	if(!isNeedUpdateFwWhenBoot())
-		goto readFWversion;
-	else if(BIT(0) & flag)
-		goto readFWversion;
-	else{
-
-	msleep(200);
-	__m10mo_s_power(sdd, 1, true);
-	ret = m10mo_program_device(dev, 1, (fw_version_val1 << 8 |  fw_version_val2), DIT_version);
-	__m10mo_s_power(sdd, 0, true);
+	ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_MONITOR, OPTICAL_ZOOM_CR, &val);
 	if (ret)
-		goto leave;
+        return -EINVAL;
 
-	msleep(200);
-	/* Power cycle chip and re-identify the version */
-	__m10mo_s_power(sdd, 1, true);
-	ret = m10mo_identify_fw_type(&dev->sd);
-	__m10mo_s_power(sdd, 0, true);
-	if (ret)
-		goto leave;
-
-	msleep(200);
-	__m10mo_s_power(sdd, 1, true);
-	ret = m10mo_fw_checksum(dev, &result);
-	__m10mo_s_power(sdd, 0, true);
-	dev_info(&client->dev, "m10mo FW checksum: %d\n", result);
-
-	}
-
-readFWversion:
-	msleep(200);
-	__m10mo_s_power(sdd, 1, false);
-	m10mo_set_zsl_monitor(sdd);
-	msleep(3000);
-	__m10mo_s_power(sdd, 0, false);
-
-	//read fw version
-	msleep(200);
-	m10mo_s_power_fac(1);
-	ASUS_flag = flag = readFwForceUpdateFlag(dev);
-	DIT_version = readDitVersion(dev);
-	m10mo_s_power_fac(0);
-
-leave:
-	isp_update_status = 1;
-	printk("m10mo Auto FW upgrade isp_update_status=%x\n",isp_update_status);
-	dev_info(&client->dev, "m10mo auto_Update_fw: %d\n", ret);
-	mutex_unlock(&dev->input_lock);
-    	wake_unlock(&dev->m10mo_update_wake_lock);
-	m10mo_USB_status(0);
+    printk("@%s %d, optical zoom cur = %d\n", __func__, __LINE__, val);
+	return scnprintf(buf, PAGE_SIZE, "optical zoom cur = %d\n", val);
 }
-static DECLARE_DELAYED_WORK(auto_Update_fw_work, auto_Update_fw);
+
+static DEVICE_ATTR(isp_optical_zoom_cur, S_IRUGO | S_IWUSR, m10mo_optical_zoom_cur_read, NULL);
+
+static ssize_t m10mo_optical_zoom_read(struct device *dev,	struct device_attribute *attr, char *buf)
+{
+    int ret = 0;
+    u32 val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
+	if (ret)
+        return -EINVAL;
+
+    printk("@%s %d, optical zoom position = %d\n", __func__, __LINE__, val);
+	return scnprintf(buf, PAGE_SIZE, "optical zoom position = %d\n", val);
+}
+static ssize_t m10mo_optical_zoom_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
+{
+    int ret = 0;
+    u32 val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	sscanf(buf, "%x", &val);
+    printk("@%s %d, optical zoom position %d\n", __func__, __LINE__, val);
+
+    if(val < 10 && val > 0){
+
+        ret = m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_START_OPTICAL_ZOOM, &val);
+        if (ret)
+            return ret;
+    }
+        return len;
+}
+static DEVICE_ATTR(isp_optical_zoom, S_IRUGO | S_IWUSR, m10mo_optical_zoom_read, m10mo_optical_zoom_write);
+
+
 
 static ssize_t m10mo_flash_rom_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -5736,51 +3986,10 @@ static ssize_t m10mo_flash_rom_store(struct device *dev,
 {
 	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
 
-	int ret=0;
-	wake_lock_timeout(&m10mo_dev->m10mo_update_wake_lock, msecs_to_jiffies(180000));
-	if (!strncmp(buf, "flash", 5) || !strncmp(buf, "eraseall_flash", 14) || !strncmp(buf, "erase_flash_all", 15)) {
-
-	    m10mo_USB_status(1);
-
-	    if (!strncmp(buf, "flash", 5)){
-		printk("m10mo flash\n");
-		ret=update_fw(m10mo_dev, 0);
-	    }else if (!strncmp(buf, "eraseall_flash", 14)){
-		printk("m10mo eraseall_flash\n");
-		ret=update_fw(m10mo_dev, 1);
-	    }else if (!strncmp(buf, "erase_flash_all", 15)){
-		printk("m10mo erase_flash_all\n");
-		ret=update_fw(m10mo_dev, 2);
-	    }else{
-		printk("m10mo EINVAL\n");
-		wake_unlock(&m10mo_dev->m10mo_update_wake_lock);
-		return -EINVAL;
-	    }
-	    msleep(200);
-	    if(!ret){
-
-		m10mo_s_power_fac(1);
-		DIT_version = writeDummyVersion(m10mo_dev);
-		m10mo_s_power_fac(0);
-
-		mdelay(200);
-		__m10mo_s_power(sdd, 1, false);
-
-		m10mo_set_zsl_monitor(sdd);
-		msleep(3000);
-		__m10mo_s_power(sdd, 0, false);
-
-		//read fw version
-		msleep(200);
-		m10mo_s_power_fac(1);
-		DIT_version = readDitVersion(m10mo_dev);
-		m10mo_s_power_fac(0);
-	    }
-		m10mo_USB_status(0);
-		wake_unlock(&m10mo_dev->m10mo_update_wake_lock);
+	if (!strncmp(buf, "flash", 5)) {
+		update_fw(m10mo_dev);
 		return len;
 	}
-    	wake_unlock(&m10mo_dev->m10mo_update_wake_lock);
 	return -EINVAL;
 }
 static DEVICE_ATTR(isp_flashfw, S_IRUGO | S_IWUSR, m10mo_flash_rom_show,
@@ -5880,583 +4089,6 @@ static ssize_t m10mo_flash_dump_show(struct device *dev,
 }
 static DEVICE_ATTR(isp_fw_dump, S_IRUGO, m10mo_flash_dump_show, NULL);
 
-static ssize_t m10mo_flash_cali_data_dump_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct m10mo_device *m10_dev = dev_get_drvdata(dev);
-	dump_cali_data(m10_dev);
-	return scnprintf(buf, PAGE_SIZE, "done\n");
-}
-static DEVICE_ATTR(isp_cali_data_dump, S_IRUGO, m10mo_flash_cali_data_dump_show, NULL);
-
-static ssize_t m10mo_debug(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-    	u32 val=0;
-
-	sscanf(buf, "%x", &val);
-	m10mo_break_log_loop = val;
-
-	return len;
-}
-static DEVICE_ATTR(isp_fw_debug, S_IRUGO | S_IWUSR, NULL, m10mo_debug);
-
-static ssize_t m10mo_read_Flag(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-	int ret= 0;
-	mutex_lock(&m10mo_dev->input_lock);
-    	(void) m10mo_s_power_fac(1);
-	ASUS_flag = ret = readFwForceUpdateFlag(m10mo_dev);
-    	(void) m10mo_s_power_fac(0);
-	mutex_unlock(&m10mo_dev->input_lock);
-	return scnprintf(buf, PAGE_SIZE, "\n\
-		flag is %x\n", ret);
-}
-
-
-static ssize_t m10mo_write_Flag(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-	int ret=0, res=0, timeout=5000;
-    	u32 val=0;
-
-	sscanf(buf, "%x", &val);
-
-	mutex_lock(&m10mo_dev->input_lock);
-    	(void) m10mo_s_power_fac(1);
-
-	(void) m10mo_writew(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_OFFSET_H, 0xf4);
-
-
-	(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_DATA_BYTE0, val);
-
-	if(ret == 1){
-		pr_err("timeout while waiting for chip op to finish\n");
-		return 0xffff;
-	}
-	(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_MODE, 0x09);
-	(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_FLASH_MODE, 0x03);
-
-	do {
-		msleep(10);
-		m10mo_readb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, SFLASH_SPI_STATUS, &res);
-	} while ((res != 0) && --timeout);
-
-	if (!timeout) {
-		pr_err("timeout while waiting for chip op to finish\n");
-		return 0xffff;
-	}
-	printk("flash done\n");
-
-
-    (void) m10mo_s_power_fac(0);
-	mutex_unlock(&m10mo_dev->input_lock);
-
-
-	return len;
-}
-static DEVICE_ATTR(isp_fw_default_flag, S_IRUGO | S_IWUSR, m10mo_read_Flag, m10mo_write_Flag);
-
-static ssize_t m10mo_read_download_trace_log(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d", m10mo_trace_log_lock);
-}
-
-
-static ssize_t m10mo_write_download_trace_log(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-    //=== Only tow kinds of value could be set in this file node. ===//
-	u32 val;
-	sscanf(buf, "%d", &val);
-	if(val != DOWNLOAD_AVAILABLE
-	     && val != DOWNLOAD_PROTECT) {
-	    return len;
-	}
-	m10mo_trace_log_lock = val;
-
-	return len;
-}
-static DEVICE_ATTR(m10mo_download_trace_log_when_time_out, S_IRUGO | S_IWUSR, m10mo_read_download_trace_log, m10mo_write_download_trace_log);
-
-static ssize_t m10mo_read_asus_camera_flag(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d", asus_camera_flag);
-}
-
-static ssize_t m10mo_write_asus_camera_flag(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-	u32 val;
-	sscanf(buf, "%d", &val);
-	asus_camera_flag = val;
-
-	return len;
-}
-static DEVICE_ATTR(m10mo_asus_camera_flag, S_IRUGO, m10mo_read_asus_camera_flag, m10mo_write_asus_camera_flag);
-
-
-
-static ssize_t m10mo_shading_table_checksum_read(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	mutex_lock(&m10mo_dev->input_lock);
-	if (m10mo_dev->power == 1) {
-		mutex_unlock(&m10mo_dev->input_lock);
-		return -EBUSY;
-	}
-
-	__m10mo_s_power(&m10mo_dev->sd, 1, true);
-	ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, 0x69, &val);
-	__m10mo_s_power(&m10mo_dev->sd, 0, true);
-
-	if (ret) {
-		mutex_unlock(&m10mo_dev->input_lock);
-        return -EINVAL;
-	}
-
-	mutex_unlock(&m10mo_dev->input_lock);
-        printk("@%s %d, shading table checksum = %x\n", __func__, __LINE__, val);
-	return scnprintf(buf, PAGE_SIZE, "shading table checksum = %x\n", val);
-}
-
-static DEVICE_ATTR(isp_shading_table_checksum, S_IRUGO | S_IWUSR, m10mo_shading_table_checksum_read, NULL);
-
-#ifndef ZX551ML_USER_BUILD //#ifdef CONFIG_ASUS_FACTORY_MODE
-
-static ssize_t m10mo_digital_zoom_read(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_MONITOR, DIGIT_ZOOM, &val);
-	if (ret)
-        return -EINVAL;
-
-    printk("@%s %d, digital zoom position = %d\n", __func__, __LINE__, val);
-	return scnprintf(buf, PAGE_SIZE, "digital zoom position = %d\n", val);
-}
-static ssize_t m10mo_digital_zoom_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	sscanf(buf, "%x", &val);
-    printk("@%s %d, digital zoom position %d\n", __func__, __LINE__, val);
-
-    if(0x0 < val && val < 0x20 ){
-        ret = m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_START_DIGITAL_ZOOM, &val);
-        if (ret < 0)
-            return ret;
-        return len;
-    }else{
-	    	printk("@%s %d, wrong zoom position %d\n", __func__, __LINE__, val);
-		return -EINVAL;
-	}
-
-
-}
-static DEVICE_ATTR(isp_digital_zoom, S_IRUGO | S_IWUSR, m10mo_digital_zoom_read, m10mo_digital_zoom_write);
-
-static ssize_t m10mo_optical_zoom_cancel_read(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_MONITOR, DIGIT_ZOOM, &val);
-	if (ret)
-        return -EINVAL;
-
-    printk("@%s %d, digital zoom position = %d\n", __func__, __LINE__, val);
-	return scnprintf(buf, PAGE_SIZE, "digital zoom position = %d\n", val);
-}
-
-static ssize_t m10mo_optical_zoom_cancel_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	sscanf(buf, "%x", &val);
-    printk("@%s %d, m10mo_optical_zoom_cancel_write: %d\n", __func__, __LINE__, val);
-
-    ret = m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_ASUS_ZOOM_CANCEL, NULL);
-    if (ret)
-        return ret;
-
-	return len;
-
-}
-static DEVICE_ATTR(m10mo_optical_zoom_cancel, S_IRUGO | S_IWUSR, m10mo_optical_zoom_cancel_read, m10mo_optical_zoom_cancel_write);
-
-static ssize_t m10mo_auto_focus_cancel_read(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_MONITOR, DIGIT_ZOOM, &val);
-	if (ret)
-        return -EINVAL;
-
-    printk("@%s %d, digital zoom position = %d\n", __func__, __LINE__, val);
-	return scnprintf(buf, PAGE_SIZE, "digital zoom position = %d\n", val);
-}
-
-static ssize_t m10mo_auto_focus_cancel_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	sscanf(buf, "%x", &val);
-    printk("@%s %d, m10mo_auto_focus_cancel_write: %d\n", __func__, __LINE__, val);
-    m10mo_dev->cmd = m10mo_dev->requested_cmd = M10MO_START_AF;
-	wake_up(&m10mo_dev->irq_waitq);
-    ret = m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_ASUS_FOCUS_CANCEL, NULL);
-    if (ret)
-        return ret;
-
-	return len;
-
-}
-static DEVICE_ATTR(m10mo_auto_focus_cancel, S_IRUGO | S_IWUSR, m10mo_auto_focus_cancel_read, m10mo_auto_focus_cancel_write);
-
-static ssize_t m10mo_i2c_debug_byte_write_cat(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-	if(password_debug != 0x3296) return -1;
-
-	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
-	if (ret)
-        return -EINVAL;
-
-    printk("@%s %d, zoom step = %d\n", __func__, __LINE__, val);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
-}
-static ssize_t m10mo_i2c_debug_byte_write_echo(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-    int ret = 0;
-    u8 cat, reg_addr;
-	u32 val, reg_val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-	if(password_debug != 0x3296) return -1;
-
-	sscanf(buf, "%x", &val);
-    reg_val  = val & 0xFF;
-	reg_addr = (val >> 8) & 0xFF;
-	cat      = (val >> 16) & 0xFF;
-    printk(KERN_INFO "ASUSBSP --- @m10mo_i2c_debug_byte_write_echo, cat is 0x%x, reg_addr is 0x%x, reg_val is 0x%x \n",
-                                  cat, reg_addr, reg_val);
-
-    ret = m10mo_writeb(&m10mo_dev->sd, cat, reg_addr, reg_val);
-    if (!ret){
-	    printk(KERN_INFO "ASUSBSP --- @m10mo_i2c_debug_byte_write_echo \n");
-        return len;
-	}else{
-	    return -EINVAL;
-    }
-}
-static DEVICE_ATTR(m10mo_i2c_debug_byte_write_change_name_by_jevian, S_IRUGO | S_IWUSR, m10mo_i2c_debug_byte_write_cat, m10mo_i2c_debug_byte_write_echo);
-static ssize_t m10mo_debug_state_read(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	printk("@%s %d, \n", __func__, __LINE__);
-	return scnprintf(buf, PAGE_SIZE, "dev->requested_cmd is %d, dev->cmd is %d, m10mo_capture_pre_flag is %d \n", m10mo_dev->requested_cmd, m10mo_dev->cmd, m10mo_capture_pre_flag);
-}
-
-static ssize_t m10mo_debug_state_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-	u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	sscanf(buf, "%d", &val);
-    m10mo_dev->cmd = val;
-
-    return len;
-}
-static DEVICE_ATTR(m10mo_i2c_debug_state, S_IRUGO | S_IWUSR, m10mo_debug_state_read, m10mo_debug_state_write);
-
-static ssize_t m10mo_i2c_debug_byte_read_cat(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
-	if (ret)
-        return -EINVAL;
-
-    printk("@%s %d, zoom step = %d\n", __func__, __LINE__, val);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
-}
-static ssize_t m10mo_i2c_debug_byte_read_echo(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-    int ret = 0;
-    u8 cat, reg_addr;
-	u32 val;
-	u32 reg_val = 0;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	sscanf(buf, "%x", &val);
-//    reg_val  = val & 0xFF;
-	reg_addr = (val >> 8) & 0xFF;
-	cat      = (val >> 16) & 0xFF;
-    printk(KERN_INFO "ASUSBSP --- @m10mo_i2c_debug_byte_read_echo, cat is 0x%x, reg_addr is 0x%x \n",
-                                  cat, reg_addr);
-
-    ret = m10mo_readb(&m10mo_dev->sd, cat, reg_addr, &reg_val);
-    if (!ret){
-	    printk(KERN_INFO "ASUSBSP --- @m10mo_i2c_debug_byte_read_echo, reg_val is 0x%x\n", reg_val);
-        return len;
-	}else{
-	    return -EINVAL;
-    }
-}
-static DEVICE_ATTR(m10mo_i2c_debug_byte_read_change_name_by_jevian, S_IRUGO | S_IWUSR, m10mo_i2c_debug_byte_read_cat, m10mo_i2c_debug_byte_read_echo);
-
-
-static ssize_t m10mo_read_IQ_calibration_data(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-	mutex_lock(&m10mo_dev->input_lock);
-    (void) m10mo_s_power_fac(1);
-    	(void)__m10mo_param_mode_set(&m10mo_dev->sd);
-	m10mo_isp_fw_IQ_R(m10mo_dev);
-    (void) m10mo_s_power_fac(0);
-	mutex_unlock(&m10mo_dev->input_lock);
-	return 0;
-}
-
-
-static ssize_t m10mo_write_IQ_calibration_data(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-	int res=0, timeout=5000;
-
-	mutex_lock(&m10mo_dev->input_lock);
-    	(void) m10mo_s_power_fac(1);
-
-    	(void)__m10mo_param_mode_set(&m10mo_dev->sd);
-
-	m10mo_isp_fw_IQ_W(m10mo_dev);
-
-	(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_FLASH_MODE, 0x30);
-
-	do {
-		msleep(10);
-		m10mo_readb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, SFLASH_SPI_STATUS, &res);
-	} while ((res != 0) && --timeout);
-
-	if (!timeout) {
-		printk("timeout while waiting for chip op to finish\n");
-		return len;
-	}
-	printk("flash done\n");
-
-    	(void) m10mo_s_power_fac(0);
-	mutex_unlock(&m10mo_dev->input_lock);
-
-	return len;
-}
-static DEVICE_ATTR(isp_fw_iq_RW, S_IRUGO | S_IWUSR, m10mo_read_IQ_calibration_data, m10mo_write_IQ_calibration_data);
-
-
-
-static ssize_t m10mo_asus_awb_control_read(struct device *dev, struct device_attribute *attr, char *buf)
-{
-    	u32 reg_val1, reg_val2, ret;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	printk( "ASUS AWB balance CONTROL \n \
-			Byte 71: AWB_DEBUG1 \n \
-			Byte 72: AWB_DEBUG2 \n \
-			Byte 73: AWB_DEBUG3 \n \
-			Byte 74: AWB_DEBUG4 \n \
-			Byte 75: AWB_DEBUG5 \n \
-			Byte 76: AWB_DEBUG6 \n \
-			Byte 77: AWB_DEBUG7 \n \
-			Byte 78: AWB_DEBUG8 \n \
-					\n");
-
-	ret = m10mo_readl(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG1, &reg_val1);
-        if(ret)
-            	goto out;
-	printk("@%s %d, REG_AWB_DEBUG1 ~ REG_AWB_DEBUG4 = %x\n", __func__, __LINE__, reg_val1);
-
-	ret = m10mo_readl(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG5, &reg_val2);
-        if(ret)
-            	goto out;
-	printk("@%s %d, REG_AWB_DEBUG5 ~ REG_AWB_DEBUG8 = %x\n", __func__, __LINE__, reg_val2);
-
-	return scnprintf(buf, PAGE_SIZE, "\n\
-		ASUS AWB balance CONTROL \n \
-			REG_AWB_DEBUG1 ~ REG_AWB_DEBUG4 = %x\n \
-			REG_AWB_DEBUG5 ~ REG_AWB_DEBUG8 = %x\n \
-					\n\n\n ", reg_val1, reg_val2);
-out:
-	return -EINVAL;
-}
-
-static DEVICE_ATTR(isp_asus_awb_control, S_IRUGO | S_IWUSR, m10mo_asus_awb_control_read, NULL);
-
-
-static ssize_t m10mo_asus_awb_control_read_set(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "\n\
-		set ASUS AWB balance CONTROL read Byte\n");
-}
-
-static DEVICE_ATTR(isp_asus_awb_control_set, S_IRUGO | S_IWUSR, m10mo_asus_awb_control_read_set, NULL);
-
-
-static ssize_t m10mo_exif_info_exptime_read(struct device *dev, struct device_attribute *attr, char *buf)
-{
-    	u32 reg_val[2],ret;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-#if 0
-Unit : numerator / denominator (sec)
-*For Example
-
-numerator = 600(0x0000258)
-denominator = 20000(0x00004E20)
-600 / 2000 = 0.03sec
-0x0000000 -> 30ms
-#endif
-    	ret = m10mo_readl(&m10mo_dev->sd, CATEGORY_EXIF, EXIF_INFO_EXPTIME_NU, &reg_val[0]);
-        if(ret)
-            goto out;
-    	ret = m10mo_readl(&m10mo_dev->sd, CATEGORY_EXIF, EXIF_INFO_EXPTIME_DE, &reg_val[1]);
-        if(ret)
-            goto out;
-
-	printk( "exif_info_exptime.\n\
-		 numerator = %x\n \
-		 denominatorF = %x\n \
-		exposure time = %x\n", reg_val[0],reg_val[1],reg_val[0]/reg_val[1]);
-
-	return scnprintf(buf, PAGE_SIZE, "\n\
-		 exif_info_exptime.\n\
-		 numerator = %x\n \
-		 denominatorF = %x\n\
-		 exposure time = 0x%x\n" , reg_val[0],reg_val[1],reg_val[0]/reg_val[1]);
-out:
-	return -EINVAL;
-}
-
-
-static DEVICE_ATTR(isp_exif_info_exptime, S_IRUGO | S_IWUSR, m10mo_exif_info_exptime_read, NULL);
-
-
-
-static ssize_t m10mo_exif_info_iso_read(struct device *dev, struct device_attribute *attr, char *buf)
-{
-    	u32 reg_val,ret;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-    	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_EXIF, EXIF_INFO_ISO, &reg_val);
-        if(ret)
-            goto out;
-
-	printk( "exif_info_ISO = %x\n", reg_val);
-
-	return scnprintf(buf, PAGE_SIZE, "\n\
-		 exif_info_ISO = %x\n" , reg_val);
-out:
-	return -EINVAL;
-}
-
-
-static DEVICE_ATTR(isp_exif_info_iso, S_IRUGO | S_IWUSR, m10mo_exif_info_iso_read, NULL);
-
-static ssize_t m10mo_read_power_ctrl(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-	printk("@%s %d, \n", __func__, __LINE__);
-	return scnprintf(buf, PAGE_SIZE, "m10mo_boot_state is %d, power is %d, m10mo_trace_log_lock is %d \n", m10mo_boot_state, m10mo_dev->power, m10mo_trace_log_lock);
-}
-
-
-static ssize_t m10mo_write_power_ctrl(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-	u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-	mutex_lock(&m10mo_dev->input_lock);
-	sscanf(buf, "%d", &val);
-    (void) m10mo_s_power_fac(val);
-	mutex_unlock(&m10mo_dev->input_lock);
-
-	return len;
-}
-static DEVICE_ATTR(m10mo_power_ctrl, S_IRUGO | S_IWUSR, m10mo_read_power_ctrl, m10mo_write_power_ctrl);
-
-static ssize_t m10mo_debug_password_read(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-	printk("@%s %d, \n", __func__, __LINE__);
-	return scnprintf(buf, PAGE_SIZE, "password_debug is 0x%x \n", password_debug);
-}
-
-static ssize_t m10mo_debug_password_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-	sscanf(buf, "%x", &password_debug);
-    return len;
-}
-
-static DEVICE_ATTR(m10mo_debug_password, S_IRUGO | S_IWUSR, m10mo_debug_password_read, m10mo_debug_password_write);
-
-static ssize_t m10mo_optical_zoom_cur_read(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_MONITOR, OPTICAL_ZOOM_CR, &val);
-	if (ret)
-        return -EINVAL;
-
-    printk("@%s %d, optical zoom cur = %d\n", __func__, __LINE__, val);
-	return scnprintf(buf, PAGE_SIZE, "optical zoom cur = %d\n", val);
-}
-
-static DEVICE_ATTR(isp_optical_zoom_cur, S_IRUGO | S_IWUSR, m10mo_optical_zoom_cur_read, NULL);
-
-static ssize_t m10mo_optical_zoom_read(struct device *dev,	struct device_attribute *attr, char *buf)
-{
-    int ret = 0;
-    u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
-	if (ret)
-        return -EINVAL;
-
-    printk("@%s %d, optical zoom position = %d\n", __func__, __LINE__, val);
-	return scnprintf(buf, PAGE_SIZE, "optical zoom position = %d\n", val);
-}
-static ssize_t m10mo_optical_zoom_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
-{
-    	int ret = 0;
-    	u32 val;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-	sscanf(buf, "%x", &val);
-    		if(val < 33 && val > 0){
-        		ret = m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_START_OPTICAL_ZOOM, &val);
-        		if (ret) return ret;
-    		}else
-		        return len;
-
-        return len;
-}
-static DEVICE_ATTR(isp_optical_zoom, S_IRUGO | S_IWUSR, m10mo_optical_zoom_read, m10mo_optical_zoom_write);
-
 static ssize_t m10mo_apk_capture_mode_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
     u32 val;
@@ -6491,7 +4123,7 @@ static ssize_t m10mo_home_searching_write(struct device *dev, struct device_attr
 	sscanf(buf, "%x", &val);
 
     (void)__m10mo_param_mode_set(&m10mo_dev->sd);
-    (void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_HEAD_HALF_HOME_SEARCHING_MODE, NULL);
+    (void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_HOME_SEARCHING_MODE, NULL);
     printk("@%s %d, home_searching done.\n", __func__, __LINE__);
 
 	return len;
@@ -7395,53 +5027,6 @@ static ssize_t m10mo_pr_led_write(struct device *dev, struct device_attribute *a
 }
 static DEVICE_ATTR(isp_pr_led, S_IRUGO | S_IWUSR, m10mo_pr_led_read, m10mo_pr_led_write);
 
-
-static ssize_t m10mo_led_status_read(struct device *dev, struct device_attribute *attr, char *buf)
-{
-    	u32 reg_data, reg_status,ret;
-	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
-
-
-
-	//set address
-    	ret = m10mo_writeb(&m10mo_dev->sd, CATEGORY_ASUS, LED_ERROR_ADDR, 0x09);
-        if(ret)
-            goto out;
-
-	//read data from sky81296
-    	ret = m10mo_writeb(&m10mo_dev->sd, CATEGORY_TEST, LED_ERROR_WRITE_READ_TRIG, 0x1);
-        if(ret)
-            goto out;
-
-	//get data from m10mo
-    	ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, LED_ERROR_DATA, &reg_data);
-        if(ret)
-            goto out;
-
-
-	//get status from m10mo
-    	ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, LED_ERROR_STATUS, &reg_status);
-        if(ret)
-            goto out;
-
-	printk("@%s %d, addr = 0x09\n", __func__, __LINE__);
-	printk("@%s %d, data = %x\n", __func__, __LINE__, reg_data);
-	printk("@%s %d, status = %x\n", __func__, __LINE__, reg_status);
-
-
-	return scnprintf(buf, PAGE_SIZE, "\n\
-		 addr = 0x09\n \
-		 data = %x\n \
-		 status = %x\n", reg_data, reg_status);
-out:
-	return -EINVAL;
-}
-
-
-static DEVICE_ATTR(isp_led_status, S_IRUGO | S_IWUSR, m10mo_led_status_read, NULL);
-
-
-
 static ssize_t m10mo_maunal_focus_ctrl_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
     	u32 reg_val,ret;
@@ -7463,12 +5048,14 @@ out:
 
 static ssize_t m10mo_maunal_focus_ctrl_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
-    	u32 reg_val;
+    u32 reg_val;
 	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
 
 	sscanf(buf, "%x", &reg_val);
 
-    	(void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_MANUAL_FOCUS, &reg_val);
+	(void) m10mo_writew(&m10mo_dev->sd, CATEGORY_TEST, MANUAL_FOCUS_CTRL_H, reg_val);
+    	printk("@%s %d, MANUAL_FOCUS_CTRL %x\n", __func__, __LINE__, reg_val);
+
 
 	return len;
 }
@@ -7497,11 +5084,14 @@ out:
 
 static ssize_t m10mo_maunal_zoom_ctrl_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
-    	u32 reg_val;
+    u32 reg_val;
 	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
 
 	sscanf(buf, "%x", &reg_val);
-    	(void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_MANUAL_ZOOM, &reg_val);
+
+	(void) m10mo_writew(&m10mo_dev->sd, CATEGORY_TEST, MANUAL_ZOOM_CTRL_H, reg_val);
+    	printk("@%s %d, MANUAL_ZOOM_CTRL_H %x\n", __func__, __LINE__, reg_val);
+
 
 	return len;
 }
@@ -7740,14 +5330,11 @@ out:
 
 static ssize_t m10mo_af_start_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
-    u32 val;//,timeout=0;
+    u32 val;
 	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
 
 	sscanf(buf, "%x", &val);
-	if(val == 0x13){
-		(void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_START_AF, NULL);
-		return len;
-	}else if(val == 0x9 || val == 0x14){
+	if(val == 0x9 || val == 0x13 || val == 0x14){
 		(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LENS, AF_START, val);
     		printk("@%s %d, af_start %x\n", __func__, __LINE__, val);
 		return len;
@@ -7758,6 +5345,7 @@ static ssize_t m10mo_af_start_write(struct device *dev, struct device_attribute 
 
 }
 static DEVICE_ATTR(isp_af_start, S_IRUGO | S_IWUSR, m10mo_af_start_read, m10mo_af_start_write);
+
 
 
 static ssize_t m10mo_af_operation_result_read(struct device *dev, struct device_attribute *attr, char *buf)
@@ -7873,48 +5461,6 @@ static ssize_t m10mo_asus_exposure_control_read(struct device *dev, struct devic
             		goto out;
 		printk("@%s %d, ASUS_FACTORY_MODE = %x\n", __func__, __LINE__, reg_val);
 	break;
-	case ASUS_ZOOM_CANCEL:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_ZOOM_CANCEL, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_ZOOM_CANCEL = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_FOCUS_CANCEL:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_FOCUS_CANCEL, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_FOCUS_CANCEL = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_FLASH_NEEDED:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_FLASH_NEEDED, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_FLASH_NEEDED = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_FOCUS_RESULT:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_FOCUS_RESULT, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_FOCUS_RESULT = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_3A_LOCK:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_3A_LOCK, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_3A_LOCK = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_BATTERY_CAPACITY:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_BATTERY_CAPACITY, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_BATTERY_CAPACITY = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_EFFECT:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_EFFECT, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_EFFECT = %x\n", __func__, __LINE__, reg_val);
-	break;
 	case ASUS_ISO:
 		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_ISO, &reg_val);
         	if(ret)
@@ -7969,41 +5515,11 @@ static ssize_t m10mo_asus_exposure_control_read(struct device *dev, struct devic
             		goto out;
 		printk("@%s %d, ASUS_TOUCH_POSITION_Y = %x\n", __func__, __LINE__, reg_val);
 	break;
-	case ASUS_FULL_SEARCH_TARGET:
-		ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_FULL_SEARCH_TARGET, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_FULL_SEARCH_TARGET = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_FULL_SEARCH_RANGE:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_FULL_SEARCH_RANGE, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_FULL_SEARCH_RANGE = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_FULL_SEARCH_STEP:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_FULL_SEARCH_STEP, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_FULL_SEARCH_STEP = %x\n", __func__, __LINE__, reg_val);
-	break;
 	case ASUS_LONG_EXP_CAP:
 		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_LONG_EXP_CAP, &reg_val);
         	if(ret)
             		goto out;
 		printk("@%s %d, ASUS_LONG_EXP_CAP = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_AUTOLL:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_AUTOLL, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_AUTOLL = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case ASUS_AT_SCENE:
-		ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_AT_SCENE, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, ASUS_AT_SCENE = %x\n", __func__, __LINE__, reg_val);
 	break;
 	case ASUS_TOUCH_ROI_LEFT_UPPER_X:
 		ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_TOUCH_ROI_LEFT_UPPER_X, &reg_val);
@@ -8184,24 +5700,6 @@ static ssize_t m10mo_asus_exposure_control_read(struct device *dev, struct devic
         	if(ret)
             		goto out;
 		printk("@%s %d, ASUS_AWB_DEBUG15 = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case LED_ERROR_ADDR:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, LED_ERROR_ADDR, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, LED_ERROR_ADDR = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case LED_ERROR_STATUS:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, LED_ERROR_STATUS, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, LED_ERROR_STATUS = %x\n", __func__, __LINE__, reg_val);
-	break;
-	case LED_ERROR_DATA:
-		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_ASUS, LED_ERROR_DATA, &reg_val);
-        	if(ret)
-            		goto out;
-		printk("@%s %d, LED_ERROR_DATA = %x\n", __func__, __LINE__, reg_val);
 	break;
 	case ASUS_INFINITY_OFFSET:
 		ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_ASUS, ASUS_INFINITY_OFFSET, &reg_val);
@@ -8489,8 +5987,6 @@ static ssize_t m10mo_asus_exposure_control_write(struct device *dev, struct devi
 	sscanf(buf, "%x %x", &val[0], &val[1]);
 	if(ASUS_TOUCH_POSITION_X == val[0] ||\
 	   ASUS_TOUCH_POSITION_Y == val[0] ||\
-	   ASUS_FULL_SEARCH_TARGET == val[0] ||\
-	   ASUS_AT_SCENE == val[0] ||\
 	   ASUS_TOUCH_ROI_LEFT_UPPER_X == val[0] ||\
 	   ASUS_TOUCH_ROI_LEFT_UPPER_Y == val[0] ||\
 	   ASUS_TOUCH_WIDTH == val[0] ||\
@@ -8562,9 +6058,7 @@ static ssize_t m10mo_read_calibration_data(struct device *dev, struct device_att
 			arg4: data1\n\
 			arg5: data2\n\
 			arg6: data3\n");
-	printk("@%s %d,start read calibration!\n",__func__, __LINE__);
 
-    if(m10mo_dev->fadj_command == 0x01 || m10mo_dev->fadj_command == 0x02 || m10mo_dev->fadj_command == 0x04){
 
     	(void)__m10mo_param_mode_set(&m10mo_dev->sd);
 	(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_FLASH_MODE, 0x01);
@@ -8574,7 +6068,8 @@ static ssize_t m10mo_read_calibration_data(struct device *dev, struct device_att
 	} while ((res != 0) && --timeout);
 
 	if (!timeout) {
-		printk("@%s %d,timeout while waiting for chip op to finish\n", __func__, __LINE__);
+		printk("timeout while waiting for chip op to finish\n");
+    		(void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_MONITOR_MODE_ZSL_REQUEST_CMD, NULL);
 		return 0;
 	}
 	(void) m10mo_writew(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_OFFSET_H, m10mo_dev->fadj_offset);
@@ -8638,14 +6133,14 @@ static ssize_t m10mo_read_calibration_data(struct device *dev, struct device_att
 			arg6: data3\n\n \
 			command %x offset %x data0=%x data1=%x data2=%x data3=%x\n", m10mo_dev->fadj_command,m10mo_dev->fadj_offset,reg_val[0], reg_val[1],reg_val[2], reg_val[3]);
 	    break;
+	    default:
+		printk("wrong comand %x\n",m10mo_dev->fadj_command);
+    		(void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_MONITOR_MODE_ZSL_REQUEST_CMD, NULL);
+		return 0;
+	    break;
 	}
     	(void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_MONITOR_MODE_ZSL_REQUEST_CMD, NULL);
-	printk("@%s %d,finish read calibration!\n",__func__, __LINE__);
 	return ret;
-    }else{
-	printk("@%s %d, command %x is not read command\n", __func__, __LINE__,m10mo_dev->fadj_command);
-	return -1;
-    }
 }
 
 
@@ -8657,34 +6152,31 @@ static ssize_t m10mo_write_calibration_data(struct device *dev, struct device_at
 
 	sscanf(buf, "%x %x %x %x %x %x", &m10mo_dev->fadj_command, &m10mo_dev->fadj_offset, &reg_val[0], &reg_val[1], &reg_val[2], &reg_val[3]);
 
-	printk("@%s %d,start write calibration!\n",__func__, __LINE__);
 
+    	(void)__m10mo_param_mode_set(&m10mo_dev->sd);
+
+	(void) m10mo_writew(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_OFFSET_H, m10mo_dev->fadj_offset);
 	switch(m10mo_dev->fadj_command){
 	    case 0x09://1 byte write
-		if(CacCalibrationStatus == false)(void)__m10mo_param_mode_set(&m10mo_dev->sd);
-		(void) m10mo_writew(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_OFFSET_H, m10mo_dev->fadj_offset);
 		(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_DATA_BYTE0, reg_val[0]);
 	    break;
 	    case 0x0a://2 byte write
-		if(CacCalibrationStatus == false)(void)__m10mo_param_mode_set(&m10mo_dev->sd);
-		(void) m10mo_writew(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_OFFSET_H, m10mo_dev->fadj_offset);
 		(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_DATA_BYTE0, reg_val[0]);
 		(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_DATA_BYTE1, reg_val[1]);
 	    break;
 	    case 0x0c://4 byte write
-		if(CacCalibrationStatus == false)(void)__m10mo_param_mode_set(&m10mo_dev->sd);
-		(void) m10mo_writew(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_OFFSET_H, m10mo_dev->fadj_offset);
 		(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_DATA_BYTE0, reg_val[0]);
 		(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_DATA_BYTE1, reg_val[1]);
 		(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_DATA_BYTE2, reg_val[2]);
 		(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_DATA_BYTE3, reg_val[3]);
 	    break;
 	    default:
+		printk("set command=%x offset=%x\n",m10mo_dev->fadj_command, m10mo_dev->fadj_offset);
 		ret = 1;
 	    break;
 	}
 	if(ret == 1){
-		printk("@%s %d,set command=%x offset=%x\n",__func__, __LINE__,m10mo_dev->fadj_command, m10mo_dev->fadj_offset);
+		(void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_MONITOR_MODE_ZSL_REQUEST_CMD, NULL);
 		return len;
 	}
 	(void) m10mo_writeb(&m10mo_dev->sd, CATEGORY_LOGLEDFLASH, FADJ_RW_MODE, m10mo_dev->fadj_command);
@@ -8696,11 +6188,11 @@ static ssize_t m10mo_write_calibration_data(struct device *dev, struct device_at
 	} while ((res != 0) && --timeout);
 
 	if (!timeout) {
-		printk("@%s %d,timeout while waiting for chip op to finish\n",__func__, __LINE__);
+		printk("timeout while waiting for chip op to finish\n");
+    	        (void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_MONITOR_MODE_ZSL_REQUEST_CMD, NULL);
 		return len;
 	}
-	printk("@%s %d,finish write calibration!\n",__func__, __LINE__);
-	if(CacCalibrationStatus == false)
+	printk("flash done\n");
     	(void) m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_MONITOR_MODE_ZSL_REQUEST_CMD, NULL);
 	return len;
 
@@ -8736,29 +6228,167 @@ static ssize_t m10mo_write_SHD_calibration_data(struct device *dev, struct devic
 }
 static DEVICE_ATTR(isp_fw_SHD_RW, S_IRUGO | S_IWUSR, m10mo_read_SHD_calibration_data, m10mo_write_SHD_calibration_data);
 
-static ssize_t m10mo_open_m10mo_fac(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
+
+
+
+static ssize_t m10mo_asus_awb_control_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    	u32 val=0;
+    	u32 reg_val,ret;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
 
-	sscanf(buf, "%x", &val);
+	printk( "ASUS AWB balance CONTROL \n \
+			Byte 71: AWB_DEBUG1 \n \
+			Byte 72: AWB_DEBUG2 \n \
+			Byte 73: AWB_DEBUG3 \n \
+			Byte 74: AWB_DEBUG4 \n \
+			Byte 75: AWB_DEBUG5 \n \
+			Byte 76: AWB_DEBUG6 \n \
+			Byte 77: AWB_DEBUG7 \n \
+			Byte 78: AWB_DEBUG8 \n \
+					\n");
 
-	if(val == 0){
-    	    (void) m10mo_s_power_fac(0);
-	    CacCalibrationStatus = false;
-	}else{
-	    CacCalibrationStatus = true;
-    	    (void) m10mo_s_power_fac(1);
+	switch(m10mo_dev->asus_awb_control_mode){
+
+	case REG_AWB_DEBUG1:
+		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG1, &reg_val);
+        	if(ret)
+            		goto out;
+		printk("@%s %d, REG_AWB_DEBUG1 = %x\n", __func__, __LINE__, reg_val);
+	break;
+	case REG_AWB_DEBUG2:
+		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG2, &reg_val);
+        	if(ret)
+            		goto out;
+		printk("@%s %d, REG_AWB_DEBUG2 = %x\n", __func__, __LINE__, reg_val);
+	break;
+	case REG_AWB_DEBUG3:
+		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG3, &reg_val);
+        	if(ret)
+            		goto out;
+		printk("@%s %d, REG_AWB_DEBUG3 = %x\n", __func__, __LINE__, reg_val);
+	break;
+	case REG_AWB_DEBUG4:
+		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG4, &reg_val);
+        	if(ret)
+            		goto out;
+		printk("@%s %d, REG_AWB_DEBUG4 = %x\n", __func__, __LINE__, reg_val);
+	break;
+	case REG_AWB_DEBUG5:
+		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG5, &reg_val);
+        	if(ret)
+            		goto out;
+		printk("@%s %d, REG_AWB_DEBUG5 = %x\n", __func__, __LINE__, reg_val);
+	break;
+	case REG_AWB_DEBUG6:
+		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG6, &reg_val);
+        	if(ret)
+            		goto out;
+		printk("@%s %d, REG_AWB_DEBUG6 = %x\n", __func__, __LINE__, reg_val);
+	break;
+	case REG_AWB_DEBUG7:
+		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG7, &reg_val);
+        	if(ret)
+            		goto out;
+		printk("@%s %d, REG_AWB_DEBUG7 = %x\n", __func__, __LINE__, reg_val);
+	break;
+	case REG_AWB_DEBUG8:
+		ret = m10mo_readb(&m10mo_dev->sd, CATEGORY_WB, REG_AWB_DEBUG8, &reg_val);
+        	if(ret)
+            		goto out;
+		printk("@%s %d, REG_AWB_DEBUG8 = %x\n", __func__, __LINE__, reg_val);
+	break;
+	default:
+		printk("@%s %d, Category error = %x\n", __func__, __LINE__, m10mo_dev->asus_awb_control_mode);
+	break;
 	}
-	return len;
-}
-static DEVICE_ATTR(isp_fw_power_fac, S_IRUGO | S_IWUSR, NULL, m10mo_open_m10mo_fac);
-#endif
 
-static ssize_t m10mo_isp_update_status(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%x", isp_update_status);;
+
+	return scnprintf(buf, PAGE_SIZE, "\n\
+		ASUS AWB balance CONTROL \n \
+			Byte 71: AWB_DEBUG1 \n \
+			Byte 72: AWB_DEBUG2 \n \
+			Byte 73: AWB_DEBUG3 \n \
+			Byte 74: AWB_DEBUG4 \n \
+			Byte 75: AWB_DEBUG5 \n \
+			Byte 76: AWB_DEBUG6 \n \
+			Byte 77: AWB_DEBUG7 \n \
+			Byte 78: AWB_DEBUG8 \n\n\n \
+					 \
+			ASUS AWB balance CONTROL Byte = %x data = %x\n", m10mo_dev->asus_awb_control_mode, reg_val);
+out:
+	return -EINVAL;
 }
-static DEVICE_ATTR(isp_update_status, S_IRUGO | S_IWUSR, m10mo_isp_update_status, NULL);
+
+static DEVICE_ATTR(isp_asus_awb_control, S_IRUGO | S_IWUSR, m10mo_asus_awb_control_read, NULL);
+
+
+static ssize_t m10mo_asus_awb_control_read_set(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "\n\
+		set ASUS AWB balance CONTROL read Byte\n");
+}
+
+static DEVICE_ATTR(isp_asus_awb_control_set, S_IRUGO | S_IWUSR, m10mo_asus_awb_control_read_set, NULL);
+
+
+static ssize_t m10mo_exif_info_exptime_read(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    	u32 reg_val[2],ret;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+#if 0
+Unit : numerator / denominator (sec)
+*For Example
+
+numerator = 600(0x0000258)
+denominator = 20000(0x00004E20)
+600 / 2000 = 0.03sec
+0x0000000 -> 30ms
+#endif
+    	ret = m10mo_readl(&m10mo_dev->sd, CATEGORY_EXIF, EXIF_INFO_EXPTIME_NU, &reg_val[0]);
+        if(ret)
+            goto out;
+    	ret = m10mo_readl(&m10mo_dev->sd, CATEGORY_EXIF, EXIF_INFO_EXPTIME_DE, &reg_val[1]);
+        if(ret)
+            goto out;
+
+	printk( "exif_info_exptime.\n\
+		 numerator = %x\n \
+		 denominatorF = %x\n \
+		exposure time = %x\n", reg_val[0],reg_val[1],reg_val[0]/reg_val[1]);
+
+	return scnprintf(buf, PAGE_SIZE, "\n\
+		 exif_info_exptime.\n\
+		 numerator = %x\n \
+		 denominatorF = %x\n\
+		 exposure time = 0x%x\n" , reg_val[0],reg_val[1],reg_val[0]/reg_val[1]);
+out:
+	return -EINVAL;
+}
+
+
+static DEVICE_ATTR(isp_exif_info_exptime, S_IRUGO | S_IWUSR, m10mo_exif_info_exptime_read, NULL);
+
+
+
+static ssize_t m10mo_exif_info_iso_read(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    	u32 reg_val,ret;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+    	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_EXIF, EXIF_INFO_ISO, &reg_val);
+        if(ret)
+            goto out;
+
+	printk( "exif_info_ISO = %x\n", reg_val);
+
+	return scnprintf(buf, PAGE_SIZE, "\n\
+		 exif_info_ISO = %x\n" , reg_val);
+out:
+	return -EINVAL;
+}
+
+
+static DEVICE_ATTR(isp_exif_info_iso, S_IRUGO | S_IWUSR, m10mo_exif_info_iso_read, NULL);
 
 
 static int m10mo_ispd1(struct m10mo_device *dev)
@@ -8920,10 +6550,139 @@ leave:
 
 static DEVICE_ATTR(isp_log, S_IRUGO | S_IWUSR, NULL, m10mo_isp_log_store);
 
+static ssize_t m10mo_digital_zoom_read(struct device *dev,	struct device_attribute *attr, char *buf)
+{
+    int ret = 0;
+    u32 val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_MONITOR, DIGIT_ZOOM, &val);
+	if (ret)
+        return -EINVAL;
+
+    printk("@%s %d, digital zoom position = %d\n", __func__, __LINE__, val);
+	return scnprintf(buf, PAGE_SIZE, "digital zoom position = %d\n", val);
+}
+static ssize_t m10mo_digital_zoom_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
+{
+    int ret = 0;
+    u32 val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	sscanf(buf, "%x", &val);
+    printk("@%s %d, digital zoom position %d\n", __func__, __LINE__, val);
+
+    if(0x0 < val && val < 0x20 ){
+        ret = m10mo_request_cmd_effect(&m10mo_dev->sd, M10MO_START_DIGITAL_ZOOM, &val);
+        if (ret < 0)
+            return ret;
+        return len;
+    }else{
+	    	printk("@%s %d, wrong zoom position %d\n", __func__, __LINE__, val);
+		return -EINVAL;
+	}
+
+
+}
+static DEVICE_ATTR(isp_digital_zoom, S_IRUGO | S_IWUSR, m10mo_digital_zoom_read, m10mo_digital_zoom_write);
+
+static ssize_t m10mo_i2c_debug_byte_write_cat(struct device *dev,	struct device_attribute *attr, char *buf)
+{
+    int ret = 0;
+    u32 val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
+	if (ret)
+        return -EINVAL;
+
+    printk("@%s %d, zoom step = %d\n", __func__, __LINE__, val);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+static ssize_t m10mo_i2c_debug_byte_write_echo(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
+{
+    int ret = 0;
+    u8 cat, reg_addr;
+	u32 val, reg_val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	sscanf(buf, "%x", &val);
+    reg_val  = val & 0xFF;
+	reg_addr = (val >> 8) & 0xFF;
+	cat      = (val >> 16) & 0xFF;
+    printk(KERN_INFO "ASUSBSP --- @m10mo_i2c_debug_byte_write_echo, cat is 0x%x, reg_addr is 0x%x, reg_val is 0x%x \n",
+                                  cat, reg_addr, reg_val);
+
+    ret = m10mo_writeb(&m10mo_dev->sd, cat, reg_addr, reg_val);
+    if (!ret){
+	    printk(KERN_INFO "ASUSBSP --- @m10mo_i2c_debug_byte_write_echo \n");
+        return len;
+	}else{
+	    return -EINVAL;
+    }
+}
+static DEVICE_ATTR(m10mo_i2c_debug_byte_write, S_IRUGO | S_IWUSR, m10mo_i2c_debug_byte_write_cat, m10mo_i2c_debug_byte_write_echo);
+static ssize_t m10mo_debug_state_read(struct device *dev,	struct device_attribute *attr, char *buf)
+{
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	printk("@%s %d, \n", __func__, __LINE__);
+	return scnprintf(buf, PAGE_SIZE, "dev->requested_cmd is %d, dev->cmd is %d, m10mo_capture_pre_flag is %d \n", m10mo_dev->requested_cmd, m10mo_dev->cmd, m10mo_capture_pre_flag);
+}
+
+static ssize_t m10mo_debug_state_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
+{
+	u32 val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	sscanf(buf, "%d", &val);
+    m10mo_dev->cmd = val;
+
+    return len;
+}
+static DEVICE_ATTR(m10mo_i2c_debug_state, S_IRUGO | S_IWUSR, m10mo_debug_state_read, m10mo_debug_state_write);
+
+static ssize_t m10mo_i2c_debug_byte_read_cat(struct device *dev,	struct device_attribute *attr, char *buf)
+{
+    int ret = 0;
+    u32 val;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	ret = m10mo_readw(&m10mo_dev->sd, CATEGORY_MONITOR, OPTICAL_ZOOM, &val);
+	if (ret)
+        return -EINVAL;
+
+    printk("@%s %d, zoom step = %d\n", __func__, __LINE__, val);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+static ssize_t m10mo_i2c_debug_byte_read_echo(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
+{
+    int ret = 0;
+    u8 cat, reg_addr;
+	u32 val;
+	u32 reg_val = 0;
+	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
+
+	sscanf(buf, "%x", &val);
+//    reg_val  = val & 0xFF;
+	reg_addr = (val >> 8) & 0xFF;
+	cat      = (val >> 16) & 0xFF;
+    printk(KERN_INFO "ASUSBSP --- @m10mo_i2c_debug_byte_read_echo, cat is 0x%x, reg_addr is 0x%x \n",
+                                  cat, reg_addr);
+
+    ret = m10mo_readb(&m10mo_dev->sd, cat, reg_addr, &reg_val);
+    if (!ret){
+	    printk(KERN_INFO "ASUSBSP --- @m10mo_i2c_debug_byte_read_echo, reg_val is 0x%x\n", reg_val);
+        return len;
+	}else{
+	    return -EINVAL;
+    }
+}
+static DEVICE_ATTR(m10mo_i2c_debug_byte_read, S_IRUGO | S_IWUSR, m10mo_i2c_debug_byte_read_cat, m10mo_i2c_debug_byte_read_echo);
 
 static ssize_t m10mo_fw_version_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    u32 val=0;
+    u32 val=0, fw_version_val1=0, fw_version_val2=0;
 	int ret=0;
 	struct m10mo_device *m10mo_dev = dev_get_drvdata(dev);
 
@@ -8949,20 +6708,26 @@ static ssize_t m10mo_fw_version_read(struct device *dev, struct device_attribute
 
 	val = fw_version_val1;
 	val = val << 8 |  fw_version_val2;
-	printk(KERN_INFO "m10mo, FW version is %X%X-%x  \n", fw_version_val1, fw_version_val2,DIT_version);
+	printk(KERN_INFO "m10mo, FW version is %X%X  \n", fw_version_val1, fw_version_val2);
 
 leave:
 	mutex_unlock(&m10mo_dev->input_lock);
 
 	if (ret)
-		return scnprintf(buf, PAGE_SIZE, "0xfff0\n");
+		return scnprintf(buf, PAGE_SIZE, "0xffff\n");
 	else if(isFlashFwFail == true)
 		return scnprintf(buf, PAGE_SIZE, "0xffff\n");
 	else
-		return scnprintf(buf, PAGE_SIZE, "0x%x-%x\n", val,DIT_version);
+		return scnprintf(buf, PAGE_SIZE, "0x%x\n", val);
 }
+static ssize_t m10mo_fw_version_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
+{
+    u32 val;
+	sscanf(buf, "%x", &val);
 
-static DEVICE_ATTR(isp_fw_version, S_IRUGO | S_IWUSR, m10mo_fw_version_read, NULL);
+	return len;
+}
+static DEVICE_ATTR(isp_fw_version, S_IRUGO | S_IWUSR, m10mo_fw_version_read, m10mo_fw_version_write);
 
 static ssize_t m10mo_log_enable(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
@@ -8986,29 +6751,18 @@ static ssize_t m10mo_log_enable(struct device *dev, struct device_attribute *att
 static DEVICE_ATTR(m10mo_log_enable, S_IRUGO | S_IWUSR, NULL, m10mo_log_enable);
 
 static struct attribute *sysfs_attrs_ctrl[] = {
-	&dev_attr_isp_checksum.attr,
+	&dev_attr_isp_optical_zoom.attr,
 	&dev_attr_isp_flashfw.attr,
+	&dev_attr_isp_checksum.attr,
 	&dev_attr_isp_fw_dump.attr,
-	&dev_attr_isp_cali_data_dump.attr,
-	&dev_attr_isp_update_status.attr,
 	&dev_attr_isp_spi.attr,
 	&dev_attr_isp_fw_id.attr,
 	&dev_attr_isp_log.attr,
-    	&dev_attr_isp_fw_version.attr,
-    	&dev_attr_m10mo_log_enable.attr,
-    	&dev_attr_isp_fw_customer_project.attr,
-    	&dev_attr_isp_fw_debug.attr,
-	&dev_attr_isp_fw_default_flag.attr,
-	&dev_attr_m10mo_download_trace_log_when_time_out.attr,
-	&dev_attr_m10mo_asus_camera_flag.attr,
-	&dev_attr_isp_shading_table_checksum.attr,
-#ifndef ZX551ML_USER_BUILD //#ifdef CONFIG_ASUS_FACTORY_MODE
-	&dev_attr_isp_optical_zoom.attr,
 	&dev_attr_isp_digital_zoom.attr,
-	&dev_attr_m10mo_i2c_debug_byte_write_change_name_by_jevian.attr,
+	&dev_attr_m10mo_i2c_debug_byte_write.attr,
 	&dev_attr_m10mo_i2c_debug_state.attr,
 	&dev_attr_isp_apk_capture_mode.attr,
-	&dev_attr_m10mo_i2c_debug_byte_read_change_name_by_jevian.attr,
+	&dev_attr_m10mo_i2c_debug_byte_read.attr,
 	&dev_attr_isp_distortion_mode.attr,
 	&dev_attr_isp_flash1_test_brightness.attr,
 	&dev_attr_isp_flash2_test_brightness.attr,
@@ -9028,7 +6782,6 @@ static struct attribute *sysfs_attrs_ctrl[] = {
 	&dev_attr_isp_pr_led.attr,
 	&dev_attr_isp_maunal_focus_ctrl.attr,
 	&dev_attr_isp_maunal_zoom_ctrl.attr,
-	&dev_attr_isp_led_status.attr,
 	&dev_attr_isp_sensor_update_en.attr,
 	&dev_attr_isp_sensor_nr_en.attr,
 	&dev_attr_isp_af_start.attr,
@@ -9048,13 +6801,10 @@ static struct attribute *sysfs_attrs_ctrl[] = {
 	&dev_attr_isp_exif_info_iso.attr,
 	&dev_attr_isp_home_searching.attr,
 	&dev_attr_isp_fw_SHD_RW.attr,
-	&dev_attr_m10mo_power_ctrl.attr,
-	&dev_attr_m10mo_optical_zoom_cancel.attr,
-	&dev_attr_m10mo_auto_focus_cancel.attr,
-	&dev_attr_m10mo_debug_password.attr,
-	&dev_attr_isp_fw_iq_RW.attr,
-	&dev_attr_isp_fw_power_fac.attr,
-#endif
+    	&dev_attr_isp_fw_version.attr,
+    	&dev_attr_m10mo_log_enable.attr,
+    	&dev_attr_isp_fw_customer_project.attr,
+
 	NULL
 };
 
@@ -9088,8 +6838,6 @@ static int m10mo_probe(struct i2c_client *client,
 {
 	struct m10mo_device *dev;
 	struct camera_mipi_info *mipi_info = NULL;
-	struct proc_dir_entry* proc_entry_asus_camera;
-	void* dummy = NULL;
 	int ret;
 
 	if (!client->dev.platform_data) {
@@ -9123,32 +6871,13 @@ static int m10mo_probe(struct i2c_client *client,
 	dev->monitor_params.af_mode = AF_NORMAL;
 	dev->monitor_params.exe_mode = AF_STOP;
 	dev->asus_exposure_control_mode = 0;
+	dev->asus_awb_control_mode = 0;
 	dev->fadj_command = 0;
 	dev->fadj_offset = 0;
 	dev->disable_irq_flag = 0;
-	dev->wait_irq_flag = M10MO_IRQ_COMMAND_AVAILABDLE;
-	dev->m10mo_request_cmd_lock_flag = 0;
-    dev->lock_i2c_write_flag = 0;
-	dev->cancel_irq_flag = 0;
-	dev->front_camera_power = 0;
-	dev->m10mo_gpio_set_after_power_on_before_streaming_flag = 0;
-	dev->hal_to_driver_power_on = 0;
+	dev->wait_irq_flag = 0;
 
 	mutex_init(&dev->input_lock);
-	mutex_init(&dev->m10mo_request_cmd_lock);
-	mutex_init(&dev->m10mo_lens_work_lock);
-	wake_lock_init(&dev->m10mo_wake_lock, WAKE_LOCK_SUSPEND, "m10mo_wakelock");
-	wake_lock_init(&dev->m10mo_update_wake_lock, WAKE_LOCK_SUSPEND, "m10mo_update_wake_lock");
-//	mutex_init(&dev->m10mo_lens_state_machine_lock);
-
-	dev->lens_wq = create_singlethread_workqueue("m10mo_lens_wq");
-	dev->cancel_auto_focus_wq = create_singlethread_workqueue("m10mo_cancel_auto_focus_wq");
-	dev->cancel_optical_zoom_wq = create_singlethread_workqueue("m10mo_cancel_optical_zoom_wq");
-	dev->auto_update_wq = create_singlethread_workqueue("m10mo_auto_update_wq");
-	dev->gpio_set_m10mo_power_on_wq = create_singlethread_workqueue("gpio_set_m10mo_power_on_wq");
-    dev->gpio_set_check_if_m10mo_stream_on_wq = create_singlethread_workqueue("gpio_set_check_if_m10mo_stream_on_wq");
-//    dev->optical_zoom_wq = create_singlethread_workqueue("m10mo_optical_zoom_wq");
-//    dev->auto_focus_wq = create_singlethread_workqueue("m10mo_auto_focus_wq");
 
 	v4l2_i2c_subdev_init(&(dev->sd), client, &m10mo_ops);
 
@@ -9183,8 +6912,7 @@ static int m10mo_probe(struct i2c_client *client,
 	dev->sd.entity.ops = &m10mo_entity_ops;
 	dev->sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
 	dev->format.code = V4L2_MBUS_FMT_UYVY8_1X16;
-	dev->shot_mode = CAP_AUTO;
-    dev->lens_state_machine = LENS_IDLE;
+	dev->shot_mode = SHOT_MODE_AUTO;
 
 	ret = media_entity_init(&dev->sd.entity, 1, &dev->pad, 0);
 	if (ret)
@@ -9203,39 +6931,16 @@ static int m10mo_probe(struct i2c_client *client,
 	if (dev->pdata->spi_setup)
 		dev->pdata->spi_setup(&dev->pdata->spi_pdata, dev);
 	sdd = &dev->sd;
-
-	queue_delayed_work(dev->auto_update_wq, &auto_Update_fw_work, 0);
-
-	/* register switch device for m10mo information versions report */
-	m10mo_switch_dev.name = "camera";
-	m10mo_switch_dev.print_name = m10mo_switch_name;
-	if (switch_dev_register(&m10mo_switch_dev) < 0)
-		dev_err(&client->dev, "%s: fail to register m10mo switch\n", __func__);
-
-	proc_entry_asus_camera = proc_create_data("driver/asus_camera_open", 0660, NULL, &asus_camera_proc_fops, dummy);
-    proc_set_user(proc_entry_asus_camera, 1000, 1000);
-
 	return 0;
 
 out_sysfs_fail:
 	media_entity_cleanup(&dev->sd.entity);
-
 out_free_irq:
 #ifndef NOIRQ
 	free_irq(client->irq, &dev->sd);
 #endif
 out_free:
 	v4l2_device_unregister_subdev(&dev->sd);
-	destroy_workqueue(dev->lens_wq);
-	destroy_workqueue(dev->cancel_auto_focus_wq);
-	destroy_workqueue(dev->cancel_optical_zoom_wq);
-	destroy_workqueue(dev->auto_update_wq);
-	destroy_workqueue(dev->gpio_set_m10mo_power_on_wq);
-	destroy_workqueue(dev->gpio_set_check_if_m10mo_stream_on_wq);
-	wake_lock_destroy(&dev->m10mo_wake_lock);
-	wake_lock_destroy(&dev->m10mo_update_wake_lock);
-//  destroy_workqueue(dev->optical_zoom_wq);
-//	destroy_workqueue(dev->auto_focus_wq);
 	kfree(dev);
 	return ret;
 }
@@ -9270,6 +6975,7 @@ static __init int init_m10mo(void)
 		break;
 
 		case PROJ_ID_ZE500ML:
+		case PROJ_ID_ZR550ML:
 			pr_info("Project ID is NOT ZX550ML, M10MO exit...\n");
 			return 0;
 		break;
@@ -9292,19 +6998,18 @@ int m10mo_s_power_fac(int on)
 	struct m10mo_device *dev = to_m10mo_sensor(sdd);
 	int ret;
     struct i2c_client *client = v4l2_get_subdevdata(sdd);
-
-	printk(KERN_INFO "%s: on: %d \n", __func__, on);
+	u32 fw_version_val1, fw_version_val2;
     dev->m10mo_mode = M10MO_PARAMETER_MODE;
 	if (dev->power == on)
 		return 0;
 
-	dev->wait_irq_flag = M10MO_IRQ_COMMAND_AVAILABDLE;
+	dev->wait_irq_flag = 0;
 	if (on) {
 	    if(dev->disable_irq_flag){
 	        enable_irq(client->irq);
 			dev->disable_irq_flag = 0;
 		}
-//		dev->cmd = M10MO_POWERING_ON;
+		dev->cmd = M10MO_POWERING_ON;
 		ret = power_up(sdd);
 		if (ret)
 			return ret;
@@ -9314,15 +7019,17 @@ int m10mo_s_power_fac(int on)
 		if (ret)
 			goto startup_failure;
 
+
+		    printk("@%s %d scorpio aa\n", __func__, __LINE__);
 			ret = __m10mo_fw_start(sdd);
 			if (ret)
 				goto startup_failure;
 
-			//ret = m10mo_request_cmd_effect(sdd, M10MO_HEAD_HALF_HOME_SEARCHING_MODE, NULL);
+			ret = m10mo_request_cmd_effect(sdd, M10MO_HOME_SEARCHING_MODE, NULL);
 			//=== For debugging, to see the ISP FW version ===//
 			(void) m10mo_readb(sdd, 0x00, 0x02, &fw_version_val1);
 			(void) m10mo_readb(sdd, 0x00, 0x03, &fw_version_val2);
-			printk(KERN_INFO "m10mo, FW version is %X%X-%x  \n", fw_version_val1, fw_version_val2, DIT_version);
+            printk(KERN_INFO "m10mo, FW version is %X%X  \n", fw_version_val1, fw_version_val2);
 
 #ifdef CONFIG_ASUS_FACTORY_MODE
             //=== Only for factory, tell m10mo in fac image now! ===//
@@ -9331,7 +7038,6 @@ int m10mo_s_power_fac(int on)
 
 	} else {
         disable_irq(client->irq);
-		__m10mo_reset_irq_wait_status();
 		dev->disable_irq_flag = 1;
 		ret = power_down(sdd);
 		dev->power = 0;
@@ -9344,86 +7050,6 @@ startup_failure:
 	dev->power = 0;
 	return ret;
 }
-
-int m10mo_read_laser(u8 len, u8 category, u8 reg, u32 *val)
-{
-#if 1
-	struct i2c_client *client = v4l2_get_subdevdata(sdd);
-	struct m10mo_device *dev = to_m10mo_sensor(sdd);
-	unsigned char data[5];
-	struct i2c_msg msg[2];
-	unsigned char recv_data[len + 1];
-	int ret;
-
-	if(m10mo_trace_log_lock == DOWNLOADING) {
-        printk("@%s %d, m10mo_trace_log_lock is %d, so break here!\n", __func__, __LINE__, m10mo_trace_log_lock);
-		return -ENODEV;
-	}
-
-	if(dev->m10mo_mode == M10MO_PARAMETER_MODE) {
-	    printk("@%s %d, Laser value does not take effect during parameter mode, so break here!\n", __func__, __LINE__);
-		return -ENODEV;
-    }
-
-	if(dev->lens_state_machine != LENS_IDLE) {
-        printk("@%s %d, Laser value does not take effect if lens status is not free, so break here!\n", __func__, __LINE__);
-		return -ENODEV;
-	}
-
-	if(dev->lock_i2c_write_flag) {
-	    printk("@%s %d, Laser value does not take effect if m10mo is capturing, so break here!\n", __func__, __LINE__);
-		return -ENODEV;
-	}
-
-	if (!client->adapter)
-		return -ENODEV;
-
-	if (len != 1 && len != 2 && len != 4)	{
-		dev_err(&client->dev, "Wrong data size\n");
-		return -EINVAL;
-	}
-
-	msg[0].addr = client->addr;
-	msg[0].flags = 0;
-	msg[0].len = sizeof(data);
-	msg[0].buf = data;
-
-	data[0] = 5;
-	data[1] = M10MO_BYTE_READ;
-	data[2] = category;
-	data[3] = reg;
-    data[4] = len;
-
-	msg[1].addr = client->addr;
-	msg[1].flags = I2C_M_RD;
-	msg[1].len = len + 1;
-	msg[1].buf = recv_data;
-
-	/* isp firmware becomes stable during this time*/
-	usleep_range(200, 200);
-
-	ret = i2c_transfer(client->adapter, msg, 2);
-
-	if (ret == 2) {
-		if (len == 0x01)
-			*val = recv_data[1];
-		else if (len == 0x02)
-			*val = recv_data[1] << 8 | recv_data[2];
-		else
-			*val = recv_data[1] << 24 | recv_data[2] << 16
-				| recv_data[3] << 8 | recv_data[4];
-	}
-
-	printk("%s len :%d cat, reg, val: 0x%02x, 0x%02x, 0x%02x\n", __func__, len, category, reg, *val);
-	dev_dbg(&client->dev,
-		"%s len :%d cat, reg, val: 0x%02x, 0x%02x, 0x%02x\n",
-		__func__, len, category, reg, *val);
-
-	return (ret == 2) ? 0 : -EIO;
-#endif
-return 0;
-}
-
 int m10mo_read_fac(u8 len, u8 category, u8 reg, u32 *val)
 {
 #if 1
@@ -9433,10 +7059,6 @@ int m10mo_read_fac(u8 len, u8 category, u8 reg, u32 *val)
 	unsigned char recv_data[len + 1];
 	int ret;
 
-	if(m10mo_trace_log_lock == DOWNLOADING) {
-        printk("@%s %d, m10mo_trace_log_lock is %d, so break here!\n", __func__, __LINE__, m10mo_trace_log_lock);
-		return -ENODEV;
-	}
 	if (!client->adapter)
 		return -ENODEV;
 
@@ -9546,124 +7168,9 @@ int m10mo_write_fac(u8 len, u8 category, u8 reg, u32 val)
 		len, category, reg, val, (ret == 1) ? "OK" : "Error");
 	return ret == num_msg ? 0 : -EIO;
 }
-
-int m10mo_status_fac(void)
-{
-	struct m10mo_device *dev;
-        if (sdd == NULL) return 0;
-
-	dev = to_m10mo_sensor(sdd);
-        return dev->power;
-}
-
-#if 0
-static void inline m10mo_set_ois_mode(struct v4l2_subdev *sd, m10mo_ois_mode_t ois_mode) {
-    struct m10mo_device *dev = to_m10mo_sensor(sd);
-
-	mutex_lock(&dev->m10mo_ois_work_lock);
-
-	mutex_unlock(&dev->m10mo_ois_work_lock);
-}
-#endif
-
-static void gpio_set_check_if_m10mo_stream_on_work_routine(struct work_struct *ws) {
-
-    struct m10mo_device *dev;
-	dev = to_m10mo_sensor(sdd);
-	printk(KERN_INFO "@%s %d, Start. \n", __func__, __LINE__);
-	if(mutex_is_locked(&dev->input_lock))
-	    return;
-
-    if(!dev->hal_to_driver_power_on) {
-	    m10mo_s_power_fac(0);
-		m10mo_USB_status(0);
-    }
-	printk(KERN_INFO "@%s %d, End. \n", __func__, __LINE__);
-}
-
-static DECLARE_DELAYED_WORK(gpio_set_check_if_m10mo_stream_on_work, gpio_set_check_if_m10mo_stream_on_work_routine);
-
-static void gpio_set_m10mo_power_on_work_routine(struct work_struct *ws) {
-
-    struct m10mo_device *dev;
-	dev = to_m10mo_sensor(sdd);
-	printk(KERN_INFO "@%s %d, Start. \n", __func__, __LINE__);
-
-    if(dev->power
-	    || dev->front_camera_power)
-	    return;
-
-	if(mutex_is_locked(&dev->input_lock))
-	    return;
-
-	mutex_lock(&dev->input_lock);
-	dev->m10mo_gpio_set_after_power_on_before_streaming_flag = 1;
-	m10mo_USB_status(1);
-	__m10mo_s_power(sdd, 1, false);
-	queue_delayed_work(dev->gpio_set_check_if_m10mo_stream_on_wq, &gpio_set_check_if_m10mo_stream_on_work, msecs_to_jiffies(5000));
-	mutex_unlock(&dev->input_lock);
-	printk(KERN_INFO "@%s %d, End. \n", __func__, __LINE__);
-}
-
-static DECLARE_DELAYED_WORK(gpio_set_m10mo_power_on_work, gpio_set_m10mo_power_on_work_routine);
-
-void m10mo_gpio_set_power_on(void) {
-
-    struct m10mo_device *dev;
-	printk(KERN_INFO "@%s %d, Start. \n", __func__, __LINE__);
-	if(sdd == NULL)
-	    return;
-
-	dev = to_m10mo_sensor(sdd);
-    if(dev == NULL)
-	    return;
-
-    if(dev->power
-	    || dev->front_camera_power)
-	    return;
-
-    queue_delayed_work(dev->gpio_set_m10mo_power_on_wq, &gpio_set_m10mo_power_on_work, 0);
-    printk(KERN_INFO "@%s %d, End. \n", __func__, __LINE__);
-}
-
-void notify_m10mo_front_camera_power_status(u8 power) {
-    struct m10mo_device *dev;
-	printk(KERN_INFO "@%s %d, Start. power is %d \n", __func__, __LINE__, power);
-	if(sdd == NULL)
-	    return;
-
-	dev = to_m10mo_sensor(sdd);
-    if(dev == NULL)
-	    return;
-
-	dev->front_camera_power = power;
-}
-
-int m10mo_s_power_for_ov5670(int on) {
-    struct m10mo_device *dev;
-	int ret;
-	dev = to_m10mo_sensor(sdd);
-	printk(KERN_INFO "@%s %d, Start. on is %d\n", __func__, __LINE__, on);
-	if(dev->m10mo_gpio_set_after_power_on_before_streaming_flag) {
-	    dev->m10mo_gpio_set_after_power_on_before_streaming_flag = 0;
-		m10mo_USB_status(0);
-	}
-
-	mutex_lock(&dev->input_lock);
-	ret = m10mo_s_power_fac(on);
-	mutex_unlock(&dev->input_lock);
-	printk(KERN_INFO "@%s %d, End. on is %d\n", __func__, __LINE__, on);
-	return ret;
-}
-
-EXPORT_SYMBOL(notify_m10mo_front_camera_power_status);
-EXPORT_SYMBOL(m10mo_gpio_set_power_on);
 EXPORT_SYMBOL(m10mo_write_fac);
-EXPORT_SYMBOL(m10mo_read_laser);
 EXPORT_SYMBOL(m10mo_read_fac);
 EXPORT_SYMBOL(m10mo_s_power_fac);
-EXPORT_SYMBOL(m10mo_s_power_for_ov5670);
-EXPORT_SYMBOL(m10mo_status_fac);
 module_init(init_m10mo);
 module_exit(exit_m10mo);
 

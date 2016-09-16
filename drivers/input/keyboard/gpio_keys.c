@@ -30,11 +30,6 @@
 #include <linux/of_gpio.h>
 #include <linux/spinlock.h>
 #include <linux/wakelock.h>
-#include <linux/HWVersion.h>
-#include <asm/intel-mid.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/m10mo.h>
 
 struct gpio_keys_drvdata;
 struct gpio_button_data {
@@ -365,13 +360,9 @@ static ssize_t gpio_keys_wakeup_enable(struct device *dev,
 	for (i = 0; i < pdata->nbuttons; i++) {
 		struct gpio_keys_button *button = &pdata->buttons[i];
 		if ((int)code == button->code){
-			if((Read_PROJ_ID() == PROJ_ID_ZX550ML && (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN))){
-				button->wakeup = 0;
-				printk("@%s: For ZX551ML, let key(%s) wakeup (%d)\n",__func__,button->desc,button->wakeup);
-			}else{
-				button->wakeup = enable_wakeup;
-			}
-		}if (button->wakeup)
+			button->wakeup = enable_wakeup;
+		}
+		if (button->wakeup)
 			wakeup = button->wakeup;
 	}
 
@@ -397,7 +388,6 @@ static ssize_t gpio_keys_show_wakeup(struct device *dev,
 {
 
 	int i, wakeup_volumeup_status = -1, wakeup_volumedown_status = -1, ret = -EINVAL;
-	int wakeup_camera_record_status = -1, wakeup_camera_status = -1;
 	long code;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
@@ -408,14 +398,10 @@ static ssize_t gpio_keys_show_wakeup(struct device *dev,
 			wakeup_volumeup_status = button->wakeup;
 		if (KEY_VOLUMEDOWN == button->code)
 			wakeup_volumedown_status = button->wakeup;
-		if (KEY_CAMERA_RECORD == button->code)
-			wakeup_camera_record_status = button->wakeup;
-		if (KEY_CAMERA == button->code)
-			wakeup_camera_status = button->wakeup;
 	}
 
-	ret = sprintf(buf, "%d %d %d %d\n",
-		wakeup_volumeup_status, wakeup_volumedown_status, wakeup_camera_record_status, wakeup_camera_status);
+	ret = sprintf(buf, "%d%d\n",
+		wakeup_volumeup_status, wakeup_volumedown_status);
 
 	return ret;
 }
@@ -488,23 +474,9 @@ static void gpio_keys_gpio_timer(unsigned long _data)
     if( state == 1 &&
         type == EV_KEY &&
 		button->wakeup == 1 &&
-        (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN\
-	|| button->code == KEY_CAMERA_RECORD || button->code == KEY_CAMERA) ){
-		if(!(Read_PROJ_ID() == PROJ_ID_ZX550ML && (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN))){
+        (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN) ){
 			wake_lock_timeout(&gpio_wake_lock, msecs_to_jiffies(2000));
 			printk("Instant Camera Keyevent (%d) pushed.\n",button->code);
-		}
-    }
-
-    if(Read_PROJ_ID() == PROJ_ID_ZX550ML) {
-	    if(state == 1 && type == EV_KEY && button->code == KEY_CAMERA) {
-		    printk(KERN_INFO "m10mo, gpio key to power on! \n");
-#ifdef CONFIG_VIDEO_M10MO
-		    (void) m10mo_gpio_set_power_on();
-#endif
-		    wake_lock_timeout(&gpio_wake_lock, msecs_to_jiffies(2000));
-    	}
-
     }
 
 	schedule_work(&bdata->work);
@@ -532,23 +504,20 @@ static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 		bdata->ddata->force_trigger = 0;
 	}
 
-	if (bdata->timer_debounce)
+	if (bdata->timer_debounce) {
 		mod_timer(&bdata->timer,
 			jiffies + msecs_to_jiffies(bdata->timer_debounce));
+	}
 	else{
             type = button->type ?: EV_KEY;
             if( state == 0 &&
                 type == EV_KEY &&
 		button->wakeup == 1 &&
-                (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN\
-		|| button->code == KEY_CAMERA_RECORD || button->code == KEY_CAMERA) ){
-            	if( !(Read_PROJ_ID() == PROJ_ID_ZX550ML && (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN))){
+                (button->code == KEY_VOLUMEUP || button->code == KEY_VOLUMEDOWN) ){
                      wake_lock_timeout(&gpio_wake_lock, msecs_to_jiffies(2000));
-                }
             }
-		schedule_work(&bdata->work);
-	}
-
+	 	    schedule_work(&bdata->work);
+    }
 	return IRQ_HANDLED;
 }
 
@@ -639,16 +608,12 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 				bdata->timer_debounce =
 						button->debounce_interval;
 		}
-#if !defined(CONFIG_ZS570ML)
-		if (button->code == KEY_VOLUMEDOWN || button->code == KEY_VOLUMEUP
-#ifdef CONFIG_VIDEO_M10MO
-		    || button->code == KEY_CAMERA_RECORD || button->code == KEY_CAMERA || button->code == KEY_CAMERA_FOCUS
-#endif
-			) {
+
+		if (button->code == KEY_VOLUMEDOWN || button->code == KEY_VOLUMEUP) {
 			bdata->timer_debounce =
 						button->debounce_interval;
 		}
-#endif
+
 		irq = gpio_to_irq(button->gpio);
 		if (irq < 0) {
 			error = irq;
@@ -924,8 +889,8 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	input_sync(input);
 
 	device_init_wakeup(&pdev->dev, wakeup);
-	wake_lock_init(&gpio_wake_lock, WAKE_LOCK_SUSPEND, "platform_gpio_wakelock");	// Fix tele can't Adjusting Volume
-																				 	// by BSP Camera 2016_1_28
+
+    wake_lock_init(&gpio_wake_lock, WAKE_LOCK_SUSPEND, "platform_gpio_wakelock");
 
 	return 0;
 

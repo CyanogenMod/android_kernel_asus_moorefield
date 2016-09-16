@@ -1,12 +1,12 @@
 #
 # Kconfig for sensor drivers
 #
-
+source "drivers/external_drivers/camera/drivers/media/i2c/t4k37/Kconfig"
 source "drivers/external_drivers/camera/drivers/media/i2c/mt9e013/Kconfig"
 source "drivers/external_drivers/camera/drivers/media/i2c/ov5693/Kconfig"
 source "drivers/external_drivers/camera/drivers/media/i2c/imx/Kconfig"
 source "drivers/external_drivers/camera/drivers/media/i2c/imx135VB/Kconfig"
-source "drivers/external_drivers/camera/drivers/media/i2c/t4k37/Kconfig"
+source "drivers/external_drivers/camera/drivers/media/i2c/t4k35/Kconfig"
 
 config VIDEO_OV9724
        tristate "OVT ov9724 sensor support"
@@ -19,16 +19,6 @@ config VIDEO_OV9724
 
          It currently only works with the atomisp driver.
 
-config VIDEO_OV2685
-        tristate "OVT ov2685 sensor support"
-        depends on I2C && VIDEO_V4L2
-        ---help---
-          This is a Video4Linux2 sensor-level driver for the OVT
-          OV2685 soc camera.
-
-          OVT is a 2M soc sensor.
-
-          It currently only works with the atomisp driver.
 config VIDEO_OV2722
        tristate "OVT ov2722 sensor support"
        depends on I2C && VIDEO_V4L2
@@ -49,28 +39,11 @@ config VIDEO_M10MO
 	  It currently depends on internal V4L2 extensions defined in
 	  atomisp driver.
 
-          It currently only works with the atomisp driver.
-
-config VIDEO_M12MO
-	tristate "Fujitsu M12MO driver"
-	depends on I2C && VIDEO_V4L2
-	---help---
-	  This is a Video4Linux2 isp driver for the Fujitsu.
-
-	  It currently depends on internal V4L2 extensions defined in
-	  atomisp driver.
-
-          It currently only works with the atomisp driver.
-
 config VIDEO_M10MO_FAKE_SFI_TABLE
 	bool "Add fake SFI entry for Fujitsu M10MO on VV board + AOB"
 	depends on VIDEO_M10MO
 	---help---
 	  Enable this when working with VV board with Fujitsu AOB.
-
-	  This is FAKE SFI table.
-
-	  Please note:
 
 	  Not needed if device IFWI already has M10MO in the SFI table.
 
@@ -90,9 +63,7 @@ config VIDEO_OV8830
        depends on I2C && VIDEO_V4L2 && VIDEO_ATOMISP
        ---help---
          This is a Video4Linux2 sensor-level driver for the Omnivision
-         ov8830 RAW sensor.
-
-	 OV8830 is a 8M raw sensor.
+         ov8830 8MP RAW sensor.
 
          It currently only works with the atomisp driver.
 
@@ -101,9 +72,7 @@ config VIDEO_OV8858
        depends on I2C && VIDEO_V4L2 && VIDEO_ATOMISP
        ---help---
          This is a Video4Linux2 sensor-level driver for the Omnivision
-         ov8858 RAW sensor.
-
-	 OV8858 is a 8M raw sensor.
+         ov8858 8MP RAW sensor.
 
          It currently only works with the atomisp driver.
 
@@ -111,10 +80,7 @@ config VIDEO_CSI_XACTOR
         tristate "csi xactor"
         depends on I2C && VIDEO_V4L2 && VIDEO_ATOMISP
         ---help---
-          Use this if you need to send data through external csi data
-	  generator.
-
-	  CSI Xactor module.
+          Use this if you need to send data through external csi data generator
 
           To compile this driver as a module, choose M here.
 
@@ -164,8 +130,6 @@ config VIDEO_MT9M114
          mt9m114 1.3 Mpixel camera.
 
          mt9m114 is video camrea sensor.
-
-         It currently only works with the atomisp driver.
 config VIDEO_MT9V113
        tristate "Aptina mt9v113 sensor support"
        depends on I2C && VIDEO_V4L2
@@ -226,12 +190,7 @@ config VIDEO_PIXTER
        depends on I2C && VIDEO_V4L2
        ---help---
          This is a Video4Linux2 sensor-level driver for Pixter2+.
-
-	 Pixter 2+ MIPI CSI simulator.
-
          Pixter 2+ is a MIPI CSI simulator.
-
-         It currently only works with the atomisp driver.
 
 config VIDEO_OV680
        tristate "OV680 external ISP support"
@@ -254,7 +213,6 @@ config VIDEO_OV5670
          ov5670 is video camera sensor.
 
          It currently only works with the atomisp driver.
-
 #
 # Kconfig for flash drivers
 #
@@ -290,6 +248,7 @@ config VIDEO_LM3559
          To compile this driver as a module, choose M here: the
          module will be called lm3559
 
+
 config VIDEO_SKY81296
          tristate "SKY81296 flash light driver"
          depends on VIDEO_V4L2
@@ -309,23 +268,3 @@ config VIDEO_FLASHNODE
 
          To compile this driver as a module, choose M here: the
          module will be called flashnode
-
-config VL6180_LF
-         tristate "vl6180 laser focus driver"
-         depends on VIDEO_V4L2 && I2C
-         ---help---
-         This is a laser focus device driver for the VL6180.
-
-         To compile this driver as a module, choose M here: the
-
-config IO3730_FWUD
-         tristate "io3730 firmware update driver"
-         depends on VIDEO_V4L2 && I2C
-         ---help---
-         This is a laser focus device driver for the IO3730.
-
-         To compile this driver as a module, choose M here: the
-         module will be called IO3730
-         module will be called VL6180
-
-source "drivers/external_drivers/camera/drivers/media/i2c/LaserSensor/Kconfig"

@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "ia_css_frame.h"
@@ -24,10 +31,24 @@
 
 #include "ia_css_raw.host.h"
 
+void
+ia_css_raw_encode(
+	struct sh_css_isp_raw_params *to,
+	const struct ia_css_aa_config *from,
+	unsigned size)
+{
+	(void)size;
+	to->baf_strength = from->strength;
+}
 
-static const struct ia_css_raw_configuration default_config = {
-	.pipe = (struct sh_css_sp_pipeline *)NULL,
-};
+void
+ia_css_raw_dump(
+	const struct sh_css_isp_raw_params *raw,
+	unsigned level)
+{
+	(void)raw;
+	(void)level;
+}
 
 static inline unsigned
 sh_css_elems_bytes_from_info (unsigned raw_bit_depth)
@@ -93,21 +114,21 @@ ia_css_raw_config(
 
 #endif
 	ia_css_dma_configure_from_info(&to->port_b, in_info);
+	to->width_a_over_b = elems_a / to->port_b.elems;
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert((in_info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED) ||
-		   (elems_a % to->port_b.elems == 0));
+	assert (in_info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED ||
+		elems_a % to->port_b.elems == 0);
 
-	to->width_a_over_b      = elems_a / to->port_b.elems;
-	to->inout_port_config   = from->pipe->inout_port_config;
-	to->format              = in_info->format;
+	to->inout_port_config       = from->pipe->inout_port_config;
+	to->format = in_info->format;
 	to->required_bds_factor = from->pipe->required_bds_factor;
-	to->two_ppc             = from->two_ppc;
-	to->stream_format       = css2isp_stream_format(from->stream_format);
-	to->deinterleaved       = from->deinterleaved;
+	to->two_ppc = from->two_ppc;
+	to->stream_format = css2isp_stream_format(from->stream_format);
+	to->deinterleaved = from->deinterleaved;
 #if (defined(USE_INPUT_SYSTEM_VERSION_2401) || defined(CONFIG_CSI2_PLUS))
-	to->start_column        = in_info->crop_info.start_column;
-	to->start_line          = in_info->crop_info.start_line;
+	to->start_column = in_info->crop_info.start_column;
+	to->start_line = in_info->crop_info.start_line;
 	to->enable_left_padding = from->enable_left_padding;
 #endif
 }
@@ -122,15 +143,7 @@ ia_css_raw_configure(
 	bool deinterleaved)
 {
 	uint8_t enable_left_padding = (uint8_t)((binary->left_padding) ? 1 : 0);
-	struct ia_css_raw_configuration config = default_config;
-
-	config.pipe                = pipe;
-	config.in_info             = in_info;
-	config.internal_info       = internal_info;
-	config.two_ppc             = two_ppc;
-	config.stream_format       = binary->input_format;
-	config.deinterleaved       = deinterleaved;
-	config.enable_left_padding = enable_left_padding;
-
+	const struct ia_css_raw_configuration config =
+		{ pipe, in_info, internal_info, two_ppc, binary->input_format, deinterleaved, enable_left_padding};
 	ia_css_configure_raw(binary, &config);
 }

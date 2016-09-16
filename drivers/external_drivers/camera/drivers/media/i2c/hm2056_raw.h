@@ -38,7 +38,7 @@
 #include <linux/HWVersion.h>
 
 extern int Read_HW_ID(void);
-/* static unsigned int HW_ID = 0xFF; */
+//static unsigned int HW_ID = 0xFF;
 
 #define V4L2_IDENT_HM2056_RAW			8245
 #define HM2056_NAME				"hm2056_raw"
@@ -47,7 +47,7 @@ extern int Read_HW_ID(void);
 #define MSG_LEN_OFFSET				2
 #define MAX_FMTS				1
 
-/* registers */
+//registers
 #define HM2056_REG_CHIP_ID_H			0x0001
 #define HM2056_REG_CHIP_ID_L			0x0002
 
@@ -108,8 +108,8 @@ struct hm2056_raw_device {
 
 	struct camera_sensor_platform_data *platform_data;
 	char name[32];
-	/* Add for ATD read camera status+++ */
-	struct attribute_group sensor_i2c_attribute;
+
+	struct attribute_group sensor_i2c_attribute; //Add for ATD read camera status+++
 };
 
 struct hm2056_raw_res_struct {
@@ -159,12 +159,12 @@ static struct hm2056_reg const hm2056_stream_on[] = {
 	{HM2056_8BIT, 0x0000, 0x01},
 	{HM2056_8BIT, 0x0100, 0x01},
 	{HM2056_8BIT, 0x0101, 0x01},
-	{HM2056_8BIT, 0x0005, 0x01},	/* Turn on rolling shutter */
+	{HM2056_8BIT, 0x0005, 0x01},	//Turn on rolling shutter
 	{HM2056_TOK_TERM, 0, 0}
 };
 
 static struct hm2056_reg const hm2056_stream_off[] = {
-	{HM2056_8BIT, 0x0005, 0x00},	/* Turn on rolling shutter */
+	{HM2056_8BIT, 0x0005, 0x00},	//Turn on rolling shutter
 	{HM2056_TOK_TERM, 0, 0}
 };
 
@@ -172,72 +172,63 @@ static struct hm2056_reg const hm2056_stream_off[] = {
  * initial settings
  */
 static struct hm2056_reg const hm2056_init[] = {
-	{HM2056_8BIT, 0x0022, 0x00},	/* Reset */
+	{HM2056_8BIT, 0x0022, 0x00},	// Reset
 	{HM2056_8BIT, 0x0020, 0x00},
-	/* CKCFG 80 from system clock, 00 from PLL */
-	{HM2056_8BIT, 0x0025, 0x00},
-	/* PLL1CFG should be 07 when system clock, should be 87 when PLL */
-	{HM2056_8BIT, 0x0026, 0x85},
-	{HM2056_8BIT, 0x0027, 0x03},	/* Raw output */
-	{HM2056_8BIT, 0x0028, 0xC0},	/* Raw output */
-	{HM2056_8BIT, 0x002A, 0x2F},	/* CLK - 20131106 */
-	{HM2056_8BIT, 0x002B, 0x04},	/* CLK - 20131106 */
-	/* Set default vaule for CP and resistance of LPF to 1010 */
-	{HM2056_8BIT, 0x002C, 0x0A},
+	{HM2056_8BIT, 0x0025, 0x00},	//CKCFG 80 from system clock, 00 from PLL
+	{HM2056_8BIT, 0x0026, 0x85},	//PLL1CFG should be 07 when system clock, should be 87 when PLL
+	{HM2056_8BIT, 0x0027, 0x03},	//Raw output
+	{HM2056_8BIT, 0x0028, 0xC0},	//Raw output
+	{HM2056_8BIT, 0x002A, 0x2F},	// CLK - 20131106
+	{HM2056_8BIT, 0x002B, 0x04},	// CLK - 20131106
+	{HM2056_8BIT, 0x002C, 0x0A},	//Set default vaule for CP and resistance of LPF to 1010
 	{HM2056_8BIT, 0x0004, 0x10},
-	{HM2056_8BIT, 0x0006, 0x00},	/* Flip/Mirror */
-	{HM2056_8BIT, 0x000D, 0x00},	/* 20120220 to fix morie */
-	{HM2056_8BIT, 0x000E, 0x00},	/* Binning ON */
-	{HM2056_8BIT, 0x000F, 0x00},	/* IMGCFG */
-	{HM2056_8BIT, 0x0010, 0x00},	/* VBI - 20131106 */
-	{HM2056_8BIT, 0x0011, 0x5F},	/* VBI - 20131119 */
-	{HM2056_8BIT, 0x0012, 0x04},	/* 2012.02.08 */
+	{HM2056_8BIT, 0x0006, 0x00},	// Flip/Mirror
+	{HM2056_8BIT, 0x000D, 0x00},	// 20120220 to fix morie
+	{HM2056_8BIT, 0x000E, 0x00},	// Binning ON
+	{HM2056_8BIT, 0x000F, 0x00},	// IMGCFG
+	{HM2056_8BIT, 0x0010, 0x00},	// VBI - 20131106
+	{HM2056_8BIT, 0x0011, 0x5F},	// VBI - 20131119
+	{HM2056_8BIT, 0x0012, 0x04},	//2012.02.08
 	{HM2056_8BIT, 0x0013, 0x00},
-	{HM2056_8BIT, 0x0040, 0x20},	/* 20120224 for BLC stable */
+	{HM2056_8BIT, 0x0040, 0x20},	//20120224 for BLC stable
 	{HM2056_8BIT, 0x0053, 0x0A},
-	{HM2056_8BIT, 0x0044, 0x06},	/* enable BLC_phase2 */
-	/* enable BLC_phase1, disable BLC_phase2 dithering */
-	{HM2056_8BIT, 0x0046, 0xD8},
-	/* disable BLC_phase2 hot pixel filter */
-	{HM2056_8BIT, 0x004A, 0x0A},
+	{HM2056_8BIT, 0x0044, 0x06},	//enable BLC_phase2
+	{HM2056_8BIT, 0x0046, 0xD8},	//enable BLC_phase1, disable BLC_phase2 dithering
+	{HM2056_8BIT, 0x004A, 0x0A},	//disable BLC_phase2 hot pixel filter
 	{HM2056_8BIT, 0x004B, 0x72},
-	{HM2056_8BIT, 0x0075, 0x01},	/* in OMUX data swap for debug usage */
-	{HM2056_8BIT, 0x0070, 0x5F},	/* HBlank related - 20131106 */
-	{HM2056_8BIT, 0x0071, 0xAB},	/* HBlank related - 20131106 */
-	{HM2056_8BIT, 0x0072, 0x55},	/* HBlank related - 20131106 */
+	{HM2056_8BIT, 0x0075, 0x01},	//in OMUX data swap for debug usage
+	{HM2056_8BIT, 0x0070, 0x5F},	// HBlank related - 20131106
+	{HM2056_8BIT, 0x0071, 0xAB},	// HBlank related - 20131106
+	{HM2056_8BIT, 0x0072, 0x55},	// HBlank related - 20131106
 	{HM2056_8BIT, 0x0073, 0x50},
 	{HM2056_8BIT, 0x0077, 0x04},
-	{HM2056_8BIT, 0x0080, 0xC8},	/* 2012.02.08 */
+	{HM2056_8BIT, 0x0080, 0xC8},	//2012.02.08
 	{HM2056_8BIT, 0x0082, 0xE2},
 	{HM2056_8BIT, 0x0083, 0xF0},
-	/* Enable Thin-Oxide Case (Kwangoh kim), Set ADC power to 100%
-	Enable thermal sensor control bit[7] 0:on 1:off 2012 02 13 (YL) */
-	{HM2056_8BIT, 0x0085, 0x11},
-	{HM2056_8BIT, 0x0086, 0x02},	/* K.Kim, 0x2011.12.09 */
-	{HM2056_8BIT, 0x0087, 0x80},	/* K.Kim, 0x2011.12.09 */
+	{HM2056_8BIT, 0x0085, 0x11},	//Enable Thin-Oxide Case (Kwangoh kim), Set ADC power to 100% Enable thermal sensor control bit[7] 0:on 1:off 2012 02 13 (YL)
+	{HM2056_8BIT, 0x0086, 0x02},	//K.Kim, 0x2011.12.09
+	{HM2056_8BIT, 0x0087, 0x80},	//K.Kim, 0x2011.12.09
 	{HM2056_8BIT, 0x0088, 0x6C},
 	{HM2056_8BIT, 0x0089, 0x2E},
-	{HM2056_8BIT, 0x008A, 0x7D},	/* 20120224 for BLC stable */
+	{HM2056_8BIT, 0x008A, 0x7D},	//20120224 for BLC stable
 	{HM2056_8BIT, 0x008D, 0x20},
-	{HM2056_8BIT, 0x0090, 0x00},	/* 1.5x(Change Gain Table ) */
-	{HM2056_8BIT, 0x0091, 0x10},	/* 3x  (3x CTIA) */
-	{HM2056_8BIT, 0x0092, 0x11},	/* 6x  (3x CTIA + 2x PGA) */
-	{HM2056_8BIT, 0x0093, 0x12},	/* 12x (3x CTIA + 4x PGA) */
-	{HM2056_8BIT, 0x0094, 0x16},	/* 24x (3x CTIA + 8x PGA) */
-	{HM2056_8BIT, 0x0095, 0x08},	/* 1.5x  20120217 for color shift */
-	{HM2056_8BIT, 0x0096, 0x00},	/* 3x    20120217 for color shift */
-	{HM2056_8BIT, 0x0097, 0x10},	/* 6x    20120217 for color shift */
-	{HM2056_8BIT, 0x0098, 0x11},	/* 12x   20120217 for color shift */
-	{HM2056_8BIT, 0x0099, 0x12},	/* 24x   20120217 for color shift */
-	{HM2056_8BIT, 0x009A, 0x16},	/* 24x */
+	{HM2056_8BIT, 0x0090, 0x00},	//1.5x(Change Gain Table )
+	{HM2056_8BIT, 0x0091, 0x10},	//3x  (3x CTIA)
+	{HM2056_8BIT, 0x0092, 0x11},	//6x  (3x CTIA + 2x PGA)
+	{HM2056_8BIT, 0x0093, 0x12},	//12x (3x CTIA + 4x PGA)
+	{HM2056_8BIT, 0x0094, 0x16},	//24x (3x CTIA + 8x PGA)
+	{HM2056_8BIT, 0x0095, 0x08},	//1.5x  20120217 for color shift
+	{HM2056_8BIT, 0x0096, 0x00},	//3x    20120217 for color shift
+	{HM2056_8BIT, 0x0097, 0x10},	//6x    20120217 for color shift
+	{HM2056_8BIT, 0x0098, 0x11},	//12x   20120217 for color shift
+	{HM2056_8BIT, 0x0099, 0x12},	//24x   20120217 for color shift
+	{HM2056_8BIT, 0x009A, 0x16},	//24x
 	{HM2056_8BIT, 0x009B, 0x34},
 	{HM2056_8BIT, 0x00A0, 0x00},
-	{HM2056_8BIT, 0x00A1, 0x04},	/* 2012.02.06(for Ver.C) */
-	/* simple bpc P31 & P33[4] P40 P42 P44[5] */
-	{HM2056_8BIT, 0x011F, 0xFF},
-	/* 36:50Hz, 37:60Hz, BV_Win_Weight_En=1 */
-	{HM2056_8BIT, 0x0120, 0x13},
-	{HM2056_8BIT, 0x0121, 0x01},	/* NSatScale_En=0, NSatScale=0 */
+	{HM2056_8BIT, 0x00A1, 0x04},	//2012.02.06(for Ver.C)
+	{HM2056_8BIT, 0x011F, 0xFF},	//simple bpc P31 & P33[4] P40 P42 P44[5]
+	{HM2056_8BIT, 0x0120, 0x13},	//36:50Hz, 37:60Hz, BV_Win_Weight_En=1
+	{HM2056_8BIT, 0x0121, 0x01},	//NSatScale_En=0, NSatScale=0
 	{HM2056_8BIT, 0x0122, 0x39},
 	{HM2056_8BIT, 0x0123, 0xC2},
 	{HM2056_8BIT, 0x0124, 0xCE},
@@ -246,12 +237,12 @@ static struct hm2056_reg const hm2056_init[] = {
 	{HM2056_8BIT, 0x0128, 0x1F},
 	{HM2056_8BIT, 0x0132, 0x10},
 	{HM2056_8BIT, 0x0136, 0x0A},
-	{HM2056_8BIT, 0x0131, 0xB8},	/* simle bpc enable[4] */
+	{HM2056_8BIT, 0x0131, 0xB8},	//simle bpc enable[4]
 	{HM2056_8BIT, 0x0140, 0x14},
 	{HM2056_8BIT, 0x0141, 0x0A},
 	{HM2056_8BIT, 0x0142, 0x14},
 	{HM2056_8BIT, 0x0143, 0x0A},
-	{HM2056_8BIT, 0x0144, 0x06},	/* Sort bpc hot pixel ratio */
+	{HM2056_8BIT, 0x0144, 0x06},	//Sort bpc hot pixel ratio
 	{HM2056_8BIT, 0x0145, 0x00},
 	{HM2056_8BIT, 0x0146, 0x20},
 	{HM2056_8BIT, 0x0147, 0x0A},
@@ -275,35 +266,30 @@ static struct hm2056_reg const hm2056_init[] = {
 	{HM2056_8BIT, 0x015D, 0x05},
 	{HM2056_8BIT, 0x015E, 0x08},
 	{HM2056_8BIT, 0x015F, 0xFF},
-	{HM2056_8BIT, 0x0160, 0x50},	/* OTP BPC 2line & 4line enable */
+	{HM2056_8BIT, 0x0160, 0x50},	// OTP BPC 2line & 4line enable
 	{HM2056_8BIT, 0x0161, 0x20},
 	{HM2056_8BIT, 0x0162, 0x14},
 	{HM2056_8BIT, 0x0163, 0x0A},
-	{HM2056_8BIT, 0x0164, 0x10},	/* OTP 4line Strength */
+	{HM2056_8BIT, 0x0164, 0x10},	// OTP 4line Strength
 	{HM2056_8BIT, 0x0165, 0x08},
 	{HM2056_8BIT, 0x0166, 0x0A},
 	{HM2056_8BIT, 0x018C, 0x24},
-/* Cluster correction enable singal from thermal sensor (YL 2012 02 13) */
-	{HM2056_8BIT, 0x018D, 0x04},
-	/* Enable Thermal sensor control bit[7] (YL 2012 02 13) */
-	{HM2056_8BIT, 0x018E, 0x00},
-	/* Cluster Pulse enable T1[0] T2[1] T3[2] T4[3] */
-	{HM2056_8BIT, 0x018F, 0x11},
-	/* A11 BPC Strength[7:3], cluster correct P11[0]P12[1]P13[2] */
-	{HM2056_8BIT, 0x0190, 0x80},
-	{HM2056_8BIT, 0x0191, 0x47},	/* A11[0],A7[1],Sort[3],A13 AVG[6] */
-	/* A13 Strength[4:0],hot pixel detect for cluster[6] */
-	{HM2056_8BIT, 0x0192, 0x48},
+	{HM2056_8BIT, 0x018D, 0x04},	//Cluster correction enable singal from thermal sensor (YL 2012 02 13)
+	{HM2056_8BIT, 0x018E, 0x00},	//Enable Thermal sensor control bit[7] (YL 2012 02 13)
+	{HM2056_8BIT, 0x018F, 0x11},	//Cluster Pulse enable T1[0] T2[1] T3[2] T4[3]
+	{HM2056_8BIT, 0x0190, 0x80},	//A11 BPC Strength[7:3], cluster correct P11[0]P12[1]P13[2]
+	{HM2056_8BIT, 0x0191, 0x47},	//A11[0],A7[1],Sort[3],A13 AVG[6]
+	{HM2056_8BIT, 0x0192, 0x48},	//A13 Strength[4:0],hot pixel detect for cluster[6]
 	{HM2056_8BIT, 0x0193, 0x64},
 	{HM2056_8BIT, 0x0194, 0x32},
 	{HM2056_8BIT, 0x0195, 0xc8},
 	{HM2056_8BIT, 0x0196, 0x96},
 	{HM2056_8BIT, 0x0197, 0x64},
 	{HM2056_8BIT, 0x0198, 0x32},
-	{HM2056_8BIT, 0x0199, 0x14},	/* A13 hot pixel th */
-	{HM2056_8BIT, 0x019A, 0x20},	/* A13 edge detect th */
+	{HM2056_8BIT, 0x0199, 0x14},	//A13 hot pixel th
+	{HM2056_8BIT, 0x019A, 0x20},	// A13 edge detect th
 	{HM2056_8BIT, 0x019B, 0x14},
-	{HM2056_8BIT, 0x01BA, 0x10},	/* BD */
+	{HM2056_8BIT, 0x01BA, 0x10},	//BD
 	{HM2056_8BIT, 0x01BB, 0x04},
 	{HM2056_8BIT, 0x01D8, 0x40},
 	{HM2056_8BIT, 0x01DE, 0x60},
@@ -327,8 +313,8 @@ static struct hm2056_reg const hm2056_init[] = {
 	{HM2056_8BIT, 0x0390, 0xD0},
 	{HM2056_8BIT, 0x0391, 0x05},
 	{HM2056_8BIT, 0x0393, 0x80},
-	{HM2056_8BIT, 0x0395, 0x21},	/* AEAWB skip count */
-	{HM2056_8BIT, 0x0420, 0x84},	/* Digital Gain offset */
+	{HM2056_8BIT, 0x0395, 0x21},	//AEAWB skip count
+	{HM2056_8BIT, 0x0420, 0x84},	//Digital Gain offset
 	{HM2056_8BIT, 0x0421, 0x00},
 	{HM2056_8BIT, 0x0422, 0x00},
 	{HM2056_8BIT, 0x0423, 0x83},
@@ -337,57 +323,49 @@ static struct hm2056_reg const hm2056_init[] = {
 	{HM2056_8BIT, 0x0461, 0xFF},
 	{HM2056_8BIT, 0x0462, 0xFF},
 	{HM2056_8BIT, 0x0478, 0x01},
-	{HM2056_8BIT, 0x047A, 0x00},	/* ELOFFNRB */
-	{HM2056_8BIT, 0x047B, 0x00},	/* ELOFFNRY */
+	{HM2056_8BIT, 0x047A, 0x00},	//ELOFFNRB
+	{HM2056_8BIT, 0x047B, 0x00},	//ELOFFNRY
 	{HM2056_8BIT, 0x0540, 0x00},
-	{HM2056_8BIT, 0x0541, 0x9D},	/* 60Hz Flicker */
+	{HM2056_8BIT, 0x0541, 0x9D},	//60Hz Flicker
 	{HM2056_8BIT, 0x0542, 0x00},
-	{HM2056_8BIT, 0x0543, 0xBC},	/* 50Hz Flicker */
-	{HM2056_8BIT, 0x05E4, 0x00},	/* Windowing */
+	{HM2056_8BIT, 0x0543, 0xBC},	//50Hz Flicker
+	{HM2056_8BIT, 0x05E4, 0x00},	//Windowing
 	{HM2056_8BIT, 0x05E5, 0x00},
 	{HM2056_8BIT, 0x05E6, 0x53},
 	{HM2056_8BIT, 0x05E7, 0x06},
 	{HM2056_8BIT, 0x0698, 0x00},
 	{HM2056_8BIT, 0x0699, 0x00},
-	/* Set clock lane is on at sending packet, Patrick: 0xAE */
-	{HM2056_8BIT, 0x0B20, 0xAE},
-	/* Set clock lane is on at sending packet, Patrick: new setting */
-	{HM2056_8BIT, 0x0078, 0x80},
-	{HM2056_8BIT, 0x007C, 0x09},	/* pre-hsync setting, Patrick: 0x09 */
-	{HM2056_8BIT, 0x007D, 0x3E},	/* pre-vsync setting */
-	/* TLPX WIDTH, Add by Wilson, 20111114 */
-	{HM2056_8BIT, 0x0B02, 0x01},
+	{HM2056_8BIT, 0x0B20, 0xAE},	//Set clock lane is on at sending packet, Patrick: 0xAE
+	{HM2056_8BIT, 0x0078, 0x80},	//Set clock lane is on at sending packet, Patrick: new setting
+	{HM2056_8BIT, 0x007C, 0x09},	//pre-hsync setting, Patrick: 0x09
+	{HM2056_8BIT, 0x007D, 0x3E},	//pre-vsync setting
+	{HM2056_8BIT, 0x0B02, 0x01},	// TLPX WIDTH, Add by Wilson, 20111114
 	{HM2056_8BIT, 0x0B03, 0x03},
 	{HM2056_8BIT, 0x0B04, 0x01},
 	{HM2056_8BIT, 0x0B05, 0x08},
 	{HM2056_8BIT, 0x0B06, 0x02},
-	{HM2056_8BIT, 0x0B07, 0x28},	/* MARK1 WIDTH */
-	{HM2056_8BIT, 0x0B0E, 0x0B},	/* CLK FRONT PORCH WIDTH */
-	{HM2056_8BIT, 0x0B0F, 0x04},	/* CLK BACK PORCH WIDTH */
-	{HM2056_8BIT, 0x0B22, 0x02},	/* HS_EXIT Eanble */
-	/* Clock Lane HS_EXIT WIDTH(at least 100ns) */
-	{HM2056_8BIT, 0x0B39, 0x03},
-	{HM2056_8BIT, 0x0B11, 0x7F},	/* Clock Lane LP Driving Strength */
-	{HM2056_8BIT, 0x0B12, 0x7F},	/* Data Lane LP Driving Strength */
-	{HM2056_8BIT, 0x0B17, 0xE0},	/* D-PHY Power Down Control */
+	{HM2056_8BIT, 0x0B07, 0x28},	//MARK1 WIDTH
+	{HM2056_8BIT, 0x0B0E, 0x0B},	//CLK FRONT PORCH WIDTH
+	{HM2056_8BIT, 0x0B0F, 0x04},	//CLK BACK PORCH WIDTH
+	{HM2056_8BIT, 0x0B22, 0x02},	//HS_EXIT Eanble
+	{HM2056_8BIT, 0x0B39, 0x03},	//Clock Lane HS_EXIT WIDTH(at least 100ns)
+	{HM2056_8BIT, 0x0B11, 0x7F},	//Clock Lane LP Driving Strength
+	{HM2056_8BIT, 0x0B12, 0x7F},	//Data Lane LP Driving Strength
+	{HM2056_8BIT, 0x0B17, 0xE0},	//D-PHY Power Down Control
 	{HM2056_8BIT, 0x0B22, 0x02},
-	/* D-PHY Reset, set to 1 for normal operation */
-	{HM2056_8BIT, 0x0B30, 0x0F},
-	/* [1]: PHASE_SEL = 1 First Data at rising edge */
-	{HM2056_8BIT, 0x0B31, 0x02},
-	{HM2056_8BIT, 0x0B32, 0x00},	/* [4]: DBG_ULPM */
-	{HM2056_8BIT, 0x0B33, 0x00},	/* DBG_SEL */
+	{HM2056_8BIT, 0x0B30, 0x0F},	//D-PHY Reset, set to 1 for normal operation
+	{HM2056_8BIT, 0x0B31, 0x02},	//[1]: PHASE_SEL = 1 First Data at rising edge
+	{HM2056_8BIT, 0x0B32, 0x00},	//[4]: DBG_ULPM
+	{HM2056_8BIT, 0x0B33, 0x00},	//DBG_SEL
 	{HM2056_8BIT, 0x0B35, 0x00},
 	{HM2056_8BIT, 0x0B36, 0x00},
 	{HM2056_8BIT, 0x0B37, 0x00},
 	{HM2056_8BIT, 0x0B38, 0x00},
 	{HM2056_8BIT, 0x0B39, 0x03},
-	/* CLK_HS_EXIT, Add by Wilson, 20111114 */
-	{HM2056_8BIT, 0x0B3A, 0x00},
-	{HM2056_8BIT, 0x0B3B, 0x12},	/* Turn on PHY LDO */
-	/* MIPI reg delay, Add by Wilson, 20111114 */
-	{HM2056_8BIT, 0x0B3F, 0x01},
-	{HM2056_8BIT, 0x0024, 0x40},	/* [6]: MIPI Enable */
+	{HM2056_8BIT, 0x0B3A, 0x00},	//CLK_HS_EXIT, Add by Wilson, 20111114
+	{HM2056_8BIT, 0x0B3B, 0x12},	//Turn on PHY LDO
+	{HM2056_8BIT, 0x0B3F, 0x01},	//MIPI reg delay, Add by Wilson, 20111114
+	{HM2056_8BIT, 0x0024, 0x40},	//[6]: MIPI Enable
 	{HM2056_TOK_TERM, 0, 0}
 };
 
@@ -413,7 +391,7 @@ static struct hm2056_reg const hm2056_uxga_14fps[] = {
 	{HM2056_8BIT, 0x05EA, 0xC3},
 	{HM2056_8BIT, 0x05EB, 0x04},
 	{HM2056_8BIT, 0x0024, 0x40},
-	{HM2056_TOK_DELAY, 0, 80}, /* Delay longer than 1 frame time ~71ms */
+	{HM2056_TOK_DELAY, 0, 80}, // Delay longer than 1 frame time ~71ms
 	{HM2056_TOK_TERM, 0, 0}
 };
 
@@ -439,7 +417,7 @@ static struct hm2056_reg const hm2056_uxga_16_9_18fps[] = {
 	{HM2056_8BIT, 0x05EA, 0x8F},
 	{HM2056_8BIT, 0x05EB, 0x03},
 	{HM2056_8BIT, 0x0024, 0x40},
-	{HM2056_TOK_DELAY, 0, 60}, /* Delay longer than 1 frame time ~55ms */
+	{HM2056_TOK_DELAY, 0, 60}, // Delay longer than 1 frame time ~55ms
 	{HM2056_TOK_TERM, 0, 0}
 };
 
@@ -449,29 +427,27 @@ static struct hm2056_reg const hm2056_uxga_16_9_18fps[] = {
  */
 static struct hm2056_reg const hm2056_720p_25fps[] = {
 	{HM2056_8BIT, 0x0024, 0x00},
-	{HM2056_8BIT, 0x0006, 0x08},	/* Flip/Mirror */
-	{HM2056_8BIT, 0x000D, 0x00},	/* 20120220 to fix morie */
-	{HM2056_8BIT, 0x000E, 0x00},	/* Binning ON */
+	{HM2056_8BIT, 0x0006, 0x08},	// Flip/Mirror
+	{HM2056_8BIT, 0x000D, 0x00},	// 20120220 to fix morie
+	{HM2056_8BIT, 0x000E, 0x00},	// Binning ON
 	{HM2056_8BIT, 0x0010, 0x00},
 	{HM2056_8BIT, 0x0011, 0xBE},
-	{HM2056_8BIT, 0x0012, 0x08},	/* 2012.02.08 */
+	{HM2056_8BIT, 0x0012, 0x08},	//2012.02.08
 	{HM2056_8BIT, 0x0013, 0x00},
 	{HM2056_8BIT, 0x002A, 0x2F},
 	{HM2056_8BIT, 0x0071, 0x99},
 	{HM2056_8BIT, 0x0074, 0x13},
 	{HM2056_8BIT, 0x0082, 0xE2},
-	{HM2056_8BIT, 0x0131, 0xB8},	/* simle bpc enable[4] */
-	{HM2056_8BIT, 0x0144, 0x04},	/* Sort bpc hot pixel ratio */
-	/* A11 BPC Strength[7:3], cluster correct P11[0]P12[1]P13[2] */
-	{HM2056_8BIT, 0x0190, 0x87},
-	/* A13 Strength[4:0],hot pixel detect for cluster[6] */
-	{HM2056_8BIT, 0x0192, 0x50},
+	{HM2056_8BIT, 0x0131, 0xB8},	//simle bpc enable[4]
+	{HM2056_8BIT, 0x0144, 0x04},	//Sort bpc hot pixel ratio
+	{HM2056_8BIT, 0x0190, 0x87},	//A11 BPC Strength[7:3], cluster correct P11[0]P12[1]P13[2]
+	{HM2056_8BIT, 0x0192, 0x50},	//A13 Strength[4:0],hot pixel detect for cluster[6]
 	{HM2056_8BIT, 0x05E6, 0x0F},
 	{HM2056_8BIT, 0x05E7, 0x05},
 	{HM2056_8BIT, 0x05EA, 0xDB},
 	{HM2056_8BIT, 0x05EB, 0x02},
 	{HM2056_8BIT, 0x0024, 0x40},
-	{HM2056_TOK_DELAY, 0, 40}, /* Delay longer than 1 frame time ~37ms */
+	{HM2056_TOK_DELAY, 0, 40}, //Delay longer than 1 frame time ~37ms
 	{HM2056_TOK_TERM, 0, 0}
 };
 
@@ -480,12 +456,12 @@ static struct hm2056_reg const hm2056_720p_25fps[] = {
  */
 static struct hm2056_reg const hm2056_svga_30fps[] = {
 	{HM2056_8BIT, 0x0024, 0x00},
-	{HM2056_8BIT, 0x0006, 0x00},	/* Flip/Mirror */
-	{HM2056_8BIT, 0x000D, 0x11},	/* 20120220 to fix morie */
-	{HM2056_8BIT, 0x000E, 0x11},	/* Binning ON */
+	{HM2056_8BIT, 0x0006, 0x00},	// Flip/Mirror
+	{HM2056_8BIT, 0x000D, 0x11},	// 20120220 to fix morie
+	{HM2056_8BIT, 0x000E, 0x11},	// Binning ON
 	{HM2056_8BIT, 0x0010, 0x01},
 	{HM2056_8BIT, 0x0011, 0x3A},
-	{HM2056_8BIT, 0x0012, 0x1C},	/* 2012.02.08 */
+	{HM2056_8BIT, 0x0012, 0x1C},	//2012.02.08
 	{HM2056_8BIT, 0x0013, 0x01},
 	{HM2056_8BIT, 0x002A, 0x2C},
 	{HM2056_8BIT, 0x0071, 0xFF},
@@ -500,7 +476,7 @@ static struct hm2056_reg const hm2056_svga_30fps[] = {
 	{HM2056_8BIT, 0x05EA, 0x71},
 	{HM2056_8BIT, 0x05EB, 0x02},
 	{HM2056_8BIT, 0x0024, 0x40},
-	{HM2056_TOK_DELAY, 0, 40}, /* Delay longer than 1 frame time ~33ms */
+	{HM2056_TOK_DELAY, 0, 40}, // Delay longer than 1 frame time ~33ms
 	{HM2056_TOK_TERM, 0, 0}
 };
 
@@ -508,7 +484,7 @@ static struct hm2056_reg const hm2056_svga_30fps[] = {
  * Modes supported by the hm2056_raw driver.
  * Please, keep them in ascending order.
  */
-static struct hm2056_raw_res_struct hm2056_raw_res_preview[] = {
+ static struct hm2056_raw_res_struct hm2056_raw_res_preview[] = {
 	{
 	.desc	= "hm2056_svga_30fps",
 	.width	= 812,

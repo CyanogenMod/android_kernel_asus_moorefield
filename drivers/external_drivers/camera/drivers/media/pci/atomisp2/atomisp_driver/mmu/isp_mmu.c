@@ -246,7 +246,6 @@ static int mmu_l2_map(struct isp_mmu *mmu, phys_addr_t l1_pt,
 		pte = isp_pgaddr_to_pte_valid(mmu, phys);
 
 		atomisp_set_pte(l2_pt, idx, pte);
-		mmu->l2_pgt_refcount[l1_idx]++;
 		ptr += (1U << ISP_L2PT_OFFSET);
 		phys += (1U << ISP_L2PT_OFFSET);
 	} while (ptr < end && idx < ISP_L2PT_PTES - 1);
@@ -295,7 +294,6 @@ static int mmu_l1_map(struct isp_mmu *mmu, phys_addr_t l1_pt,
 			l2_pte = isp_pgaddr_to_pte_valid(mmu, l2_pt);
 
 			atomisp_set_pte(l1_pt, idx, l2_pte);
-			mmu->l2_pgt_refcount[idx] = 0;
 		}
 
 		l2_pt = isp_pte_to_pgaddr(mmu, l2_pte);
@@ -322,7 +320,7 @@ static int mmu_l1_map(struct isp_mmu *mmu, phys_addr_t l1_pt,
 
 			return -EINVAL;
 		}
-	} while (ptr < end && idx < ISP_L1PT_PTES);
+	} while (ptr < end && idx < ISP_L1PT_PTES - 1);
 
 	return 0;
 }
@@ -362,7 +360,6 @@ static int mmu_map(struct isp_mmu *mmu, unsigned int isp_virt,
 		}
 		mmu->base_address = l1_pt;
 		mmu->l1_pte = isp_pgaddr_to_pte_valid(mmu, l1_pt);
-		memset(mmu->l2_pgt_refcount, 0, sizeof(int) * ISP_L1PT_PTES);
 	}
 
 	l1_pt = isp_pte_to_pgaddr(mmu, mmu->l1_pte);
@@ -409,14 +406,9 @@ static void mmu_l2_unmap(struct isp_mmu *mmu, phys_addr_t l1_pt,
 						 l2_pt, idx, ptr, pte);
 
 		atomisp_set_pte(l2_pt, idx, mmu->driver->null_pte);
-		mmu->l2_pgt_refcount[l1_idx]--;
+
 		ptr += (1U << ISP_L2PT_OFFSET);
 	} while (ptr < end && idx < ISP_L2PT_PTES - 1);
-
-	if (mmu->l2_pgt_refcount[l1_idx] == 0) {
-		free_page_table(mmu, l2_pt);
-		atomisp_set_pte(l1_pt, l1_idx, mmu->driver->null_pte);
-	}
 }
 
 /*
@@ -463,7 +455,7 @@ static void mmu_l1_unmap(struct isp_mmu *mmu, phys_addr_t l1_pt,
 		 * need to invalidate and free this PT.
 		 */
 		/*      atomisp_set_pte(l1_pt, idx, NULL_PTE); */
-	} while (ptr < end && idx < ISP_L1PT_PTES);
+	} while (ptr < end && idx < ISP_L1PT_PTES - 1);
 }
 
 /*
@@ -561,6 +553,7 @@ int isp_mmu_init(struct isp_mmu *mmu, struct isp_mmu_client *driver)
 
 #ifdef USE_KMEM_CACHE
 	mmu->tbl_cache = kmem_cache_create("iopte_cache", ISP_PAGE_SIZE,
+						//ISP_L1PT_PTES, SLAB_HWCACHE_ALIGN,
 					   ISP_PAGE_SIZE, SLAB_HWCACHE_ALIGN,
 					   NULL);
 	if (!mmu->tbl_cache)
@@ -568,6 +561,48 @@ int isp_mmu_init(struct isp_mmu *mmu, struct isp_mmu_client *driver)
 #endif
 
 	return 0;
+}
+
+/* cleanup empty L2 page tables */
+void isp_mmu_clean_l2(struct isp_mmu *mmu)
+{
+	unsigned int idx, idx2;
+	unsigned int pte;
+	phys_addr_t l1_pt, l2_pt;
+
+	if (!mmu)
+		return;
+
+	if (!ISP_PTE_VALID(mmu, mmu->l1_pte)) {
+		dev_warn(atomisp_dev, "invalid L1PT: pte = 0x%x\n",
+			    (unsigned int)mmu->l1_pte);
+		return;
+	}
+
+	l1_pt = isp_pte_to_pgaddr(mmu, mmu->l1_pte);
+
+	for (idx = 0; idx < ISP_L1PT_PTES; idx++) {
+		bool l2_pt_is_empty = true;
+
+		pte = atomisp_get_pte(l1_pt, idx);
+		if (!ISP_PTE_VALID(mmu, pte))
+			continue;
+
+		l2_pt = isp_pte_to_pgaddr(mmu, pte);
+		for (idx2 = 0; idx2 < ISP_L2PT_PTES; idx2++) {
+			if (atomisp_get_pte(l2_pt, idx2) !=
+			    mmu->driver->null_pte) {
+				l2_pt_is_empty = false;
+				break;
+			}
+		}
+
+		if (l2_pt_is_empty) {
+			free_page_table(mmu, l2_pt);
+			atomisp_set_pte(l1_pt, idx, mmu->driver->null_pte);
+			dev_dbg(atomisp_dev, "free l1_pte index %d\n", idx);
+		}
+	}
 }
 
 /*Free L1 and L2 page table*/

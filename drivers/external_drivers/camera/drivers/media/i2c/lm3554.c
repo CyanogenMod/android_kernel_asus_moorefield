@@ -37,8 +37,8 @@
 
 struct lm3554_ctrl_id {
 	struct v4l2_queryctrl qc;
-	int (*s_ctrl)(struct v4l2_subdev *sd, __u32 val);
-	int (*g_ctrl)(struct v4l2_subdev *sd, __s32 *val);
+	int (*s_ctrl) (struct v4l2_subdev *sd, __u32 val);
+	int (*g_ctrl) (struct v4l2_subdev *sd, __s32 *val);
 };
 
 /* Registers */
@@ -190,7 +190,6 @@ static void lm3554_hw_reset(struct i2c_client *client)
 
 	gpio_set_value(pdata->gpio_reset, 1);
 	msleep(50);
-	dev_info(&client->dev, "flash led reset successfully\n");
 }
 
 static void lm3554_flash_off_delay(long unsigned int arg)
@@ -404,7 +403,7 @@ static int lm3554_s_flash_mode(struct v4l2_subdev *sd, u32 new_mode)
 	return lm3554_set_mode(flash, mode);
 }
 
-static int lm3554_g_flash_mode(struct v4l2_subdev *sd, s32 *val)
+static int lm3554_g_flash_mode(struct v4l2_subdev *sd, s32 * val)
 {
 	struct lm3554 *flash = to_lm3554(sd);
 	*val = flash->mode;
@@ -828,15 +827,12 @@ void *lm3554_platform_data_func(struct i2c_client *client)
 
 	if (ACPI_COMPANION(&client->dev)) {
 		platform_data.gpio_reset  =
-			desc_to_gpio(gpiod_get_index(&(client->dev),
-							"lm3554_gpio2", 2));
+			desc_to_gpio(gpiod_get_index(&(client->dev), "lm3554_gpio2", 2));
 		platform_data.gpio_strobe =
-			desc_to_gpio(gpiod_get_index(&(client->dev),
-							"lm3554_gpio0", 0));
+			desc_to_gpio(gpiod_get_index(&(client->dev), "lm3554_gpio0", 0));
 		platform_data.gpio_torch  =
-			desc_to_gpio(gpiod_get_index(&(client->dev),
-							"lm3554_gpio1", 1));
-	} else {
+			desc_to_gpio(gpiod_get_index(&(client->dev), "lm3554_gpio1", 1));
+	}else {
 		platform_data.gpio_reset = -1;
 		platform_data.gpio_strobe = -1;
 		platform_data.gpio_torch = -1;
@@ -933,9 +929,6 @@ static int lm3554_remove(struct i2c_client *client)
 
 	media_entity_cleanup(&flash->sd.entity);
 	v4l2_device_unregister_subdev(sd);
-#ifdef CONFIG_GMIN_INTEL_MID
-	atomisp_gmin_remove_subdev(sd);
-#endif
 
 	del_timer_sync(&flash->flash_off_delay);
 

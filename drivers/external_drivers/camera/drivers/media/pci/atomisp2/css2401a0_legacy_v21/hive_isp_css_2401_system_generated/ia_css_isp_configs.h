@@ -1,21 +1,30 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifdef IA_CSS_INCLUDE_CONFIGURATIONS
+#include "isp/kernels/copy_output/copy_output_1.0/ia_css_copy_output.host.h"
 #include "isp/kernels/crop/crop_1.0/ia_css_crop.host.h"
 #include "isp/kernels/dvs/dvs_1.0/ia_css_dvs.host.h"
 #include "isp/kernels/fpn/fpn_1.0/ia_css_fpn.host.h"
+#include "isp/kernels/iterator/iterator_1.0/ia_css_iterator.host.h"
 #include "isp/kernels/ob/ob_1.0/ia_css_ob.host.h"
 #include "isp/kernels/output/output_1.0/ia_css_output.host.h"
 #include "isp/kernels/qplane/qplane_2/ia_css_qplane.host.h"
@@ -24,8 +33,6 @@
 #include "isp/kernels/s3a/s3a_1.0/ia_css_s3a.host.h"
 #include "isp/kernels/tnr/tnr_1.0/ia_css_tnr.host.h"
 #include "isp/kernels/vf/vf_1.0/ia_css_vf.host.h"
-#include "isp/kernels/iterator/iterator_1.0/ia_css_iterator.host.h"
-#include "isp/kernels/copy_output/copy_output_1.0/ia_css_copy_output.host.h"
 #endif /* IA_CSS_INCLUDE_CONFIGURATIONS */
 /* Generated code: do not edit or commmit. */
 

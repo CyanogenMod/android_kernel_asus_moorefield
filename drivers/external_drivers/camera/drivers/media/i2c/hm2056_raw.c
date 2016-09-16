@@ -41,32 +41,27 @@
 
 #define to_hm2056_raw_sensor(sd) container_of(sd, struct hm2056_raw_device, sd)
 
-/* Add for ATD command+++ */
-/* Add build version -> user:3, userdebug:2, eng:1 */
-/*extern int build_version;*/
+//Add for ATD command+++
+extern int build_version; //Add build version -> user:3, userdebug:2, eng:1
 struct v4l2_subdev *main_sd;
 
 int ATD_hm2056_raw_status = 0;
 static char camera_module_otp[60];
 
-/* static void *hm2056_raw_otp_read(struct v4l2_subdev *sd); */
+//static void *hm2056_raw_otp_read(struct v4l2_subdev *sd);
 
-static ssize_t hm2056_raw_show_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t hm2056_raw_show_status(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	pr_info("%s: get hm2056_raw status (%d) !!\n",
-				__func__, ATD_hm2056_raw_status);
-	/* Check sensor connect status,
-	just do it  in begining for ATD camera status */
+	printk("%s: get hm2056_raw status (%d) !!\n", __func__, ATD_hm2056_raw_status);
+	//Check sensor connect status, just do it  in begining for ATD camera status
+
 	return sprintf(buf, "%d\n", ATD_hm2056_raw_status);
 }
 
-static ssize_t hm2056_raw_read_otp(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t hm2056_raw_read_otp(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	pr_info("%s: get hm2056 module OTP %s !!\n",
-				 __func__, camera_module_otp);
-	/*Check sensor OTP value,just do it in begining for ATD camera status */
+	printk("%s: get hm2056 module OTP %s !!\n", __func__, camera_module_otp);
+	//Check sensor OTP value, just do it in begining for ATD camera status
 /*
 	if(build_version != 1){ //not eng, need to read otp first
 		hm2056_raw_otp_read(main_sd);
@@ -83,11 +78,10 @@ static struct attribute *hm2056_raw_attributes[] = {
 	&dev_attr_hm2056_raw_read_otp.attr,
 	NULL
 };
-/* Add for ATD command--- */
+//Add for ATD command---
 
 static int
-hm2056_raw_read_reg(struct i2c_client *client,
-			u16 data_length, u32 reg, u32 *val)
+hm2056_raw_read_reg(struct i2c_client *client, u16 data_length, u32 reg, u32 *val)
 {
 	int err;
 	struct i2c_msg msg[2];
@@ -128,8 +122,7 @@ hm2056_raw_read_reg(struct i2c_client *client,
 }
 
 static int
-hm2056_raw_write_reg(struct i2c_client *client,
-			u16 data_length, u16 reg, u32 val)
+hm2056_raw_write_reg(struct i2c_client *client, u16 data_length, u16 reg, u32 val)
 {
 	int num_msg;
 	struct i2c_msg msg;
@@ -198,8 +191,7 @@ static int hm2056_raw_write_reg_array(struct i2c_client *client,
 			msleep(next->val);
 			break;
 		default:
-			ret = hm2056_raw_write_reg(client, next->type,
-							next->reg, next->val);
+			ret = hm2056_raw_write_reg(client, next->type, next->reg, next->val);
 			if (ret) {
 				v4l2_err(client, "%s: write %x error, aborted\n",
 					 __func__, next->reg);
@@ -262,11 +254,12 @@ static int power_up(struct v4l2_subdev *sd)
 		dev_err(&client->dev, "flisclk_ctrl failed\n");
 		goto fail_clk;
 	}
-	msleep(20);
+	msleep(10);
 	/* gpio ctrl */
 	ret = dev->platform_data->gpio_ctrl(sd, 1);
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev, "gpio_ctrl failed\n");
+	}
 
 	msleep(50);
 
@@ -327,8 +320,9 @@ static int hm2056_raw_s_power(struct v4l2_subdev *sd, int power)
 		ret = power_down(sd);
 	} else {
 		ret = power_up(sd);
-		if (!ret)
+		if (!ret) {
 			ret = hm2056_raw_write_reg_array(client, hm2056_init);
+		}
 	}
 	mutex_unlock(&dev->input_lock);
 	return ret;
@@ -429,10 +423,10 @@ static int hm2056_raw_get_intg_factor(struct i2c_client *client,
 	buf->crop_vertical_start = res->vertical_start;
 	buf->crop_vertical_end = res->vertical_end;
 
-	/*yunliang modified to avoid warnings*/
-	dev_info(&client->dev,
-	"%s h start %d end %d v start %d end %d frame_length_line %d line_length_pck %d read mode %d binning_x %d binning_y %d\n",
-		__func__, buf->crop_horizontal_start, buf->crop_horizontal_end,
+	dev_info(&client->dev, "%s h start %d end %d v start %d end %d "
+		"frame_length_line %d line_length_pck %d "
+		" read mode %d binning_x %d binning_y %d\n", __func__,
+		buf->crop_horizontal_start, buf->crop_horizontal_end,
 		buf->crop_vertical_start, buf->crop_vertical_end,
 		buf->frame_length_lines, buf->line_length_pck,
 		buf->read_mode,	buf->binning_factor_x, buf->binning_factor_y);
@@ -481,8 +475,7 @@ static int hm2056_raw_set_mbus_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&dev->input_lock);
 	hm2056_raw_try_res(sd, &width, &height);
 
-	dev_info(&client->dev, "%s %d x %d => %d x %d\n",
-			__func__, fmt->width, fmt->height, width, height);
+	dev_info(&client->dev, "%s %d x %d => %d x %d\n", __func__, fmt->width, fmt->height, width, height);
 
 	dev->fmt_idx = hm2056_raw_to_res(sd, width, height);
 	if (dev->fmt_idx == -1) {
@@ -492,8 +485,7 @@ static int hm2056_raw_set_mbus_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	ret = hm2056_raw_write_reg_array(client,
-			dev->hm2056_raw_res[dev->fmt_idx].regs);
+	ret = hm2056_raw_write_reg_array(client, dev->hm2056_raw_res[dev->fmt_idx].regs);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
 		return -EINVAL;
@@ -544,21 +536,15 @@ static int hm2056_raw_q_exposure(struct v4l2_subdev *sd, s32 *val)
 	u32 integration_time_l = 0;
 	int ret = 0;
 
-	ret = hm2056_raw_read_reg(client, HM2056_8BIT,
-			HM2056_REG_INTEGRATION_TIME_H, &integration_time_h);
+	ret = hm2056_raw_read_reg(client, HM2056_8BIT, HM2056_REG_INTEGRATION_TIME_H, &integration_time_h);
 	if (ret) {
-		v4l2_err(client,
-			"%s: read HM2056_REG_INTEGRATION_TIME_H error %d\n",
-			__func__, ret);
+		v4l2_err(client, "%s: read HM2056_REG_INTEGRATION_TIME_H error %d\n", __func__, ret);
 		return ret;
 	}
 
-	ret = hm2056_raw_read_reg(client, HM2056_8BIT,
-			HM2056_REG_INTEGRATION_TIME_L, &integration_time_l);
+	ret = hm2056_raw_read_reg(client, HM2056_8BIT, HM2056_REG_INTEGRATION_TIME_L, &integration_time_l);
 	if (ret) {
-		v4l2_err(client,
-			"%s: read HM2056_REG_INTEGRATION_TIME_L error %d\n",
-			__func__, ret);
+		v4l2_err(client, "%s: read HM2056_REG_INTEGRATION_TIME_L error %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -578,72 +564,56 @@ static long hm2056_raw_s_exposure(struct v4l2_subdev *sd,
 	unsigned int frame_length_lines = 0;
 	unsigned int real_gain = exposure->gain[0];
 
-	/* dev_info(&client->dev, "%s(%d %d %d %d)\n", __func__,
-	 exposure->integration_time[0], exposure->integration_time[1],
-	 exposure->gain[0], exposure->gain[1]); */
+//	dev_info(&client->dev, "%s(%d %d %d %d)\n", __func__,
+//		exposure->integration_time[0], exposure->integration_time[1],
+//		exposure->gain[0], exposure->gain[1]);
 
 	mutex_lock(&dev->input_lock);
 
-	frame_length_lines =
-			dev->hm2056_raw_res[dev->fmt_idx].frame_length_lines;
+	frame_length_lines = dev->hm2056_raw_res[dev->fmt_idx].frame_length_lines;
 
 	if (frame_length_lines < exposure->integration_time[0]) {
-		/* dev_info(&client->dev, "%s update frame_length_line %d "
-		 "integration_time %d\n", __func__, frame_length_lines,
-		 exposure->integration_time[0]); */
+//		dev_info(&client->dev, "%s update frame_length_line %d "
+//			"integration_time %d\n", __func__, frame_length_lines,
+//			exposure->integration_time[0]);
 		frame_length_lines = exposure->integration_time[0] + 5;
 	}
 
-	reg_val_l = (frame_length_lines -
-		dev->hm2056_raw_res[dev->fmt_idx].height) & 0xFF;
-	reg_val_h = ((frame_length_lines -
-		dev->hm2056_raw_res[dev->fmt_idx].height) & 0xFF00) >> 8;
+	reg_val_l = (frame_length_lines - dev->hm2056_raw_res[dev->fmt_idx].height) & 0xFF;
+	reg_val_h = ((frame_length_lines - dev->hm2056_raw_res[dev->fmt_idx].height) & 0xFF00) >> 8;
 
-	ret = hm2056_raw_write_reg(client, HM2056_8BIT,
-				HM2056_REG_BLANKING_ROW_H, reg_val_h);
+	ret = hm2056_raw_write_reg(client, HM2056_8BIT, HM2056_REG_BLANKING_ROW_H, reg_val_h);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
-		v4l2_err(client,
-			"%s: write HM2056_REG_BLANKING_ROW_H error %x\n",
-			__func__, reg_val_h);
+		v4l2_err(client, "%s: write HM2056_REG_BLANKING_ROW_H error %x\n", __func__, reg_val_h);
 		return ret;
 	}
 
-	ret = hm2056_raw_write_reg(client, HM2056_8BIT,
-				HM2056_REG_BLANKING_ROW_L, reg_val_l);
+	ret = hm2056_raw_write_reg(client, HM2056_8BIT, HM2056_REG_BLANKING_ROW_L, reg_val_l);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
-		v4l2_err(client,
-			"%s: write HM2056_REG_BLANKING_ROW_L error %x\n",
-			__func__, reg_val_l);
+		v4l2_err(client, "%s: write HM2056_REG_BLANKING_ROW_L error %x\n", __func__, reg_val_l);
 		return ret;
 	}
 
 	reg_val_h = (exposure->integration_time[0] & 0xFF00) >> 8;
 	reg_val_l = exposure->integration_time[0] & 0xFF;
 
-	ret = hm2056_raw_write_reg(client, HM2056_8BIT,
-				HM2056_REG_INTEGRATION_TIME_H, reg_val_h);
+	ret = hm2056_raw_write_reg(client, HM2056_8BIT, HM2056_REG_INTEGRATION_TIME_H, reg_val_h);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
-		v4l2_err(client,
-			"%s: write HM2056_REG_INTEGRATION_TIME_H error %x\n",
-			__func__, reg_val_h);
+		v4l2_err(client, "%s: write HM2056_REG_INTEGRATION_TIME_H error %x\n", __func__, reg_val_h);
 		return ret;
 	}
 
-	ret = hm2056_raw_write_reg(client, HM2056_8BIT,
-				HM2056_REG_INTEGRATION_TIME_L, reg_val_l);
+	ret = hm2056_raw_write_reg(client, HM2056_8BIT, HM2056_REG_INTEGRATION_TIME_L, reg_val_l);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
-		v4l2_err(client,
-			"%s: write HM2056_REG_INTEGRATION_TIME_L error %x\n",
-			__func__, reg_val_l);
+		v4l2_err(client, "%s: write HM2056_REG_INTEGRATION_TIME_L error %x\n", __func__, reg_val_l);
 		return ret;
 	}
 
-	/* DIT request the AG and DG can't more than 4x,
-	  so the max gain value will be 4xAG*4xDG=16x */
+	// DIT request the AG and DG can't more than 4x, so the max gain value will be 4xAG*4xDG=16x
 	if (16 <= real_gain && real_gain < 32) {
 		analog_gain = 0x0;
 		digital_gain = real_gain * 4;
@@ -656,38 +626,31 @@ static long hm2056_raw_s_exposure(struct v4l2_subdev *sd,
 	} else
 		v4l2_err(client, "unsupported gain value\n");
 
-	ret = hm2056_raw_write_reg(client, HM2056_8BIT,
-				 HM2056_REG_AGAIN, analog_gain);
+	ret = hm2056_raw_write_reg(client, HM2056_8BIT, HM2056_REG_AGAIN, analog_gain);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
-		v4l2_err(client, "%s: write HM2056_REG_AGAIN error %x\n",
-					 __func__, analog_gain);
+		v4l2_err(client, "%s: write HM2056_REG_AGAIN error %x\n", __func__, analog_gain);
 		return ret;
 	}
 
-	ret = hm2056_raw_write_reg(client, HM2056_8BIT,
-					HM2056_REG_DGAIN, digital_gain);
+	ret = hm2056_raw_write_reg(client, HM2056_8BIT, HM2056_REG_DGAIN, digital_gain);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
-		v4l2_err(client, "%s: write HM2056_REG_DGAIN error %x\n",
-			 __func__, digital_gain);
+		v4l2_err(client, "%s: write HM2056_REG_DGAIN error %x\n", __func__, digital_gain);
 		return ret;
 	}
 
-	ret = hm2056_raw_write_reg(client, HM2056_8BIT,
-					HM2056_REG_COMMAND_UPDATE, 1);
+	ret = hm2056_raw_write_reg(client, HM2056_8BIT, HM2056_REG_COMMAND_UPDATE, 1);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
-		v4l2_err(client, "%s: write HM2056_REG_COMMAND_UPDATE error\n",
-			__func__);
+		v4l2_err(client, "%s: write HM2056_REG_COMMAND_UPDATE error\n", __func__);
 		return ret;
 	}
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
 
-static long hm2056_raw_ioctl(struct v4l2_subdev *sd,
-				 unsigned int cmd, void *arg)
+static long hm2056_raw_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
@@ -759,56 +722,51 @@ static struct hm2056_raw_control *hm2056_raw_find_control(__u32 id)
 {
 	int i;
 	for (i = 0; i < N_CONTROLS; i++) {
-		if (hm2056_raw_controls[i].qc.id == id)
+		if (hm2056_raw_controls[i].qc.id == id) {
 			return &hm2056_raw_controls[i];
+		}
 	}
 	return NULL;
 }
 
-static int hm2056_raw_detect(struct hm2056_raw_device *dev,
-				struct i2c_client *client)
+static int hm2056_raw_detect(struct hm2056_raw_device *dev, struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	u32 reg_h, reg_l;
 	u32 chip_id;
 	int ret;
 
-	ATD_hm2056_raw_status = 0;	/* Add for ATD command+++ */
+	ATD_hm2056_raw_status = 0;	//Add for ATD command+++
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "%s: i2c error", __func__);
 		return -ENODEV;
 	}
 
-	ret = hm2056_raw_read_reg(client, HM2056_8BIT,
-				HM2056_REG_CHIP_ID_H, &reg_h);
+	ret = hm2056_raw_read_reg(client, HM2056_8BIT, HM2056_REG_CHIP_ID_H, &reg_h);
 	if (ret) {
-		v4l2_err(client, "%s: fail to read HM2056_REG_CHIP_ID_H\n",
-				__func__);
+		v4l2_err(client, "%s: fail to read HM2056_REG_CHIP_ID_H\n", __func__);
 		return -EINVAL;
 	}
 
-	ret = hm2056_raw_read_reg(client, HM2056_8BIT,
-				HM2056_REG_CHIP_ID_L, &reg_l);
+	ret = hm2056_raw_read_reg(client, HM2056_8BIT, HM2056_REG_CHIP_ID_L, &reg_l);
 	if (ret) {
-		v4l2_err(client, "%s: fail to read HM2056_REG_CHIP_ID_L\n",
-			 __func__);
+		v4l2_err(client, "%s: fail to read HM2056_REG_CHIP_ID_L\n", __func__);
 		return -EINVAL;
 	}
 
 	chip_id = reg_l | (reg_h << 8);
 
 	if (chip_id != HM2056_MOD_ID) {
-		dev_err(&client->dev,
-			"%s: failed: client->addr = %x, id read %x\n",
+		dev_err(&client->dev, "%s: failed: client->addr = %x, id read %x\n",
 			__func__, client->addr, chip_id);
 		return -ENODEV;
-	} else {
-		dev_info(&client->dev, "%s sensor ID is 0x%x\n",
-						__func__, chip_id);
+	}
+	else {
+		dev_info(&client->dev, "%s sensor ID is 0x%x\n", __func__, chip_id);
 	}
 
-	ATD_hm2056_raw_status = 1;	/* Add for ATD command+++ */
+	ATD_hm2056_raw_status = 1;	//Add for ATD command+++
 
 	return 0;
 }
@@ -838,7 +796,7 @@ hm2056_raw_s_config(struct v4l2_subdev *sd, int irq, void *platform_data)
 	ret = power_up(sd);
 	if (ret) {
 		v4l2_err(client, "hm2056_raw power-up err");
-		/* goto fail_detect; */
+		//goto fail_detect;
 	}
 
 	ret = dev->platform_data->csi_cfg(sd, 1);
@@ -851,7 +809,7 @@ hm2056_raw_s_config(struct v4l2_subdev *sd, int irq, void *platform_data)
 	ret = hm2056_raw_detect(dev, client);
 	if (ret) {
 		v4l2_err(client, "hm2056_raw_detect err s_config.\n");
-		/* goto fail_detect; */
+		//goto fail_detect;
 	}
 
 	ret = power_down(sd);
@@ -866,15 +824,14 @@ hm2056_raw_s_config(struct v4l2_subdev *sd, int irq, void *platform_data)
 
 fail_csi_cfg:
 	dev->platform_data->csi_cfg(sd, 0);
-/* fail_detect: */
+//fail_detect:
 	power_down(sd);
 	mutex_unlock(&dev->input_lock);
 	dev_err(&client->dev, "sensor power-gating failed\n");
 	return ret;
 }
 
-static int hm2056_raw_queryctrl(struct v4l2_subdev *sd,
-				struct v4l2_queryctrl *qc)
+static int hm2056_raw_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
 	struct hm2056_raw_control *ctrl = hm2056_raw_find_control(qc->id);
 	struct hm2056_raw_device *dev = to_hm2056_raw_sensor(sd);
@@ -902,17 +859,17 @@ static int hm2056_raw_s_parm(struct v4l2_subdev *sd,
 	mutex_lock(&dev->input_lock);
 
 	switch (dev->run_mode) {
-	case CI_MODE_VIDEO:
-		dev->hm2056_raw_res = hm2056_raw_res_video;
-		dev->n_res = N_RES_VIDEO;
-		break;
-	case CI_MODE_STILL_CAPTURE:
-		dev->hm2056_raw_res = hm2056_raw_res_still;
-		dev->n_res = N_RES_STILL;
-		break;
-	default:
-		dev->hm2056_raw_res = hm2056_raw_res_preview;
-		dev->n_res = N_RES_PREVIEW;
+		case CI_MODE_VIDEO:
+			dev->hm2056_raw_res = hm2056_raw_res_video;
+			dev->n_res = N_RES_VIDEO;
+			break;
+		case CI_MODE_STILL_CAPTURE:
+			dev->hm2056_raw_res = hm2056_raw_res_still;
+			dev->n_res = N_RES_STILL;
+			break;
+		default:
+			dev->hm2056_raw_res = hm2056_raw_res_preview;
+			dev->n_res = N_RES_PREVIEW;
 	}
 
 	dev->fmt_idx = 0;
@@ -963,19 +920,18 @@ static int hm2056_raw_s_stream(struct v4l2_subdev *sd, int enable)
 	dev_info(&client->dev, "%s enable %d\n", __func__, enable);
 
 	mutex_lock(&dev->input_lock);
-	if (enable)
+	if (enable) {
 		ret = hm2056_raw_set_streaming(sd);
-	else
+	} else {
 		ret = hm2056_raw_set_suspend(sd);
-
+	}
 	mutex_unlock(&dev->input_lock);
 
 	return ret;
 }
 
 static int
-hm2056_raw_enum_framesizes(struct v4l2_subdev *sd,
-				struct v4l2_frmsizeenum *fsize)
+hm2056_raw_enum_framesizes(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize)
 {
 	unsigned int index = fsize->index;
 	struct hm2056_raw_device *dev = to_hm2056_raw_sensor(sd);
@@ -1024,12 +980,10 @@ static int hm2056_raw_enum_frameintervals(struct v4l2_subdev *sd,
 }
 
 static int
-hm2056_raw_g_chip_ident(struct v4l2_subdev *sd,
-			struct v4l2_dbg_chip_ident *chip)
+hm2056_raw_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	return v4l2_chip_ident_i2c_client(client, chip,
-						V4L2_IDENT_HM2056_RAW, 0);
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_HM2056_RAW, 0);
 }
 
 static int hm2056_raw_enum_mbus_code(struct v4l2_subdev *sd,
@@ -1222,16 +1176,16 @@ static int hm2056_raw_probe(struct i2c_client *client,
 	dev->hm2056_raw_res = hm2056_raw_res_preview;
 	dev->n_res = N_RES_STILL;
 
-	/* Add for ATD command+++ */
+	//Add for ATD command+++
 	dev->sensor_i2c_attribute.attrs = hm2056_raw_attributes;
 
-	/* Register sysfs hooks */
+	// Register sysfs hooks
 	ret = sysfs_create_group(&client->dev.kobj, &dev->sensor_i2c_attribute);
 	if (ret) {
 		dev_err(&client->dev, "Not able to create the sysfs\n");
 		return ret;
 	}
-	/* Add for ATD command--- */
+	//Add for ATD command---
 
 	v4l2_i2c_subdev_init(&dev->sd, client, &hm2056_raw_ops);
 
@@ -1251,10 +1205,11 @@ static int hm2056_raw_probe(struct i2c_client *client,
 	dev->sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
 
 	ret = media_entity_init(&dev->sd.entity, 1, &dev->pad, 0);
-	if (ret)
+	if (ret) {
 		hm2056_raw_remove(client);
+	}
 
-	main_sd = &dev->sd;	/* Add for ATD command+++ */
+	main_sd = &dev->sd;	//Add for ATD command+++
 
 	return ret;
 }

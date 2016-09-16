@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __IA_CSS_ERR_H
@@ -41,6 +48,23 @@ enum ia_css_err {
 	IA_CSS_ERR_NOT_SUPPORTED
 };
 
+/** Unrecoverable FW errors. This enum contains a value for each
+ * error that the SP FW could encounter.
+ */
+enum ia_css_fw_err {
+	IA_CSS_FW_SUCCESS,
+	IA_CSS_FW_ERR_TAGGER_FULL,
+	IA_CSS_FW_ERR_NO_VBUF_HANDLE,
+	IA_CSS_FW_ERR_BUFFER_QUEUE_FULL,
+	IA_CSS_FW_ERR_INVALID_QUEUE,
+	IA_CSS_FW_ERR_INVALID_DMA_CHANNEL,
+	IA_CSS_FW_ERR_CIRCBUF_EMPTY,
+	IA_CSS_FW_ERR_CIRCBUF_FULL,
+	IA_CSS_FW_ERR_TOKEN_MAP_RECEIVE,
+	IA_CSS_FW_ERR_INVALID_PORT,
+	IA_CSS_FW_ERR_OUT_OF_SP_DMEM,
+};
+
 /** FW warnings. This enum contains a value for each warning that
  * the SP FW could indicate potential performance issue
  */
@@ -56,8 +80,6 @@ enum ia_css_fw_warning {
 		This warning can be avoided by unlocking locked frame-buffers more timely. */
 	IA_CSS_FW_WARNING_TAG_EXP_ID_FAILED, /** < Exposure ID cannot be found on the circular buffer.
 		This warning can be avoided by unlocking locked frame-buffers more timely. */
-	IA_CSS_FW_WARNING_FRAME_PARAM_MISMATCH, /** < Frame and param pair mismatched in tagger.
-		This warning can be avoided by providing a param set for each frame. */
 };
 
 #endif /* __IA_CSS_ERR_H */

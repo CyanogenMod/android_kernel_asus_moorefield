@@ -21,7 +21,7 @@
 #include <linux/atomisp_platform.h>
 #include <media/m10mo_atomisp.h>
 #include <linux/module.h>
-#include <linux/m10mo.h>
+#include "m10mo.h"
 
 static const uint32_t m10mo_md_effective_size[] = {
 	M10MO_METADATA_WIDTH,

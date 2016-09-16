@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "ia_css_frame_public.h"
@@ -27,9 +34,6 @@
 
 #include "ia_css_dvs.host.h"
 
-static const struct ia_css_dvs_configuration default_config = {
-	.info = (struct ia_css_frame_info *)NULL,
-};
 
 void
 ia_css_dvs_config(
@@ -49,10 +53,8 @@ ia_css_dvs_configure(
 	const struct ia_css_binary     *binary,
 	const struct ia_css_frame_info *info)
 {
-	struct ia_css_dvs_configuration config = default_config;
-
-	config.info = info;
-
+	const struct ia_css_dvs_configuration config =
+		{ info };
 	ia_css_configure_dvs(binary, &config);
 }
 
@@ -81,7 +83,7 @@ convert_coords_to_ispparams(
 	unsigned int num_blocks_x =  (uv_flag ? DVS_NUM_BLOCKS_X_CHROMA(o_width)  : DVS_NUM_BLOCKS_X(o_width)  ); // round num_x up to blockdim_x, if it concerns the Y0Y1 block (uv_flag==0) round up to even
 
 
-	unsigned int in_stride = i_stride * DVS_INPUT_BYTES_PER_PIXEL;
+	unsigned int in_stride = i_stride * DVS_INPUT_BYTES_PER_PIXEL << uv_flag;
 	unsigned width, height;
 	unsigned int *xbuff = NULL;
 	unsigned int *ybuff = NULL;
@@ -225,9 +227,8 @@ convert_coords_to_ispparams(
 
 struct ia_css_host_data *
 convert_allocate_dvs_6axis_config(
-	const struct ia_css_dvs_6axis_config *dvs_6axis_config,
-	const struct ia_css_binary *binary,
-	const struct ia_css_frame_info *dvs_in_frame_info)
+	struct ia_css_isp_parameters *params,
+	const struct ia_css_binary *binary)
 {
 	unsigned int i_stride;
 	unsigned int o_width;
@@ -235,58 +236,45 @@ convert_allocate_dvs_6axis_config(
 	struct ia_css_host_data *me;
 	struct gdc_warp_param_mem_s *isp_data_ptr;
 
+	assert(params != NULL);
 	assert(binary != NULL);
-	assert(dvs_6axis_config != NULL);
-	assert(dvs_in_frame_info != NULL);
+	assert(params->dvs_6axis_config != NULL);
 
 	me = ia_css_host_data_allocate((size_t)((DVS_6AXIS_BYTES(binary) / 2) * 3));
 
 	if (!me)
 		return NULL;
 
-	/*DVS only supports input frame of YUV420 or NV12. Fail for all other cases*/
-	assert((dvs_in_frame_info->format == IA_CSS_FRAME_FORMAT_NV12)
-		|| (dvs_in_frame_info->format == IA_CSS_FRAME_FORMAT_YUV420));
-
 	isp_data_ptr = (struct gdc_warp_param_mem_s *)me->address;
-
-	i_stride  = dvs_in_frame_info->padded_width;
-
+	/* bgz115: replaced binary->in_frame_info.res.width for
+	   'padded_width=stride' */
+	i_stride  = binary->internal_frame_info.padded_width;
 	o_width  = binary->out_frame_info[0].res.width;
 	o_height = binary->out_frame_info[0].res.height;
 
 	/* Y plane */
-	convert_coords_to_ispparams(me, dvs_6axis_config,
+	convert_coords_to_ispparams(me, params->dvs_6axis_config,
 				    i_stride, o_width, o_height, 0);
-
-	if (dvs_in_frame_info->format == IA_CSS_FRAME_FORMAT_YUV420) {
-		/*YUV420 has half the stride for U/V plane*/
-		i_stride /=2;
-	}
-
 	/* UV plane (packed inside the y plane) */
-	convert_coords_to_ispparams(me, dvs_6axis_config,
-				    i_stride, o_width/2, o_height/2, 1);
+	convert_coords_to_ispparams(me, params->dvs_6axis_config,
+				    i_stride/2, o_width/2, o_height/2, 1);
 
 	return me;
 }
 
 enum ia_css_err
 store_dvs_6axis_config(
-	const struct ia_css_dvs_6axis_config *dvs_6axis_config,
+	struct ia_css_isp_parameters *params,
 	const struct ia_css_binary *binary,
-	const struct ia_css_frame_info *dvs_in_frame_info,
 	hrt_vaddress ddr_addr_y)
 {
 
 	struct ia_css_host_data *me;
-	assert(dvs_6axis_config != NULL);
+	assert(params != NULL);
 	assert(ddr_addr_y != mmgr_NULL);
-	assert(dvs_in_frame_info != NULL);
 
-	me = convert_allocate_dvs_6axis_config(dvs_6axis_config,
-				 binary,
-				 dvs_in_frame_info);
+	me = convert_allocate_dvs_6axis_config(params,
+				 binary);
 
 	if (!me) {
 		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY);
@@ -298,6 +286,7 @@ store_dvs_6axis_config(
 				me);
 	ia_css_host_data_free(me);
 
+	params->isp_params_changed = true;
 	return IA_CSS_SUCCESS;
 }
 

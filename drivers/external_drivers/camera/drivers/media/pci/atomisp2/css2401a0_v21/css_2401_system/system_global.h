@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __SYSTEM_GLOBAL_H_INCLUDED__
@@ -194,12 +201,12 @@ typedef enum {
 	N_HMEM_ID
 } hmem_ID_t;
 
+/*
 typedef enum {
-	ISYS_IRQ0_ID = 0,	/* port a */
-	ISYS_IRQ1_ID,	/* port b */
-	ISYS_IRQ2_ID,	/* port c */
-	N_ISYS_IRQ_ID
-} isys_irq_ID_t;
+	IRQ0_ID = 0,
+	N_IRQ_ID
+} irq_ID_t;
+*/
 
 typedef enum {
 	IRQ0_ID = 0,	/* GP IRQ block */
@@ -380,7 +387,7 @@ typedef enum {
 	CSI_RX_FRONTEND0_ID = 0,	/* map to ISYS2401_CSI_RX_A */
 	CSI_RX_FRONTEND1_ID,		/* map to ISYS2401_CSI_RX_B */
 	CSI_RX_FRONTEND2_ID,		/* map to ISYS2401_CSI_RX_C */
-#define N_CSI_RX_FRONTEND_ID (CSI_RX_FRONTEND2_ID+1)
+	N_CSI_RX_FRONTEND_ID
 } csi_rx_frontend_ID_t;
 
 typedef enum {

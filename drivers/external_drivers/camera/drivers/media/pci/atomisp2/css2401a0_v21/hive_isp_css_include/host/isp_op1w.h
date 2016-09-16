@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __ISP_OP1W_H_INCLUDED__
@@ -166,56 +173,21 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subsat(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief subtraction with shift right and rounding
+/** @brief subtraction with shift right
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
  *
  * @return		(a - b) >> 1
  *
- * This function subtracts _b from _a and right shifts
- * the result by 1 bit with rounding.
+ * This function will subtract _b from _a at full
+ * precision, and right shift the result with 1 bit.
  * No overflow can occur.
  * result = (_a - _b) >> 1
- *
- * Note: This function will be deprecated due to
- * the naming confusion and it will be replaced
- * by "OP_1w_subhalfrnd".
  */
 STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subasr1(
     const tvector1w     _a,
     const tvector1w     _b);
-
-/** @brief Subtraction with shift right and rounding
- *
- * @param[in] _a	first operand
- * @param[in] _b	second operand
- *
- * @return		(_a - _b) >> 1
- *
- * This function subtracts _b from _a and right shifts
- * the result by 1 bit with rounding.
- * No overflow can occur.
- */
-STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subhalfrnd(
-    const tvector1w	_a,
-    const tvector1w	_b);
-
-/** @brief Subtraction with shift right and no rounding
- *
- * @param[in] _a	first operand
- * @param[in] _b	second operand
- *
- * @return		(_a - _b) >> 1
- *
- * This function subtracts _b from _a and right shifts
- * the result by 1 bit without rounding (i.e. truncation).
- * No overflow can occur.
- */
-STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subhalf(
-    const tvector1w	_a,
-    const tvector1w	_b);
-
 
 /** @brief saturated absolute value
  *
@@ -695,23 +667,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_mux(
     const tvector1w     _b,
     const tflags           _c);
 
-/** @brief Average without rounding
- *
- * @param[in] _a	first operand
- * @param[in] _b	second operand
- *
- * @return		(_a + _b) >> 1
- *
- * This function will add _a and _b, and right shift
- * the result by one without rounding. No overflow
- * will occur because addition is performed in the
- * proper precision.
- */
-STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w  OP_1w_avg(
-    const tvector1w     _a,
-    const tvector1w     _b);
-
-/** @brief Average with rounding
+/** @brief Average
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument

@@ -1,11 +1,8 @@
 #
 # Makefile for sensor drivers
 #
-ifeq ($(TARGET_BUILD_VARIANT),user)
-    KBUILD_CFLAGS += -DZX551ML_USER_BUILD
-endif
-
 obj-$(CONFIG_VIDEO_T4K37)      += t4k37/
+obj-$(CONFIG_VIDEO_T4K35)      += t4k35/
 obj-$(CONFIG_VIDEO_IMX)        += imx/
 obj-$(CONFIG_VIDEO_IMXVB)      += imx135VB/
 ifdef CONFIG_GMIN_INTEL_MID
@@ -23,7 +20,6 @@ obj-$(CONFIG_VIDEO_MT9V113)    += mt9v113.o
 obj-$(CONFIG_VIDEO_OV5640)     += ov5640.o
 
 obj-$(CONFIG_VIDEO_GC2235)     += gc2235.o
-obj-$(CONFIG_VIDEO_OV2685)     += ov2685.o
 obj-$(CONFIG_VIDEO_OV9724)     += ov9724.o
 obj-$(CONFIG_VIDEO_OV2722)     += ov2722.o
 obj-$(CONFIG_VIDEO_OV8830)     += ov8830.o
@@ -32,13 +28,9 @@ obj-$(CONFIG_VIDEO_OV5670)     += ov5670.o
 obj-$(CONFIG_VIDEO_S5K8AAY)    += s5k8aay.o
 obj-$(CONFIG_VIDEO_S5K6B2YX)    += s5k6b2yx.o
 
-m10mo_isp-objs := m10mo.o m10mo_fw.o m10mo_tables.o m10mo_fw_type2.o m10mo_fw_type1_5.o flashnode.o io3730_auto.o
+m10mo_isp-objs := m10mo.o m10mo_fw.o m10mo_tables.o m10mo_fw_type2.o m10mo_fw_type1_5.o
 obj-$(CONFIG_VIDEO_M10MO)    += m10mo_isp.o
 obj-$(CONFIG_VIDEO_M10MO)    += m10mo_spi.o
-
-m12mo_isp-objs := m12mo.o m12mo_fw.o m12mo_tables.o
-obj-$(CONFIG_VIDEO_M12MO)    += m12mo_isp.o
-obj-$(CONFIG_VIDEO_M12MO)    += m12mo_spi.o
 
 obj-$(CONFIG_VIDEO_AR0543_RAW)     += ar0543_raw.o
 CFFLAGS_ar0543_raw.o = -Werror
@@ -53,22 +45,15 @@ obj-$(CONFIG_VIDEO_OV680)     += ov680.o
 obj-$(CONFIG_VIDEO_CSI_XACTOR) += xactor_x.o
 obj-$(CONFIG_VIDEO_PIXTER) += pixter.o
 
-vl6180_lf-objs := vl6180_lf_api.o Laser_forcus_sysfs.o vl6180x_i2c.o vl6180x_api.o
-obj-$(CONFIG_VL6180_LF) += vl6180_lf.o
-obj-$(CONFIG_IO3730_FWUD) += io3730_fwud.o
-
 #
 # Makefile for flash drivers
 #
 
 obj-$(CONFIG_VIDEO_SKY81296) += sky81296.o
-#obj-$(CONFIG_VIDEO_FLASHNODE) += flashnode.o
+obj-$(CONFIG_VIDEO_FLASHNODE) += flashnode.o
 obj-$(CONFIG_VIDEO_LM3554) += lm3554.o
 obj-$(CONFIG_VIDEO_LM3559) += lm3559.o
 obj-$(CONFIG_VIDEO_LM3642) += lm3642.o
-
-#Olivia Laser Sensor
-obj-$(CONFIG_OLIVIA_LASERSENSOR)    += LaserSensor/
 
 ccflags-y += -Werror
 

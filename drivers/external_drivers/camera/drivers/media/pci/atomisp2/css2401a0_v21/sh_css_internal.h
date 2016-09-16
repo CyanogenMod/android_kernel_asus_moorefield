@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef _SH_CSS_INTERNAL_H_
@@ -228,8 +235,8 @@ enum sh_css_sp_event_type {
 	SH_CSS_SP_EVENT_METADATA_DONE,
 	SH_CSS_SP_EVENT_LACE_STATISTICS_DONE,
 	SH_CSS_SP_EVENT_ACC_STAGE_COMPLETE,
-	SH_CSS_SP_EVENT_TIMER,
 	SH_CSS_SP_EVENT_PORT_EOF,
+	SH_CSS_SP_EVENT_FW_ERROR,
 	SH_CSS_SP_EVENT_FW_WARNING,
 	SH_CSS_SP_EVENT_FW_ASSERT,
 	SH_CSS_SP_EVENT_NR_OF_TYPES		/* must be last */
@@ -445,7 +452,6 @@ struct sh_css_sp_config {
 #if !defined(HAS_NO_INPUT_SYSTEM)
 	uint8_t                 enable_isys_event_queue;
 #endif
-	uint8_t			disable_cont_vf;
 };
 
 enum sh_css_stage_type {
@@ -536,15 +542,11 @@ ia_css_metadata_free_multiple(unsigned int num_bufs, struct ia_css_metadata **bu
 
 /* Macro for handling pipe_qos_config */
 #define QOS_INVALID                  (~0U)
-#define QOS_ALL_STAGES_DISABLED      (0U)
 #define QOS_STAGE_MASK(num)          (0x00000001 << num)
 #define SH_CSS_IS_QOS_PIPE(pipe)               ((pipe)->pipe_qos_config != QOS_INVALID)
 #define SH_CSS_QOS_STAGE_ENABLE(pipe, num)     ((pipe)->pipe_qos_config |= QOS_STAGE_MASK(num))
 #define SH_CSS_QOS_STAGE_DISABLE(pipe, num)    ((pipe)->pipe_qos_config &= ~QOS_STAGE_MASK(num))
 #define SH_CSS_QOS_STAGE_IS_ENABLED(pipe, num) ((pipe)->pipe_qos_config & QOS_STAGE_MASK(num))
-#define SH_CSS_QOS_MODE_PIPE_ADD(mode, pipe)    ((mode) |= (0x1 << (pipe)->pipe_id))
-#define SH_CSS_QOS_MODE_PIPE_REMOVE(mode, pipe) ((mode) &= ~(0x1 << (pipe)->pipe_id))
-#define SH_CSS_IS_QOS_ONLY_MODE(mode)           ((mode) == (0x1 << IA_CSS_PIPE_ID_ACC))
 
 /* Information for a pipeline */
 struct sh_css_sp_pipeline {
@@ -564,7 +566,6 @@ struct sh_css_sp_pipeline {
 	uint32_t	num_stages;		/* the pipe config */
 	uint32_t	running;	/* needed for pipe termination */
 	hrt_vaddress	sp_stage_addr[SH_CSS_MAX_STAGES];
-	hrt_vaddress	scaler_pp_lut; /* Early bound LUT */
 #ifndef __SP
 	uint32_t	dummy; /* stage ptr is only used on sp but lives in
 				  this struct; needs cleanup */
@@ -1026,6 +1027,9 @@ sh_css_params_init(void);
 void
 sh_css_params_uninit(void);
 
+void
+sh_css_params_reconfigure_gdc_lut(void);
+
 void *
 sh_css_malloc(size_t size);
 
@@ -1099,22 +1103,14 @@ void
 sh_css_invalidate_shading_tables(struct ia_css_stream *stream);
 
 #if defined(IS_ISP_2500_SYSTEM)
-enum ia_css_err
+void
 ia_css_pipe_get_bds_resolution(const struct ia_css_pipe *pipe, struct ia_css_resolution *res);
 
-enum ia_css_err
+void
 ia_css_pipe_get_bds_aligned_resolution(const struct ia_css_pipe *pipe, struct ia_css_resolution *res);
 
-enum ia_css_err
+void
 ia_css_pipe_get_dvs_envelope(const struct ia_css_pipe *pipe, struct ia_css_resolution *res);
-
-enum ia_css_err
-ia_css_pipe_get_dvs_filter(const struct ia_css_pipe *pipe, struct ia_css_resolution *filter_res);
-
-enum ia_css_err
-ia_css_pipe_get_gdc_in_buffer_info(const struct ia_css_pipe *pipe,
-		struct ia_css_resolution *res,
-		struct ia_css_point *offset);
 #endif
 
 struct ia_css_pipeline *

@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __IA_CSS_TIMER_H
@@ -24,30 +31,17 @@
 /** @brief timer reading definition */
 typedef uint32_t clock_value_t;
 
-/** @brief 32 bit clock tick,(timestamp based on timer-value of CSS-internal timer)*/
+/** @brief 32 bit clock tick,(measured time in ticks)*/
 struct ia_css_clock_tick {
 	clock_value_t ticks; /**< measured time in ticks.*/
 };
 
-/** @brief TIMER event codes */
-enum ia_css_tm_event {
-	IA_CSS_TM_EVENT_AFTER_INIT,
-	/**< Timer Event after Initialization */
-	IA_CSS_TM_EVENT_MAIN_END,
-	/**< Timer Event after end of Main */
-	IA_CSS_TM_EVENT_THREAD_START,
-	/**< Timer Event after thread start */
-	IA_CSS_TM_EVENT_FRAME_PROC_START,
-	/**< Timer Event after Frame Process Start */
-	IA_CSS_TM_EVENT_FRAME_PROC_END
-	/**< Timer Event after Frame Process End */
-};
-
-/** @brief code measurement common struct */
+/** @brief  code measurement common struct */
 struct ia_css_time_meas {
 	clock_value_t	start_timer_value;	/**< measured time in ticks */
 	clock_value_t	end_timer_value;	/**< measured time in ticks */
 };
+
 
 /**@brief SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT checks to ensure correct alignment for struct ia_css_clock_tick. */
 #define SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT sizeof(clock_value_t)

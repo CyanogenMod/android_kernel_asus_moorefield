@@ -57,6 +57,7 @@
 #define atomisp_css_shading_table	sh_css_shading_table
 #define atomisp_css_morph_table	sh_css_morph_table
 #define atomisp_css_fw_info	sh_css_fw_info
+typedef union sh_css_s3a_data atomisp_css_3a_data;
 
 #define CSS_PIPE_ID_PREVIEW	SH_CSS_PREVIEW_PIPELINE
 #define CSS_PIPE_ID_COPY	SH_CSS_COPY_PIPELINE
@@ -109,7 +110,7 @@ struct atomisp_css_env {
 };
 
 struct atomisp_s3a_buf {
-	union sh_css_s3a_data s3a_data;
+	atomisp_css_3a_data s3a_data;
 	struct list_head list;
 };
 
@@ -121,7 +122,7 @@ struct atomisp_dis_buf {
 struct atomisp_css_buffer {
 	struct sh_css_buffer css_buffer;
 	struct atomisp_css_dis_data *dis_data;
-	union sh_css_s3a_data *s3a_data;
+	atomisp_css_3a_data *s3a_data;
 };
 
 struct atomisp_css_event_type {

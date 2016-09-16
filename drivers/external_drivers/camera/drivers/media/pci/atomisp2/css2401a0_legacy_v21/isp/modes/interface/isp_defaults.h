@@ -114,6 +114,10 @@
 #define ENABLE_LIN            0
 #endif
 
+#if !defined(ENABLE_DP)
+#define ENABLE_DP		1
+#endif
+
 #if !defined(ENABLE_DPC)
 #define ENABLE_DPC		1
 #endif
@@ -167,9 +171,9 @@
 #endif
 
 #if !defined(ENABLE_BAYER_HIST)
-#if ISP_PIPE_VERSION == SH_CSS_ISP_PIPE_VERSION_2_2
+#if ISP_PIPE_VERSION == 2
 #define ENABLE_BAYER_HIST  0 /* should be 1 */
-#elif ISP_PIPE_VERSION == SH_CSS_ISP_PIPE_VERSION_1
+#else
 #define ENABLE_BAYER_HIST  0
 #endif
 #endif
@@ -274,17 +278,17 @@
 #endif
 
 #if !defined(USE_BNR_LITE)
-#if ISP_PIPE_VERSION == SH_CSS_ISP_PIPE_VERSION_2_2
+#if ISP_PIPE_VERSION == 2
 #define USE_BNR_LITE  1 /* should be 0 */
-#elif ISP_PIPE_VERSION == SH_CSS_ISP_PIPE_VERSION_1
+#else
 #define USE_BNR_LITE  1
 #endif
 #endif
 
 #if !defined(USE_YEEYNR_LITE)
-#if ISP_PIPE_VERSION == SH_CSS_ISP_PIPE_VERSION_2_2
+#if ISP_PIPE_VERSION == 2
 #define USE_YEEYNR_LITE  0
-#elif ISP_PIPE_VERSION == SH_CSS_ISP_PIPE_VERSION_1
+#else
 #define USE_YEEYNR_LITE  1
 #endif
 #endif

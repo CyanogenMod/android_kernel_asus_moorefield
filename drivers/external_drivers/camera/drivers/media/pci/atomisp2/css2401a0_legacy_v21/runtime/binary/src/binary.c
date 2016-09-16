@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include <math_support.h>
@@ -36,7 +43,6 @@
 #include "camera/pipe/interface/ia_css_pipe_binarydesc.h"
 #if defined(HAS_RES_MGR)
 #include <components/resolutions_mgr/src/host/resolutions_mgr.host.h>
-#include <components/acc_cluster/acc_dvs_stat/host/dvs_stat.host.h>
 #endif
 
 #include "memory_access.h"
@@ -321,18 +327,6 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 	return err;
 }
 
-static void sh_css_binary_common_grid_info(const struct ia_css_binary *binary,
-				struct ia_css_grid_info *info)
-{
-	assert(binary != NULL);
-	assert(info != NULL);
-
-	info->isp_in_width = binary->internal_frame_info.res.width;
-	info->isp_in_height = binary->internal_frame_info.res.height;
-
-	info->vamem_type = IA_CSS_VAMEM_TYPE_2;
-}
-
 void
 ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 			    struct ia_css_grid_info *info,
@@ -344,7 +338,10 @@ ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 	assert(binary != NULL);
 	assert(info != NULL);
 
-	dvs_info = &info->dvs_grid.dvs_grid_info;
+	dvs_info = &info->dvs_grid;
+
+	info->isp_in_width = binary->internal_frame_info.res.width;
+	info->isp_in_height = binary->internal_frame_info.res.height;
 
 	/* for DIS, we use a division instead of a ceil_div. If this is smaller
 	 * than the 3a grid size, it indicates that the outer values are not
@@ -359,54 +356,35 @@ ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 	dvs_info->num_hor_coefs     = binary->dis.coef.dim.width;
 	dvs_info->num_ver_coefs     = binary->dis.coef.dim.height;
 
-	sh_css_binary_common_grid_info(binary, info);
+#if defined(IS_ISP_2500_SYSTEM)
+	assert(pipe != NULL);
+	dvs_info->enable            = binary->info->sp.enable.dvs_stats;
+#endif
+
+#if defined(HAS_VAMEM_VERSION_2)
+	info->vamem_type = IA_CSS_VAMEM_TYPE_2;
+#elif defined(HAS_VAMEM_VERSION_1)
+	info->vamem_type = IA_CSS_VAMEM_TYPE_1;
+#else
+#error "Unknown VAMEM version"
+#endif
 }
+
 
 void
-ia_css_binary_dvs_stat_grid_info(
-	const struct ia_css_binary *binary,
-	struct ia_css_grid_info *info,
-	struct ia_css_pipe *pipe)
-{
-#if defined(HAS_RES_MGR)
-	struct ia_css_dvs_stat_grid_info *dvs_stat_info;
-	unsigned int i;
-
-	assert(binary != NULL);
-	assert(info != NULL);
-	dvs_stat_info = &info->dvs_grid.dvs_stat_grid_info;
-
-	if (binary->info->sp.enable.dvs_stats) {
-		for (i = 0; i < IA_CSS_SKC_DVS_STAT_NUM_OF_LEVELS; i++) {
-			dvs_stat_info->grd_cfg[i].grd_start.enable = 1;
-		}
-		ia_css_dvs_stat_grid_calculate(pipe, dvs_stat_info);
-	}
-	else {
-		memset(dvs_stat_info, 0, sizeof(struct ia_css_dvs_stat_grid_info));
-	}
-
-#endif
-	(void)pipe;
-	sh_css_binary_common_grid_info(binary, info);
-	return;
-}
-
-enum ia_css_err
 ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 			   struct ia_css_grid_info *info,
 			   struct ia_css_pipe *pipe)
 {
 	struct ia_css_3a_grid_info *s3a_info;
-	enum ia_css_err err = IA_CSS_SUCCESS;
 
-	IA_CSS_ENTER_PRIVATE("binary=%p, info=%p, pipe=%p",
-			     binary, info, pipe);
-
+	(void)pipe;
 	assert(binary != NULL);
 	assert(info != NULL);
 	s3a_info = &info->s3a_grid;
 
+	info->isp_in_width = binary->internal_frame_info.res.width;
+	info->isp_in_height = binary->internal_frame_info.res.height;
 
 #if !defined(IS_ISP_2500_SYSTEM)
 	/* 3A statistics grid */
@@ -432,10 +410,19 @@ ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 	s3a_info->awb_enable        = binary->info->sp.enable.awb_acc;
 	s3a_info->elem_bit_depth    = SH_CSS_BAYER_BITS;
 
-	err = ia_css_3a_stat_grid_calculate(s3a_info, pipe);
+	ia_css_3a_stat_grid_calculate(s3a_info, pipe);
+
+	s3a_info->af_grd_info       = *get_af_grid_config(pipe);
+	s3a_info->awb_fr_grd_info   = *get_awb_fr_grid_config(pipe);
+	s3a_info->awb_grd_info      = *get_awb_grid_config(pipe);
 #endif
-	IA_CSS_LEAVE_ERR_PRIVATE(err);
-	return err;
+#if defined(HAS_VAMEM_VERSION_2)
+	info->vamem_type = IA_CSS_VAMEM_TYPE_2;
+#elif defined(HAS_VAMEM_VERSION_1)
+	info->vamem_type = IA_CSS_VAMEM_TYPE_1;
+#else
+#error "Unknown VAMEM version"
+#endif
 }
 
 static void
@@ -578,69 +565,25 @@ ia_css_binary_uninit(void)
 	return IA_CSS_SUCCESS;
 }
 
-/** @brief Compute decimation factor for 3A statistics and shading correction.
- *
- * @param[in]	width	Frame width in pixels.
- * @param[in]	height	Frame height in pixels.
- * @return	Log2 of decimation factor (= grid cell size) in bayer quads.
- */
 static int
 binary_grid_deci_factor_log2(int width, int height)
 {
-/* 3A/Shading decimation factor spcification (at August 2008)
- * ------------------------------------------------------------------
- * [Image Width (BQ)] [Decimation Factor (BQ)] [Resulting grid cells]
- * 1280 …             32                       40 …
- *  640 … 1279        16                       40 … 80
- *      …  639         8                          … 80
- * ------------------------------------------------------------------
- */
-/* Maximum and minimum decimation factor by the specification */
-#define MAX_SPEC_DECI_FACT_LOG2		5
-#define MIN_SPEC_DECI_FACT_LOG2		3
-/* the smallest frame width in bayer quads when decimation factor (log2) is 5 or 4, by the specification */
-#define DECI_FACT_LOG2_5_SMALLEST_FRAME_WIDTH_BQ	1280
-#define DECI_FACT_LOG2_4_SMALLEST_FRAME_WIDTH_BQ	640
+	int fact, fact1;
+	fact = 5;
+	while (ISP_BQ_GRID_WIDTH(width, fact - 1) <= SH_CSS_MAX_BQ_GRID_WIDTH &&
+	       ISP_BQ_GRID_HEIGHT(height, fact - 1) <= SH_CSS_MAX_BQ_GRID_HEIGHT
+	       && fact > 3)
+		fact--;
 
-	int smallest_factor; /* the smallest factor (log2) where the number of cells does not exceed the limitation */
-	int spec_factor;     /* the factor (log2) which satisfies the specification */
-
-	/* Currently supported maximum width and height are 5120(=80*64) and 3840(=60*64). */
-	assert(ISP_BQ_GRID_WIDTH(width, MAX_SPEC_DECI_FACT_LOG2) <= SH_CSS_MAX_BQ_GRID_WIDTH);
-	assert(ISP_BQ_GRID_HEIGHT(height, MAX_SPEC_DECI_FACT_LOG2) <= SH_CSS_MAX_BQ_GRID_HEIGHT);
-
-	/* Compute the smallest factor. */
-	smallest_factor = MAX_SPEC_DECI_FACT_LOG2;
-	while (ISP_BQ_GRID_WIDTH(width, smallest_factor - 1) <= SH_CSS_MAX_BQ_GRID_WIDTH &&
-	       ISP_BQ_GRID_HEIGHT(height, smallest_factor - 1) <= SH_CSS_MAX_BQ_GRID_HEIGHT
-	       && smallest_factor > MIN_SPEC_DECI_FACT_LOG2)
-		smallest_factor--;
-
-	/* Get the factor by the specification. */
-	if (_ISP_BQS(width) >= DECI_FACT_LOG2_5_SMALLEST_FRAME_WIDTH_BQ)
-		spec_factor = 5;
-	else if (_ISP_BQS(width) >= DECI_FACT_LOG2_4_SMALLEST_FRAME_WIDTH_BQ)
-		spec_factor = 4;
+	/* fact1 satisfies the specification of grid size. fact and fact1 is
+	   not the same for some resolution (fact=4 and fact1=5 for 5mp). */
+	if (width >= 2560)
+		fact1 = 5;
+	else if (width >= 1280)
+		fact1 = 4;
 	else
-		spec_factor = 3;
-
-	/* If smallest_factor is smaller than or equal to spec_factor, choose spec_factor to follow the specification.
-	   If smallest_factor is larger than spec_factor, choose smallest_factor.
-
-		ex. width=2560, height=1920
-			smallest_factor=4, spec_factor=5
-			smallest_factor < spec_factor   ->   return spec_factor
-
-		ex. width=300, height=3000
-			smallest_factor=5, spec_factor=3
-			smallest_factor > spec_factor   ->   return smallest_factor
-	*/
-	return max(smallest_factor, spec_factor);
-
-#undef MAX_SPEC_DECI_FACT_LOG2
-#undef MIN_SPEC_DECI_FACT_LOG2
-#undef DECI_FACT_LOG2_5_SMALLEST_FRAME_WIDTH_BQ
-#undef DECI_FACT_LOG2_4_SMALLEST_FRAME_WIDTH_BQ
+		fact1 = 3;
+	return max(fact, fact1);
 }
 
 static int
@@ -732,12 +675,9 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	binary->info = xinfo;
 	if (!accelerator) {
 		/* binary->css_params has been filled by accelerator itself. */
-		err = ia_css_isp_param_allocate_isp_parameters(
+		ia_css_isp_param_allocate_isp_parameters(
 			&binary->mem_params, &binary->css_params,
 			&info->mem_initializers);
-		if (err != IA_CSS_SUCCESS) {
-			return err;
-		}
 	}
 	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
 		if (out_info[i] && (out_info[i]->res.width != 0)) {
@@ -773,7 +713,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		binary->internal_frame_info.format = bin_out_info->format;
 	/* } */
 	binary->internal_frame_info.res.width       = isp_internal_width;
-	binary->internal_frame_info.padded_width    = CEIL_MUL(isp_internal_width, 2*ISP_VEC_NELEMS);
+	binary->internal_frame_info.padded_width    = isp_internal_width;
 	binary->internal_frame_info.res.height      = isp_internal_height;
 	binary->internal_frame_info.raw_bit_depth   = bits_per_pixel;
 
@@ -833,14 +773,8 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 #ifndef IS_ISP_2500_SYSTEM
 	if (vf_info && (vf_info->res.width != 0)) {
 		err = ia_css_vf_configure(binary, bin_out_info, (struct ia_css_frame_info *)vf_info, &vf_log_ds);
-		if (err != IA_CSS_SUCCESS) {
-			if (!accelerator) {
-				ia_css_isp_param_destroy_isp_parameters(
-					&binary->mem_params,
-					&binary->css_params);
-			}
+		if (err != IA_CSS_SUCCESS)
 			return err;
-		}
 	}
 #else
 	(void)err;
@@ -988,13 +922,12 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 				       *req_vf_info;
 
 	struct ia_css_binary_xinfo *xcandidate;
-	bool need_ds, need_dz, need_dvs, need_xnr, need_dpc;
+	bool need_ds, need_dz, need_dvs, need_xnr;
 	bool striped;
 	bool enable_yuv_ds;
 	bool enable_high_speed;
 	bool enable_dvs_6axis;
 	bool enable_reduced_pipe;
-	bool enable_capture_pp_bli;
 	enum ia_css_err err = IA_CSS_ERR_INTERNAL_ERROR;
 	bool continuous;
 	unsigned int isp_pipe_version;
@@ -1029,12 +962,10 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 	need_ds = descr->enable_fractional_ds;
 	need_dz = false;
 	need_dvs = false;
-	need_dpc = descr->enable_dpc;
 	enable_yuv_ds = descr->enable_yuv_ds;
 	enable_high_speed = descr->enable_high_speed;
 	enable_dvs_6axis  = descr->enable_dvs_6axis;
 	enable_reduced_pipe = descr->enable_reduced_pipe;
-	enable_capture_pp_bli = descr->enable_capture_pp_bli;
 	continuous = descr->continuous;
 	striped = descr->striped;
 	isp_pipe_version = descr->isp_pipe_version;
@@ -1237,17 +1168,6 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 				candidate->output.max_width);
 			continue;
 		}
-		if (xcandidate->num_output_pins > 1 && /* in case we have a second output pin, */
-		     req_vf_info) { /* and we need vf output. */
-			if (req_vf_info->res.width > candidate->output.max_width) {
-				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-					"ia_css_binary_find() [%d] continue: (%d < %d)\n",
-					__LINE__,
-					req_vf_info->res.width,
-					candidate->output.max_width);
-				continue;
-			}
-		}
 		if (req_in_info->padded_width > candidate->input.max_width) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				"ia_css_binary_find() [%d] continue: (%d > %d)\n",
@@ -1288,19 +1208,6 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 			continue;
 		}
 
-		/* Check if vf_veceven supports the requested vf width */
-		if (xcandidate->num_output_pins == 1 &&
-			req_vf_info && candidate->enable.vf_veceven) { /* and we need vf output. */
-			if (req_vf_info->res.width > candidate->output.max_width) {
-				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-					"ia_css_binary_find() [%d] continue: (%d < %d)\n",
-					__LINE__,
-					req_vf_info->res.width,
-					candidate->output.max_width);
-				continue;
-			}
-		}
-
 		if (!supports_bds_factor(candidate->bds.supported_bds_factors,
 		    descr->required_bds_factor)) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -1310,21 +1217,6 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 			continue;
 		}
 
-		if (!candidate->enable.dpc && need_dpc) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				"ia_css_binary_find() [%d] continue: 0x%x & 0x%x)\n",
-				__LINE__, candidate->enable.dpc,
-				descr->enable_dpc);
-			continue;
-		}
-
-		if (candidate->uds.use_bci && enable_capture_pp_bli) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				"ia_css_binary_find() [%d] continue: 0x%x & 0x%x)\n",
-				__LINE__, candidate->uds.use_bci,
-				descr->enable_capture_pp_bli);
-			continue;
-		}
 
 		/* reconfigure any variable properties of the binary */
 		err = ia_css_binary_fill_info(xcandidate, online, two_ppc,
@@ -1358,7 +1250,35 @@ ia_css_binary_max_vf_width(void)
 	/* For IPU3 (SkyCam) this pointer is guarenteed to be NULL simply because such a binary does not exist  */
 	if (binary_infos[IA_CSS_BINARY_MODE_VF_PP])
 		return binary_infos[IA_CSS_BINARY_MODE_VF_PP]->sp.output.max_width;
+
+	/**
+	 * For IPU3 (SkyCam) there are 3 possible binary modes with viewfinder output.
+	 * These binary modes are mutual exclusive, so just return the max width of the first
+	 * non-null binary info for these 3 possible modes.
+	 *
+	 * Note the the returned max_width does not specify to which output it applies (main or vf)
+	 * ASSUMPTION: max_width applies to both main and vf output. As long this is true, no seperate new field is
+	 * required.
+	 */
+	assert(IMPLIES(binary_infos[IA_CSS_BINARY_MODE_VIDEO] != NULL,
+		binary_infos[IA_CSS_BINARY_MODE_PRIMARY] == NULL && binary_infos[IA_CSS_BINARY_MODE_PREVIEW] == NULL));
+
+	assert(IMPLIES(binary_infos[IA_CSS_BINARY_MODE_PRIMARY] != NULL,
+		binary_infos[IA_CSS_BINARY_MODE_VIDEO] == NULL && binary_infos[IA_CSS_BINARY_MODE_PREVIEW] == NULL));
+
+	assert(IMPLIES(binary_infos[IA_CSS_BINARY_MODE_PREVIEW] != NULL,
+		binary_infos[IA_CSS_BINARY_MODE_VIDEO] == NULL && binary_infos[IA_CSS_BINARY_MODE_PRIMARY] == NULL));
+
+	if (binary_infos[IA_CSS_BINARY_MODE_VIDEO])
+		return binary_infos[IA_CSS_BINARY_MODE_VIDEO]->sp.output.max_width;
+	if (binary_infos[IA_CSS_BINARY_MODE_PRIMARY])
+		return binary_infos[IA_CSS_BINARY_MODE_PRIMARY]->sp.output.max_width;
+	if (binary_infos[IA_CSS_BINARY_MODE_PREVIEW])
+		return binary_infos[IA_CSS_BINARY_MODE_PREVIEW]->sp.output.max_width;
+
+	/* Instead of assert, just return 0 (this will/should trigger an assert or error at the caller side) */
 	return 0;
+
 }
 
 void

@@ -18,6 +18,7 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-device.h>
 #include <asm/intel-mid.h>
+#include <linux/proc_fs.h>
 
 #include "dw9714.h"
 
@@ -39,29 +40,6 @@ static int dw9714_i2c_write(struct i2c_client *client, u16 data)
 
 	return ret == num_msg ? 0 : -EIO;
 }
-
-int dw9714_vcm_power_up(struct v4l2_subdev *sd)
-{
-	/*int ret;*/
-
-	/* Enable power */
-	/*ret = dw9714_dev.platform_data->power_ctrl(sd, 1);*/
-	/* waiting time requested by DW9714A(vcm) */
-	usleep_range(12000, 12500);
-	return 0;
-}
-
-int dw9714_vcm_power_down(struct v4l2_subdev *sd)
-{
-	/*ChungYi : 
-	   We don't use this GPIO for power-down VCM,
-	   Camera IMX111 turn off the power for VCM.
-	   So always return 0 for A500CG.
-	*/
-	//return dw9714_dev.platform_data->power_ctrl(sd, 0);
-	return 0;
-}
-
 
 int dw9714_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
 {
@@ -215,7 +193,6 @@ int dw9714_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
 
 int dw9714_vcm_init(struct v4l2_subdev *sd)
 {
-
 	/* set VCM to home position and vcm mode to direct*/
 	dw9714_dev.vcm_mode = DW9714_LSC;
 	dw9714_dev.vcm_settings.update = true;
@@ -226,3 +203,20 @@ int dw9714_vcm_init(struct v4l2_subdev *sd)
 
 }
 
+int dw9714_vcm_power_up(struct v4l2_subdev *sd)
+{
+	int ret;
+	/* Enable power */
+	/*ret = dw9714_dev.platform_data->power_ctrl(sd, 1);*/
+	/* waiting time requested by DW9714A(vcm) */
+	usleep_range(12000, 12500);
+	/* Initial setting */
+	ret = dw9714_vcm_init(sd);
+	return 0;
+}
+
+int dw9714_vcm_power_down(struct v4l2_subdev *sd)
+{
+	//return dw9714_dev.platform_data->power_ctrl(sd, 0);
+	return 0;
+}

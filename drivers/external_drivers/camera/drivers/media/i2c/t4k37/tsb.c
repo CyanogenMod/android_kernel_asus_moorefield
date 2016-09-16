@@ -53,8 +53,6 @@ static int binning_sum;
 static struct tsb_vcm *inner_vcm;
 static struct tsb_device *inner_tsb;
 static int last_vcm;
-static unsigned int mauallongexposuretime;
-static unsigned int mauallongexposuremode;
 
 static enum atomisp_bayer_order tsb_bayer_order_mapping[] = {
 #if 0	// debug bayer 20140609
@@ -599,18 +597,14 @@ static long tsb_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
 		return tsb_s_exposure(sd, arg);
+	case ATOMISP_IOC_S_BINNING_SUM:
+        binning_sum = *(int*)arg;
+        printk("Set low-light mode %d\n", binning_sum);
+        return 0;
 #if 1	// TSB 20140529
 	case ATOMISP_IOC_G_SENSOR_PRIV_INT_DATA:
 		return tsb_g_priv_int_data(sd, arg);
 #endif	// TSB 20140529
-	case ATOMISP_IOC_S_MANUALLONGEXPOSURETIME:
-		mauallongexposuretime=*(unsigned int*)arg;
-		printk("%s:LongExp ATOMISP_IOC_S_MANUALLONGEXPOSURETIME:%ld Set exposure time %d\n", __func__,ATOMISP_IOC_S_MANUALLONGEXPOSURETIME,mauallongexposuretime);
-		return 0;
-	case ATOMISP_IOC_S_MANUALLONGEXPOSUREMODE:
-		mauallongexposuremode=*(unsigned int*)arg;
-		printk("%s:LongExp ATOMISP_IOC_S_MANUALLONGEXPOSUREMODE:%ld Set exposure mode %d\n", __func__,ATOMISP_IOC_S_MANUALLONGEXPOSUREMODE,mauallongexposuremode);
-		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1560,31 +1554,7 @@ static int nearest_resolution_index(struct v4l2_subdev *sd, int w, int h)
             printk("T4K37 binning sum mode on\n");
         }
     }
-
-	if(mauallongexposuremode){
-		printk("LongExp idx:%d dev->entries_curr_table:%d mauallongexposuremode:%d mauallongexposuretime:%d\n",
-		idx,dev->entries_curr_table,mauallongexposuremode,mauallongexposuretime);
-		for (i = 1; i < (dev->entries_curr_table-idx); i++){
-
-			if(mauallongexposuretime > 4000000)
-				if(dev->curr_res_table[idx+i].desc && strstr(dev->curr_res_table[idx+i].desc,"0p03fps")
-				&& dev->curr_res_table[idx].width == dev->curr_res_table[idx+i].width
-				&& dev->curr_res_table[idx].height == dev->curr_res_table[idx+i].height){
-					idx=idx+i;
-					break;
-				}
-
-		if(mauallongexposuretime <= 4000000)
-			if(dev->curr_res_table[idx+i].desc && strstr(dev->curr_res_table[idx+i].desc,"0p25fps")
-				&& dev->curr_res_table[idx].width == dev->curr_res_table[idx+i].width
-				&& dev->curr_res_table[idx].height == dev->curr_res_table[idx+i].height){
-				idx=idx+i;
-				break;
-				}
-
-		}
-	}
-	printk("%s, index = %d\n", __func__, idx);
+    printk("%s, index = %d\n", __func__, idx);
 
 	return idx;
 }
@@ -1845,7 +1815,7 @@ static int tsb_s_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tsb_device *dev = to_tsb_sensor(sd);
 
-	printk("%s, start enable:%d\n", __func__,enable);
+	printk("%s, start\n", __func__);
 
 	mutex_lock(&dev->input_lock);
 	if (enable) {

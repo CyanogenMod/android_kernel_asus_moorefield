@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "ia_css_debug.h"
@@ -37,8 +44,8 @@ ia_css_tdf_vmem_encode(
 
 	for (i = 0; i < ISP_VEC_NELEMS; i++) {
 		to->pyramid[0][i]          = g_pyramid[i/8][i%8];
-		to->threshold_flat[0][i]   = from->thres_flat_table[i];
-		to->threshold_detail[0][i] = from->thres_detail_table[i];
+		to->threshold_flat[0][i]   = from->TdfThres_flat_table[i];
+		to->threshold_detail[0][i] = from->TdfThres_detail_table[i];
 	}
 
 }
@@ -50,19 +57,19 @@ ia_css_tdf_encode(
 	size_t size)
 {
 	(void)size;
-	to->Epsilon_0        = from->epsilon_0;
-	to->Epsilon_1        = from->epsilon_1;
-	to->EpsScaleText     = from->eps_scale_text;
-	to->EpsScaleEdge     = from->eps_scale_edge;
-	to->Sepa_flat	     = from->sepa_flat;
-	to->Sepa_Edge	     = from->sepa_edge;
-	to->Blend_Flat	     = from->blend_flat;
-	to->Blend_Text	     = from->blend_text;
-	to->Blend_Edge	     = from->blend_edge;
-	to->Shading_Gain     = from->shading_gain;
-	to->Shading_baseGain = from->shading_base_gain;
-	to->LocalY_Gain      = from->local_y_gain;
-	to->LocalY_baseGain  = from->local_y_base_gain;
+	to->Epsilon_0        = from->TdfEpsilon_0;
+	to->Epsilon_1        = from->TdfEpsilon_1;
+	to->EpsScaleText     = from->TdfEpsScaleText;
+	to->EpsScaleEdge     = from->TdfEpsScaleEdge;
+	to->Sepa_flat 	     = from->TdfSepa_flat;
+	to->Sepa_Edge 	     = from->TdfSepa_Edge;
+	to->Blend_Flat 	     = from->TdfBlend_Flat;
+	to->Blend_Text 	     = from->TdfBlend_Text;
+	to->Blend_Edge 	     = from->TdfBlend_Edge;
+	to->Shading_Gain     = from->TdfShading_Gain;
+	to->Shading_baseGain = from->TdfShading_baseGain;
+	to->LocalY_Gain      = from->TdfLocalY_Gain;
+	to->LocalY_baseGain  = from->TdfLocalY_baseGain;
 }
 
 void

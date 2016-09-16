@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __IA_CSS_STREAM_PUBLIC_H
@@ -104,8 +111,16 @@ struct ia_css_stream_config {
 	unsigned int sensor_binning_factor; /**< Binning factor used by sensor
 						 to produce image data. This is
 						 used for shading correction. */
+	/** The next field is only for backward compatibility for CSS API 2.0
+	 *  TO BE REMOVED when all drivers move to CSS API 2.1
+	 *  Effectively below two lines are implemented internally:
+	 *  if ( pixels_per_clock == 0 )
+	 *	pixels_per_clock = two_pixels_per_clock ? 2 : 1;
+	 * @deprecated{Replaced by pixels_per_clock for CSS API 2.1}
+	 */
+	bool two_pixels_per_clock; /**< Enable/disable 2 pixels per clock */
 	unsigned int pixels_per_clock; /**< Number of pixels per clock, which can be
-					    1, 2 or 4. */
+					    1, 2 or 4. 0 is used as legacy support. */
 	bool online; /**< offline will activate RAW copy on SP, use this for
 			  continuous capture. */
 		/* ISYS2401 usage: ISP receives data directly from sensor, no copy. */
@@ -116,7 +131,6 @@ struct ia_css_stream_config {
 	bool pack_raw_pixels; /**< Pack pixels in the raw buffers */
 	bool continuous; /**< Use SP copy feature to continuously capture frames
 			      to system memory and run pipes in offline mode */
-	bool disable_cont_viewfinder; /**< disable continous viewfinder for ZSL use case */
 	int32_t flash_gpio_pin; /**< pin on which the flash is connected, -1 for no flash */
 	int left_padding; /**< The number of input-formatter left-paddings, -1 for default from binary.*/
 	struct ia_css_mipi_buffer_config mipi_buffer_config; /**< mipi buffer configuration */

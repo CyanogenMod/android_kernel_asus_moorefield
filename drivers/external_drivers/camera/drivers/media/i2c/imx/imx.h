@@ -218,7 +218,7 @@ struct imx_vcm {
 };
 
 struct imx_otp {
-	void * (*otp_read)(struct v4l2_subdev *sd, u8 dev_addr,
+	void *(*otp_read)(struct v4l2_subdev *sd, u8 dev_addr,
 		u32 start_addr, u32 size);
 	u32 start_addr;
 	u32 size;
@@ -297,11 +297,11 @@ struct imx_settings imx_sets[] = {
 	},
 	[IMX135_VICTORIABAY] = {
 		.init_settings = imx135_init_settings,
-		.res_preview = imx135_res_preview_mofd,
-		.res_still = imx135_res_still_mofd,
+		.res_preview = imx135_res_preview,
+		.res_still = imx135_res_still,
 		.res_video = imx135_res_video,
-		.n_res_preview = ARRAY_SIZE(imx135_res_preview_mofd),
-		.n_res_still = ARRAY_SIZE(imx135_res_still_mofd),
+		.n_res_preview = ARRAY_SIZE(imx135_res_preview),
+		.n_res_still = ARRAY_SIZE(imx135_res_still),
 		.n_res_video = ARRAY_SIZE(imx135_res_video),
 	},
 	[IMX132_SALTBAY] = {
@@ -472,9 +472,6 @@ struct imx_device {
 	struct v4l2_ctrl *tp_gr;
 	struct v4l2_ctrl *tp_gb;
 	struct v4l2_ctrl *tp_b;
-
-	/* FIXME! */
-	bool new_res_sel_method;
 };
 
 #define to_imx_sensor(x) container_of(x, struct imx_device, sd)

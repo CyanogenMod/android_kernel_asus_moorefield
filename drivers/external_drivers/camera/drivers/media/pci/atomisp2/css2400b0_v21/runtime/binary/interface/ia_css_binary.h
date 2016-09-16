@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef _IA_CSS_BINARY_H_
@@ -37,17 +44,7 @@
 #define IA_CSS_BINARY_MODE_CAPTURE_PP 8
 #define IA_CSS_BINARY_MODE_VF_PP      9
 #define IA_CSS_BINARY_MODE_PRE_DE     10
-#define IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE0    11
-#define IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE1    12
-#define IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE2    13
-#define IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE3    14
-#define IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE4    15
-#define IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE5    16
-#define IA_CSS_BINARY_NUM_MODES       17
-
-#define MAX_NUM_PRIMARY_STAGES 6
-#define NUM_PRIMARY_HQ_STAGES  6  /* number of primary stages for ISP2.6.1 high quality pipe */
-#define NUM_PRIMARY_STAGES     1  /* number of primary satges for ISP1/ISP2.2 pipe */
+#define IA_CSS_BINARY_NUM_MODES       11
 
 /* Indicate where binaries can read input from */
 #define IA_CSS_BINARY_INPUT_SENSOR   0
@@ -101,8 +98,6 @@ struct ia_css_binary_descr {
 	bool enable_dz;
 	bool enable_xnr;
 	bool enable_fractional_ds;
-	bool enable_dpc;
-	bool enable_capture_pp_bli;
 	struct ia_css_resolution dvs_env;
 	enum ia_css_stream_format stream_format;
 	struct ia_css_frame_info *in_info;		/* the info of the input-frame with the
@@ -223,7 +218,7 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,
 			const struct ia_css_stream_config *stream_config,
 			struct ia_css_shading_info *info);
 
-enum ia_css_err
+void
 ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 			   struct ia_css_grid_info *info,
 			   struct ia_css_pipe *pipe);
@@ -232,12 +227,6 @@ void
 ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 			    struct ia_css_grid_info *info,
 			    struct ia_css_pipe *pipe);
-
-void
-ia_css_binary_dvs_stat_grid_info(
-	const struct ia_css_binary *binary,
-	struct ia_css_grid_info *info,
-	struct ia_css_pipe *pipe);
 
 unsigned
 ia_css_binary_max_vf_width(void);

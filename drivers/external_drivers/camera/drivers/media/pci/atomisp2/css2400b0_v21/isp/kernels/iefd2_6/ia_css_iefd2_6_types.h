@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __IA_CSS_IEFD2_6_TYPES_H
@@ -73,14 +80,14 @@ struct ia_css_iefd2_6_config {
 						u9.0, [0,511], default 128, ineffective 0 */
 	int32_t rad_dir_far_sharp_weight;  /**< Weight of wide direct sharpening.
 						u1.12, [0,4096], default 8, ineffective 0 */
-	int32_t sharp_nega_lmt_txt;	   /**< Sharpening limit for negative overshoots for texture.
+	int32_t shrpn_nega_lmt_txt;	   /**< Sharpening limit for negative overshoots for texture.
 						u13.0, [0,8191], default 1024, ineffective 0 */
-	int32_t sharp_posi_lmt_txt;	   /**< Sharpening limit for positive overshoots for texture.
+	int32_t shrpn_posi_lmt_txt;	   /**< Sharpening limit for positive overshoots for texture.
 						u13.0, [0,8191], default 1024, ineffective 0 */
-	int32_t sharp_nega_lmt_dir;	   /**< Sharpening limit for negative overshoots for direction
+	int32_t shrpn_nega_lmt_dir;	   /**< Sharpening limit for negative overshoots for direction
 						(edge).
 						u13.0, [0,8191], default 128, ineffective 0 */
-	int32_t sharp_posi_lmt_dir;	   /**< Sharpening limit for positive overshoots for direction
+	int32_t shrpn_posi_lmt_dir;	   /**< Sharpening limit for positive overshoots for direction
 						(edge).
 						u13.0, [0,8191], default 128, ineffective 0 */
 	int32_t clamp_stitch;		   /**< Slope to stitch between clamped and unclamped edge values.
@@ -97,7 +104,7 @@ struct ia_css_iefd2_6_config {
 	int32_t rad_inv_r2;		   /**< Radial R^-2 normelized to (0.5..1).
 						u(8-m_rad_NF).m_rad_NF, [0,255], default 157,
 						ineffective 0 */
-	bool vssnlm_enable;		   /**< Enable bit to use VSSNLM output filter.
+	bool vssnlm_enable;		   /**< Enable bit to use VSSNLM output filter. 
 						bool, [false, true], default true, ineffective false */
 	int32_t vssnlm_x0;		   /**< Vssnlm LUT x0.
 						u8.0, [0,255], default 24, ineffective 0 */

@@ -33,11 +33,9 @@
 
 struct lm3559_ctrl_id {
 	struct v4l2_queryctrl qc;
-	int (*s_ctrl)(struct v4l2_subdev *sd, __u32 val);
-	int (*g_ctrl)(struct v4l2_subdev *sd, __s32 *val);
+	int (*s_ctrl) (struct v4l2_subdev *sd, __u32 val);
+	int (*g_ctrl) (struct v4l2_subdev *sd, __s32 *val);
 };
-
-#define I2C_RETRY_COUNT			5
 
 /* Registers */
 
@@ -140,17 +138,8 @@ static int lm3559_write(struct lm3559 *flash, u8 addr, u8 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&flash->sd);
 	int ret;
-	int retry = 0;
 
-	do {
-		ret = i2c_smbus_write_byte_data(client, addr, val);
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"retrying i2c write transfer... %d\n",
-				retry);
-			msleep(20);
-		}
-	} while (ret < 0 && retry++ < I2C_RETRY_COUNT);
+	ret = i2c_smbus_write_byte_data(client, addr, val);
 
 	dev_dbg(&client->dev, "Write Addr:%02X Val:%02X %s\n", addr, val,
 		ret < 0 ? "fail" : "ok");
@@ -163,17 +152,8 @@ static int lm3559_read(struct lm3559 *flash, u8 addr)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&flash->sd);
 	int ret;
-	int retry = 0;
 
-	do {
-		ret = i2c_smbus_read_byte_data(client, addr);
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"retrying i2c read transfer... %d\n",
-				retry);
-			msleep(20);
-		}
-	} while (ret < 0 && retry++ < I2C_RETRY_COUNT);
+	ret = i2c_smbus_read_byte_data(client, addr);
 
 	dev_dbg(&client->dev, "Read Addr:%02X Val:%02X %s\n", addr, ret,
 		ret < 0 ? "fail" : "ok");
@@ -749,7 +729,7 @@ static int __lm3559_s_power(struct lm3559 *flash, int power)
 	}
 	gpio_set_value(pdata->gpio_reset, power);
 	gpio_free(pdata->gpio_reset);
-	usleep_range(100, 100 + 1);
+	usleep_range(100, 100);
 
 	if (power) {
 		/* Setup default values. This makes sure that the chip

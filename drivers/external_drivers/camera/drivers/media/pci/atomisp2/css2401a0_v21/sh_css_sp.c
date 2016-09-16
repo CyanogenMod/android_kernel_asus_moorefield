@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "sh_css_sp.h"
@@ -611,14 +618,11 @@ set_view_finder_buffer(const struct ia_css_frame *frame)
 	switch (frame->info.format) {
 	/* the dual output pin */
 	case IA_CSS_FRAME_FORMAT_NV12:
-	case IA_CSS_FRAME_FORMAT_NV21:
 	case IA_CSS_FRAME_FORMAT_YUYV:
 	case IA_CSS_FRAME_FORMAT_UYVY:
 	case IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_8:
 	case IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8:
 	case IA_CSS_FRAME_FORMAT_YUV420:
-	case IA_CSS_FRAME_FORMAT_YV12:
-	case IA_CSS_FRAME_FORMAT_NV12_TILEY:
 
 	/* for vf_veceven */
 	case IA_CSS_FRAME_FORMAT_YUV_LINE:
@@ -720,12 +724,6 @@ sh_css_sp_enable_isys_event_queue(bool enable)
 #else
 	(void)enable;
 #endif
-}
-
-void
-sh_css_sp_set_disable_continuous_viewfinder(bool flag)
-{
-	sh_css_sp_group.config.disable_cont_vf = flag;
 }
 
 static enum ia_css_err
@@ -971,7 +969,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 
 	/* Make sure binary name is smaller than allowed string size */
 	assert(strlen(binary_name) < SH_CSS_MAX_BINARY_NAME-1);
-	strncpy(sh_css_isp_stage.binary_name, binary_name, SH_CSS_MAX_BINARY_NAME-1);
+	strncpy(sh_css_isp_stage.binary_name, binary_name, SH_CSS_MAX_BINARY_NAME);
 	sh_css_isp_stage.binary_name[SH_CSS_MAX_BINARY_NAME - 1] = 0;
 	sh_css_isp_stage.mem_initializers = *isp_mem_if;
 
@@ -1191,7 +1189,6 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	/* Get first stage */
 	struct ia_css_pipeline_stage *stage        = NULL;
 	struct ia_css_binary	     *first_binary = NULL;
-	struct ia_css_pipe *pipe = NULL;
 	unsigned num;
 
 	enum ia_css_pipe_id pipe_id = id;
@@ -1274,13 +1271,6 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 		sh_css_sp_group.pipe[thread_id].pipe_config = 0;
 
 	sh_css_sp_group.pipe[thread_id].inout_port_config = me->inout_port_config;
-
-	pipe = find_pipe_by_num(pipe_num);
-	assert(pipe != NULL);
-	if (pipe == NULL) {
-		return;
-	}
-	sh_css_sp_group.pipe[thread_id].scaler_pp_lut = sh_css_pipe_get_pp_gdc_lut(pipe);
 
 #if defined(SH_CSS_ENABLE_METADATA)
 	if (md_info != NULL && md_info->size > 0) {

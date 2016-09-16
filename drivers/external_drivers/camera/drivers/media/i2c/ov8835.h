@@ -293,31 +293,6 @@ static const struct ov8830_reg ov8835_cif_mode[] = {
 };
 
 
-static const struct ov8830_reg ov8835_480p_mode[] = {
-	{ OV8830_8BIT, { 0x3708 }, 0xe6 }, /* Binning Related e6 : e3 */
-	{ OV8830_8BIT, { 0x3800 }, 0x00 }, /* 172, 20+224, 3123, 2459-224 2952x1992 */
-	{ OV8830_8BIT, { 0x3801 }, 0xac },
-	{ OV8830_8BIT, { 0x3802 }, 0x00 },
-	{ OV8830_8BIT, { 0x3803 }, 0xf4 },
-	{ OV8830_8BIT, { 0x3804 }, 0x0c },
-	{ OV8830_8BIT, { 0x3805 }, 0x33 },
-	{ OV8830_8BIT, { 0x3806 }, 0x08 },
-	{ OV8830_8BIT, { 0x3807 }, 0xbb },
-	{ OV8830_8BIT, { 0x3808 }, 0x02 }, /* 736x496 O/p Binning+Scaling */
-	{ OV8830_8BIT, { 0x3809 }, 0xe0 },
-	{ OV8830_8BIT, { 0x380a }, 0x01 },
-	{ OV8830_8BIT, { 0x380b }, 0xf0 },
-	{ OV8830_8BIT, { 0x3814 }, 0x31 },
-	{ OV8830_8BIT, { 0x3815 }, 0x31 },
-	{ OV8830_8BIT, { 0x3820 }, 0x11 },
-	{ OV8830_8BIT, { 0x3821 }, 0x0f },
-	{ OV8830_8BIT, { 0x4004 }, 0x02 }, /* BLC No. of blacklines used. */
-	{ OV8830_8BIT, { 0x404f }, 0xa0 },
-	{ OV8830_8BIT, { 0x5002 }, 0x80 }, /* Scale enable */
-	{ OV8830_8BIT, { 0x5041 }, 0x04 }, /* Auto scale */
-	{ OV8830_TOK_TERM, {0}, 0}
-};
-
 static struct ov8830_reg const ov8835_binning_4x3_mode[] = {
 	{ OV8830_8BIT, { 0x3708 }, 0xe6 }, /* Binning Related e6 : e3 */
 	{ OV8830_8BIT, { 0x3800 }, 0x00 }, /* 4, 4, 3291, 2475, 3288X2472 */
@@ -610,26 +585,6 @@ static struct ov8830_resolution ov8835_res_preview[] = {
 				 .fps = 30,
 				 .pixels_per_line = 5458,
 				 .lines_per_frame = 1700,
-			},
-			{
-			}
-		},
-	},
-	{
-		 .desc = "ov8835_480p_for_preview",
-		 .width = 736,
-		 .height = 496,
-		 .used = 0,
-		 .regs = ov8835_480p_mode,
-		 .bin_factor_x = 1,
-		 .bin_factor_y = 1,
-		 .skip_frames = 1,
-		 .fps_options = {
-			{
-				 .fps = 30,
-				 .pixels_per_line = 4496,
-				 .lines_per_frame = 2064,
-
 			},
 			{
 			}

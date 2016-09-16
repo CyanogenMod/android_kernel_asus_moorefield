@@ -32,6 +32,7 @@
 #include "hmm/hmm.h"
 #include "hmm/hmm_pool.h"
 #include "hmm/hmm_bo.h"
+#include "hmm/hmm_bo_dev.h"
 
 #include "atomisp_internal.h"
 #include "asm/cacheflush.h"
@@ -80,6 +81,11 @@ void hmm_cleanup(void)
 	hmm_bo_device_exit(&bo_device);
 }
 
+void hmm_cleanup_mmu_l2(void)
+{
+	hmm_bo_device_cleanup_mmu_l2(&bo_device);
+}
+
 ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 		int from_highmem, void *userptr, bool cached)
 {
@@ -91,10 +97,18 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 	pgnr = size_to_pgnr_ceil(bytes);
 
 	/*Buffer object structure init*/
-	bo = hmm_bo_alloc(&bo_device, pgnr);
+	bo = hmm_bo_create(&bo_device, pgnr);
 	if (!bo) {
 		dev_err(atomisp_dev, "hmm_bo_create failed.\n");
 		goto create_bo_err;
+	}
+
+	/*Allocate virtual address in ISP virtual space*/
+	ret = hmm_bo_alloc_vm(bo);
+	if (ret) {
+		dev_err(atomisp_dev,
+			    "hmm_bo_alloc_vm failed.\n");
+		goto alloc_vm_err;
 	}
 
 	/*Allocate pages for memory*/
@@ -114,11 +128,13 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 
 	hmm_mem_stat.tol_cnt += pgnr;
 
-	return bo->start;
+	return bo->vm_node->start;
 
 bind_err:
 	hmm_bo_free_pages(bo);
 alloc_page_err:
+	hmm_bo_free_vm(bo);
+alloc_vm_err:
 	hmm_bo_unref(bo);
 create_bo_err:
 	return 0;
@@ -143,6 +159,8 @@ void hmm_free(ia_css_ptr virt)
 
 	hmm_bo_free_pages(bo);
 
+	hmm_bo_free_vm(bo);
+
 	hmm_bo_unref(bo);
 }
 
@@ -161,7 +179,7 @@ static inline int hmm_check_bo(struct hmm_buffer_object *bo, unsigned int ptr)
 		return -EINVAL;
 	}
 
-	if (!hmm_bo_allocated(bo)) {
+	if (!hmm_bo_vm_allocated(bo)) {
 		dev_err(atomisp_dev,
 			    "buffer object has no virtual address"
 			    " space allocated.\n");
@@ -174,20 +192,23 @@ static inline int hmm_check_bo(struct hmm_buffer_object *bo, unsigned int ptr)
 /*Read function in ISP memory management*/
 static int load_and_flush_by_kmap(ia_css_ptr virt, void *data, unsigned int bytes)
 {
+	unsigned int ptr;
 	struct hmm_buffer_object *bo;
 	unsigned int idx, offset, len;
 	char *src, *des;
 	int ret;
 
-	bo = hmm_bo_device_search_in_range(&bo_device, virt);
-	ret = hmm_check_bo(bo, virt);
+	ptr = (unsigned int)virt;
+
+	bo = hmm_bo_device_search_in_range(&bo_device, ptr);
+	ret = hmm_check_bo(bo, ptr);
 	if (ret)
 		return ret;
 
 	des = (char *)data;
 	while (bytes) {
-		idx = (virt - bo->start) >> PAGE_SHIFT;
-		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
+		idx = (ptr - bo->vm_node->start) >> PAGE_SHIFT;
+		offset = (ptr - bo->vm_node->start) - (idx << PAGE_SHIFT);
 
 		src = (char *)kmap(bo->page_obj[idx].page);
 		if (!src) {
@@ -207,7 +228,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data, unsigned int byte
 			bytes = 0;
 		}
 
-		virt += len;	/* update virt for next loop */
+		ptr += len;	/* update ptr for next loop */
 
 		if (des) {
 
@@ -231,17 +252,20 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data, unsigned int byte
 static int load_and_flush(ia_css_ptr virt, void *data, unsigned int bytes)
 {
 	struct hmm_buffer_object *bo;
+	unsigned int ptr;
 	int ret;
 
-	bo = hmm_bo_device_search_in_range(&bo_device, virt);
-	ret = hmm_check_bo(bo, virt);
+	ptr = (unsigned int)virt;
+
+	bo = hmm_bo_device_search_in_range(&bo_device, ptr);
+	ret = hmm_check_bo(bo, ptr);
 	if (ret)
 		return ret;
 
 	if (bo->status & HMM_BO_VMAPED || bo->status & HMM_BO_VMAPED_CACHED) {
 		void *src = bo->vmap_addr;
 
-		src += (virt - bo->start);
+		src += (virt - bo->vm_node->start);
 #ifdef USE_SSSE3
 		_ssse3_memcpy(data, src, bytes);
 #else
@@ -252,11 +276,9 @@ static int load_and_flush(ia_css_ptr virt, void *data, unsigned int bytes)
 	} else {
 		void *vptr;
 
-		vptr = hmm_bo_vmap(bo, true);
+		vptr = hmm_vmap(virt, true);
 		if (!vptr)
 			return load_and_flush_by_kmap(virt, data, bytes);
-		else
-			vptr = vptr + (virt - bo->start);
 
 #ifdef USE_SSSE3
 		_ssse3_memcpy(data, vptr, bytes);
@@ -264,7 +286,7 @@ static int load_and_flush(ia_css_ptr virt, void *data, unsigned int bytes)
 		memcpy(data, vptr, bytes);
 #endif
 		clflush_cache_range(vptr, bytes);
-		hmm_bo_vunmap(bo);
+		hmm_vunmap(virt);
 	}
 
 	return 0;
@@ -290,20 +312,23 @@ int hmm_flush(ia_css_ptr virt, unsigned int bytes)
 /*Write function in ISP memory management*/
 int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 {
+	unsigned int ptr;
 	struct hmm_buffer_object *bo;
 	unsigned int idx, offset, len;
 	char *src, *des;
 	int ret;
 
-	bo = hmm_bo_device_search_in_range(&bo_device, virt);
-	ret = hmm_check_bo(bo, virt);
+	ptr = (unsigned int)virt;
+
+	bo = hmm_bo_device_search_in_range(&bo_device, ptr);
+	ret = hmm_check_bo(bo, ptr);
 	if (ret)
 		return ret;
 
 	if (bo->status & HMM_BO_VMAPED || bo->status & HMM_BO_VMAPED_CACHED) {
 		void *dst = bo->vmap_addr;
 
-		dst += (virt - bo->start);
+		dst += (virt - bo->vm_node->start);
 #ifdef USE_SSSE3
 		_ssse3_memcpy(dst, data, bytes);
 #else
@@ -314,25 +339,23 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 	} else {
 		void *vptr;
 
-		vptr = hmm_bo_vmap(bo, true);
+		vptr = hmm_vmap(virt, true);
 		if (vptr) {
-			vptr = vptr + (virt - bo->start);
-
 #ifdef USE_SSSE3
 			_ssse3_memcpy(vptr, data, bytes);
 #else
 			memcpy(vptr, data, bytes);
 #endif
 			clflush_cache_range(vptr, bytes);
-			hmm_bo_vunmap(bo);
+			hmm_vunmap(virt);
 			return 0;
 		}
 	}
 
 	src = (char *)data;
 	while (bytes) {
-		idx = (virt - bo->start) >> PAGE_SHIFT;
-		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
+		idx = (ptr - bo->vm_node->start) >> PAGE_SHIFT;
+		offset = (ptr - bo->vm_node->start) - (idx << PAGE_SHIFT);
 
 		if (in_atomic())
 			des = (char *)kmap_atomic(bo->page_obj[idx].page);
@@ -356,7 +379,7 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 			bytes = 0;
 		}
 
-		virt += len;
+		ptr += len;
 
 #ifdef USE_SSSE3
 		_ssse3_memcpy(des, src, len);
@@ -396,7 +419,7 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 	if (bo->status & HMM_BO_VMAPED || bo->status & HMM_BO_VMAPED_CACHED) {
 		void *dst = bo->vmap_addr;
 
-		dst += (virt - bo->start);
+		dst += (virt - bo->vm_node->start);
 		memset(dst, c, bytes);
 
 		if (bo->status & HMM_BO_VMAPED_CACHED)
@@ -404,19 +427,18 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 	} else {
 		void *vptr;
 
-		vptr = hmm_bo_vmap(bo, true);
+		vptr = hmm_vmap(virt, true);
 		if (vptr) {
-			vptr = vptr + (virt - bo->start);
 			memset((void *)vptr, c, bytes);
 			clflush_cache_range(vptr, bytes);
-			hmm_bo_vunmap(bo);
+			hmm_vunmap(virt);
 			return 0;
 		}
 	}
 
 	while (bytes) {
-		idx = (virt - bo->start) >> PAGE_SHIFT;
-		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
+		idx = (virt - bo->vm_node->start) >> PAGE_SHIFT;
+		offset = (virt - bo->vm_node->start) - (idx << PAGE_SHIFT);
 
 		des = (char *)kmap(bo->page_obj[idx].page);
 		if (!des) {
@@ -450,19 +472,20 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 /*Virtual address to physical address convert*/
 phys_addr_t hmm_virt_to_phys(ia_css_ptr virt)
 {
+	unsigned int ptr = (unsigned int)virt;
 	unsigned int idx, offset;
 	struct hmm_buffer_object *bo;
 
-	bo = hmm_bo_device_search_in_range(&bo_device, virt);
+	bo = hmm_bo_device_search_in_range(&bo_device, ptr);
 	if (!bo) {
 		dev_err(atomisp_dev,
-			"can not find buffer object contains address 0x%x\n",
-			virt);
+			    "can not find buffer object contains "
+			    "address 0x%x\n", ptr);
 		return -1;
 	}
 
-	idx = (virt - bo->start) >> PAGE_SHIFT;
-	offset = (virt - bo->start) - (idx << PAGE_SHIFT);
+	idx = (ptr - bo->vm_node->start) >> PAGE_SHIFT;
+	offset = (ptr - bo->vm_node->start) - (idx << PAGE_SHIFT);
 
 	return page_to_phys(bo->page_obj[idx].page) + offset;
 }
@@ -474,8 +497,8 @@ int hmm_mmap(struct vm_area_struct *vma, ia_css_ptr virt)
 	bo = hmm_bo_device_search_start(&bo_device, virt);
 	if (!bo) {
 		dev_err(atomisp_dev,
-			"can not find buffer object start with address 0x%x\n",
-			virt);
+			    "can not find buffer object start with "
+			    "address 0x%x\n", virt);
 		return -EINVAL;
 	}
 
@@ -498,7 +521,7 @@ void *hmm_vmap(ia_css_ptr virt, bool cached)
 
 	ptr = hmm_bo_vmap(bo, cached);
 	if (ptr)
-		return ptr + (virt - bo->start);
+		return ptr + (virt - bo->vm_node->start);
 	else
 		return NULL;
 }
@@ -583,7 +606,7 @@ ia_css_ptr hmm_host_vaddr_to_hrt_vaddr(const void *ptr)
 
 	bo = hmm_bo_device_search_vmap_start(&bo_device, ptr);
 	if (bo)
-		return bo->start;
+		return bo->vm_node->start;
 
 	dev_err(atomisp_dev,
 		"can not find buffer object whose kernel virtual address is %p\n",
@@ -593,11 +616,11 @@ ia_css_ptr hmm_host_vaddr_to_hrt_vaddr(const void *ptr)
 
 void hmm_show_mem_stat(const char *func, const int line)
 {
-	trace_printk("tol_cnt=%d usr_size=%d res_size=%d res_cnt=%d sys_size=%d  dyc_thr=%d dyc_size=%d.\n",
-			hmm_mem_stat.tol_cnt,
-			hmm_mem_stat.usr_size, hmm_mem_stat.res_size,
-			hmm_mem_stat.res_cnt, hmm_mem_stat.sys_size,
-			hmm_mem_stat.dyc_thr, hmm_mem_stat.dyc_size);
+	trace_printk("tol_cnt=%d usr_size=%d res_size=%d res_cnt=%d sys_size=%d"
+		     " dyc_thr=%d dyc_size=%d.\n", hmm_mem_stat.tol_cnt,
+		     hmm_mem_stat.usr_size, hmm_mem_stat.res_size,
+		     hmm_mem_stat.res_cnt, hmm_mem_stat.sys_size,
+		     hmm_mem_stat.dyc_thr, hmm_mem_stat.dyc_size);
 }
 
 void hmm_init_mem_stat(int res_pgnr, int dyc_en, int dyc_pgnr)

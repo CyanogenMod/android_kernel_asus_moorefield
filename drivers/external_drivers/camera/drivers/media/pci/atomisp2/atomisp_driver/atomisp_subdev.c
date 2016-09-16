@@ -35,10 +35,10 @@
 #include "atomisp_internal.h"
 
 const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[] = {
-	{ V4L2_MBUS_FMT_SBGGR8_1X8, 8, 8, ATOMISP_INPUT_FORMAT_RAW_8, CSS_BAYER_ORDER_BGGR, CSS_FORMAT_RAW_8 },
-	{ V4L2_MBUS_FMT_SGBRG8_1X8, 8, 8, ATOMISP_INPUT_FORMAT_RAW_8, CSS_BAYER_ORDER_GBRG, CSS_FORMAT_RAW_8 },
-	{ V4L2_MBUS_FMT_SGRBG8_1X8, 8, 8, ATOMISP_INPUT_FORMAT_RAW_8, CSS_BAYER_ORDER_GRBG, CSS_FORMAT_RAW_8 },
-	{ V4L2_MBUS_FMT_SRGGB8_1X8, 8, 8, ATOMISP_INPUT_FORMAT_RAW_8, CSS_BAYER_ORDER_RGGB, CSS_FORMAT_RAW_8 },
+	{ V4L2_MBUS_FMT_SBGGR8_1X8, 8, 16, ATOMISP_INPUT_FORMAT_RAW_8, CSS_BAYER_ORDER_BGGR, CSS_FORMAT_RAW_8 },
+	{ V4L2_MBUS_FMT_SGBRG8_1X8, 8, 16, ATOMISP_INPUT_FORMAT_RAW_8, CSS_BAYER_ORDER_GBRG, CSS_FORMAT_RAW_8 },
+	{ V4L2_MBUS_FMT_SGRBG8_1X8, 8, 16, ATOMISP_INPUT_FORMAT_RAW_8, CSS_BAYER_ORDER_GRBG, CSS_FORMAT_RAW_8 },
+	{ V4L2_MBUS_FMT_SRGGB8_1X8, 8, 16, ATOMISP_INPUT_FORMAT_RAW_8, CSS_BAYER_ORDER_RGGB, CSS_FORMAT_RAW_8 },
 	{ V4L2_MBUS_FMT_SBGGR10_1X10, 10, 10, ATOMISP_INPUT_FORMAT_RAW_10, CSS_BAYER_ORDER_BGGR, CSS_FORMAT_RAW_10 },
 	{ V4L2_MBUS_FMT_SGBRG10_1X10, 10, 10, ATOMISP_INPUT_FORMAT_RAW_10, CSS_BAYER_ORDER_GBRG, CSS_FORMAT_RAW_10 },
 	{ V4L2_MBUS_FMT_SGRBG10_1X10, 10, 10, ATOMISP_INPUT_FORMAT_RAW_10, CSS_BAYER_ORDER_GRBG, CSS_FORMAT_RAW_10 },
@@ -193,7 +193,6 @@ static int isp_subdev_subscribe_event(struct v4l2_subdev *sd,
 	    sub->type != V4L2_EVENT_FRAME_END &&
 	    sub->type != V4L2_EVENT_ATOMISP_3A_STATS_READY &&
 	    sub->type != V4L2_EVENT_ATOMISP_METADATA_READY &&
-	    sub->type != V4L2_EVENT_ATOMISP_PAUSE_BUFFER &&
 	    sub->type != V4L2_EVENT_ATOMISP_RAW_BUFFERS_ALLOC_DONE &&
 	    sub->type != V4L2_EVENT_ATOMISP_ACC_COMPLETE)
 		return -EINVAL;
@@ -399,15 +398,9 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 
 		/* Workaround for BYT 1080p perfectshot since the maxinum resolution of
 		 * front camera ov2722 is 1932x1092 and cannot use pad_w > 12*/
-		if (!strncmp(isp->inputs[isp_sd->input_curr].camera->name,
-				"ov2722", 6) && crop[pad]->height == 1092) {
+		if (IS_BYT && crop[pad]->height == 1092) {
 			padding_w = 12;
 			padding_h = 12;
-		}
-
-		if (isp->inputs[isp_sd->input_curr].type == SOC_CAMERA) {
-			padding_w = 0;
-			padding_h = 0;
 		}
 
 		if (atomisp_subdev_format_conversion(isp_sd,
@@ -503,11 +496,11 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 		 * ratio = width / height
 		 *
 		 * if ratio_output < ratio_sensor:
-		 *	effect_width = sensor_height * out_width / out_height;
-		 *	effect_height = sensor_height;
+		 * 	effect_width = sensor_height * out_width / out_height;
+		 * 	effect_height = sensor_height;
 		 * else
-		 *	effect_width = sensor_width;
-		 *	effect_height = sensor_width * out_height / out_width;
+		 * 	effect_width = sensor_width;
+		 * 	effect_height = sensor_width * out_height / out_width;
 		 *
 		 */
 		if (r->width * crop[ATOMISP_SUBDEV_PAD_SINK]->height <
@@ -721,7 +714,7 @@ static void isp_subdev_init_params(struct atomisp_sub_device *asd)
 	/* parameters initialization */
 	INIT_LIST_HEAD(&asd->s3a_stats);
 	INIT_LIST_HEAD(&asd->s3a_stats_in_css);
-	INIT_LIST_HEAD(&asd->s3a_stats_ready);
+	spin_lock_init(&asd->s3a_stats_lock);
 	INIT_LIST_HEAD(&asd->dis_stats);
 	INIT_LIST_HEAD(&asd->dis_stats_in_css);
 	spin_lock_init(&asd->dis_stats_lock);
@@ -1046,23 +1039,6 @@ static const struct v4l2_ctrl_config ctrl_depth_mode = {
 	.def = 0,
 };
 
-/*
- * Control for ISP ion device fd
- *
- * userspace will open ion device and pass the fd to kernel.
- * this fd will be used to map shared fd to buffer.
- */
-static const struct v4l2_ctrl_config ctrl_ion_dev_fd = {
-       .ops = &ctrl_ops,
-       .id = V4L2_CID_ATOMISP_ION_DEVICE_FD,
-       .type = V4L2_CTRL_TYPE_INTEGER,
-       .name = "Ion Device Fd",
-       .min = -1,
-       .max = 1024,
-       .step = 1,
-       .def = ION_FD_UNSET
-};
-
 static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 		struct atomisp_video_pipe *pipe, enum v4l2_buf_type buf_type)
 {
@@ -1078,7 +1054,7 @@ static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 	       0, VIDEO_MAX_FRAME * sizeof(unsigned int));
 	memset(pipe->frame_params,
 	       0, VIDEO_MAX_FRAME *
-		sizeof(struct atomisp_css_params_with_list *));
+	          sizeof(struct atomisp_css_params_with_list *));
 }
 
 /*
@@ -1222,11 +1198,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 					     &ctrl_disable_dz,
 					     NULL);
 
-        asd->ion_dev_fd =
-                       v4l2_ctrl_new_custom(&asd->ctrl_handler,
-                                            &ctrl_ion_dev_fd,
-                                            NULL);
-
 	/* Make controls visible on subdev as well. */
 	asd->subdev.ctrl_handler = &asd->ctrl_handler;
 	spin_lock_init(&asd->raw_buffer_bitmap_lock);
@@ -1247,7 +1218,7 @@ void atomisp_subdev_cleanup_pending_events(struct atomisp_sub_device *asd)
 	unsigned int i, pending_event;
 
 	list_for_each_entry_safe(fh, fh_tmp,
-		&asd->subdev.devnode->fh_list, list) {
+	                         &asd->subdev.devnode->fh_list, list) {
 		pending_event = v4l2_event_pending(fh);
 		for (i = 0; i < pending_event; i++)
 			v4l2_event_dequeue(fh, &event, 1);

@@ -21,7 +21,7 @@
  */
 
 static sys_address	page_table_base_address = (sys_address)-1;
-const ia_css_ptr       mmgr_NULL;
+const ia_css_ptr	mmgr_NULL = 0;
 
 #ifndef SH_CSS_MEMORY_GUARDING
 /* Choose default in case not defined */
@@ -220,7 +220,7 @@ void mmgr_free(
 	ia_css_ptr			vaddr)
 {
 /* "free()" should accept NULL, "hrt_isp_css_mm_free()" may not */
-	if (vaddr) {
+	if (vaddr != mmgr_NULL) {
 #if SH_CSS_MEMORY_GUARDING
 		alloc_admin_remove(vaddr);
 		/* Reconstruct the "original" address used with the alloc */
@@ -313,7 +313,7 @@ assert(0);
 (void)vaddr;
 (void)size;
 (void)attribute;
-return 0;
+return mmgr_NULL;
 }
 
 ia_css_ptr mmgr_mmap(const void *ptr, const size_t size, uint16_t attribute,

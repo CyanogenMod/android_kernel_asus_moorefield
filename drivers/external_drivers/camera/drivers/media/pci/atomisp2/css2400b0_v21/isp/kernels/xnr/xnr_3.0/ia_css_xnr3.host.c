@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "type_support.h"
@@ -34,9 +41,7 @@ const struct ia_css_xnr3_config default_xnr3_config = {
 	/* sigma */
 	{ 0, 0, 0, 0, 0, 0 },
 	/* coring */
-	{ 0, 0, 0, 0 },
-	/* blending */
-	{ 0 }
+	{ 0, 0, 0, 0 }
 };
 
 /*
@@ -100,9 +105,7 @@ ia_css_xnr3_encode(
 	unsigned size)
 {
 	int kernel_size = XNR_FILTER_SIZE;
-	/* The adjust factor is the next power of 2
-	   w.r.t. the kernel size*/
-	int adjust_factor = ceil_pow2(kernel_size);
+	int adjust_factor = 2 * (kernel_size - 1);
 
 	int32_t alpha_y0 = compute_alpha(from->sigma.y0);
 	int32_t alpha_y1 = compute_alpha(from->sigma.y1);

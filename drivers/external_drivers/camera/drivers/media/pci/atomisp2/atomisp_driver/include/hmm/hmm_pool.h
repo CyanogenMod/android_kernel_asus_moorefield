@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/kref.h>
 #include "hmm_common.h"
+#include "hmm/hmm_vm.h"
 #include "hmm/hmm_bo.h"
 
 #define ALLOC_PAGE_FAIL_NUM		5
@@ -82,7 +83,7 @@ struct hmm_reserved_pool_info {
 
 	unsigned int		index;
 	unsigned int		pgnr;
-	spinlock_t		list_lock;
+	struct spinlock		list_lock;
 	bool			initialized;
 };
 
@@ -99,7 +100,7 @@ struct hmm_dynamic_pool_info {
 	struct list_head	pages_list;
 
 	/* list lock is used to protect the free pages block lists */
-	spinlock_t		list_lock;
+	struct spinlock		list_lock;
 
 #ifdef USE_KMEM_CACHE
 	struct kmem_cache	*pgptr_cache;

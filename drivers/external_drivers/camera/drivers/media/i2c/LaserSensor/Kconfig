@@ -1,2 +1,0 @@
-
-source "drivers/external_drivers/camera/drivers/media/i2c/LaserSensor/Olivia_msm/Kconfig"

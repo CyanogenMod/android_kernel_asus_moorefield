@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef _IA_CSS_ACC_TYPES_H
@@ -57,7 +64,6 @@ enum ia_css_fw_type {
 	ia_css_sp1_firmware,	/**< Firmware for the SP1 */
 #endif
 	ia_css_isp_firmware,	/**< Firmware for the ISP */
-	ia_css_bootloader_firmware, /**< Firmware for the BootLoader */
 	ia_css_acc_firmware		/**< Firmware for accelrations */
 };
 
@@ -273,7 +279,6 @@ struct ia_css_binary_info {
 		uint8_t	in_frame;
 		uint8_t	out_frame;
 		uint8_t	high_speed;
-		uint8_t	dpc;
 		uint8_t padding[2];
 	} enable;
 	struct {
@@ -315,18 +320,6 @@ struct ia_css_binary_xinfo {
 	CSS_ALIGN(struct ia_css_binary_xinfo *next, 8);
 };
 
-/** Structure describing the Bootloader (an ISP binary).
- * It contains several address, either in ddr, isp_dmem or
- * the entry function in icache.
- */
-struct ia_css_bl_info {
-	uint32_t num_dma_cmds;	/**< Number of cmds sent by CSS */
-	uint32_t dma_cmd_list;	/**< Dma command list sent by CSS */
-	uint32_t sw_state;	/**< Polled from css */
-	/* Entry functions */
-	uint32_t bl_entry;	/**< The SP entry function */
-};
-
 /** Structure describing the SP binary.
  * It contains several address, either in ddr, sp_dmem or
  * the entry function in pmem.
@@ -343,7 +336,7 @@ struct ia_css_sp_info {
 	uint32_t host_sp_queues_initialized; /**< Polled from the SP */
 	uint32_t sleep_mode;  /**< different mode to halt SP */
 	uint32_t invalidate_tlb;		/**< inform SP to invalidate mmu TLB */
-	uint32_t stop_copy_preview;       /**< suspend copy and preview pipe when capture */
+	uint32_t stop_copy_preview;	/**< suspend copy and preview pipe when capture */
 	uint32_t debug_buffer_ddr_address;	/**< inform SP the address
 	of DDR debug queue */
 	uint32_t perf_counter_input_system_error; /**< input system perf
@@ -361,7 +354,6 @@ struct ia_css_sp_info {
 	uint32_t ddr_parameter_size;    /**< acc param size, sp dmem */
 	/* Entry functions */
 	uint32_t sp_entry;	/**< The SP entry function */
-	uint32_t tagger_frames_addr;   /**< Base address of tagger state */
 };
 
 /* The following #if is there because this header file is also included
@@ -384,7 +376,6 @@ union ia_css_fw_union {
 #if defined(IS_ISP_2500_SYSTEM)
 	struct ia_css_sp_info		sp1;  /**< SP1 info */
 #endif
-	struct ia_css_bl_info           bl;  /**< Bootloader info */
 	struct ia_css_acc_info		acc; /**< Accelerator info */
 };
 

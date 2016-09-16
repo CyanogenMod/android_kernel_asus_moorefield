@@ -1,17 +1,24 @@
-/* Release Version: irci_master_20150303_1500 */
-/* Release Version: irci_master_20150303_1500 */
+/* Release Version: irci_master_20141125_0453 */
+/* Release Version: irci_master_20141125_0453 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef _IA_CSS_TYPES_H
@@ -60,9 +67,6 @@
 #include "isp/kernels/ynr/ynr_1.0/ia_css_ynr_types.h"
 #include "isp/kernels/ynr/ynr_2/ia_css_ynr2_types.h"
 #include "isp/kernels/output/output_1.0/ia_css_output_types.h"
-
-#define IA_CSS_DVS_STAT_GRID_INFO_SUPPORTED
-/**< Should be removed after Driver adaptation will be done */
 
 #define IA_CSS_VERSION_MAJOR    2
 #define IA_CSS_VERSION_MINOR    0
@@ -237,8 +241,7 @@ struct ia_css_grid_info {
 	/** @}*/
 
 	struct ia_css_3a_grid_info  s3a_grid; /**< 3A grid info */
-	union ia_css_dvs_grid_u dvs_grid;
-		/**< All types of DVS statistics grid info union */
+	struct ia_css_dvs_grid_info dvs_grid; /**< DVS grid info */
 
 	enum ia_css_vamem_type vamem_type;
 };
@@ -336,7 +339,6 @@ struct ia_css_capture_config {
 	enum ia_css_capture_mode mode; /**< Still capture mode */
 	uint32_t enable_xnr;	       /**< Enable/disable XNR */
 	uint32_t enable_raw_output;
-	bool enable_capture_pp_bli;    /**< Enable capture_pp_bli mode */
 };
 
 /** default settings for ia_css_capture_config structs */
@@ -344,8 +346,7 @@ struct ia_css_capture_config {
 { \
 	IA_CSS_CAPTURE_MODE_PRIMARY,	/* mode (capture) */ \
 	false,				/* enable_xnr */ \
-	false,				/* enable_raw_output */ \
-	false				/* enable_capture_pp_bli */ \
+	false				/* enable_raw_output */ \
 }
 
 
@@ -467,7 +468,6 @@ struct ia_css_isp_config {
 	struct ia_css_2500_bds_kernel_config     *bds_2500_config;       /**< Skylake: bayer downscaler config */
 	struct ia_css_2500_dvs_kernel_config     *dvs_2500_config;       /**< Skylake: digital video stabilization config */
 	struct ia_css_2500_res_mgr_config        *res_mgr_2500_config;
-	struct ia_css_scaler_config              *scaler_config;         /**< Skylake: scaler config (optional) */
 	struct ia_css_formats_config             *formats_config_display;/**< Formats control for viewfinder/display output (optional)
 										[OSYS, n/a] */
 	struct ia_css_output_config              *output_config_display; /**< Viewfinder/display output mirroring, flipping (optional) */

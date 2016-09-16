@@ -55,7 +55,7 @@
 #define IS_BYT (INTEL_MID_BOARD(1, PHONE, BYT) || \
 	INTEL_MID_BOARD(1, TABLET, BYT))
 #define IS_MFLD (INTEL_MID_BOARD(1, PHONE, MFLD) || \
-	INTEL_MID_BOARD(1, TABLET, MFLD))
+        INTEL_MID_BOARD(1, TABLET, MFLD))
 
 #define MAX_STREAM_NUM	2
 
@@ -105,7 +105,7 @@
 
 #define ATOMISP_SC_TYPE_SIZE	2
 
-#define ATOMISP_ISP_TIMEOUT_DURATION		(36 * HZ)
+#define ATOMISP_ISP_TIMEOUT_DURATION		(2 * HZ)
 #define ATOMISP_ISP_FILE_TIMEOUT_DURATION	(60 * HZ)
 #define ATOMISP_ISP_MAX_TIMEOUT_COUNT	2
 #define ATOMISP_CSS_STOP_TIMEOUT_US	200000
@@ -131,11 +131,6 @@
  * time is typically ~2000 us.
  */
 #define ATOMISP_MAX_ISR_LATENCY	1000
-
-/* Declared in hmm.c. */
-extern bool atomisp_hmm_is_2400;
-
-extern raw_spinlock_t pci_config_lock;
 
 struct atomisp_input_subdev {
 	unsigned int type;

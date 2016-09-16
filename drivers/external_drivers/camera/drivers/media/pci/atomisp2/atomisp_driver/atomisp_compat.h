@@ -333,8 +333,7 @@ void atomisp_css_video_enable_online(struct atomisp_sub_device *asd,
 void atomisp_css_enable_continuous(struct atomisp_sub_device *asd,
 							bool enable);
 
-void atomisp_css_enable_cvf(struct atomisp_sub_device *asd,
-							bool enable);
+void atomisp_css_enable_cont_capt(bool enable, bool stop_copy_preview);
 
 int atomisp_css_input_configure_port(struct atomisp_sub_device *asd,
 				mipi_port_ID_t port,
@@ -369,7 +368,6 @@ int atomisp_css_allocate_continuous_frames(bool init_time,
 
 void atomisp_css_update_continuous_frames(struct atomisp_sub_device *asd);
 
-void atomisp_create_pipes_stream(struct atomisp_sub_device *asd);
 void atomisp_destroy_pipes_stream_force(struct atomisp_sub_device *asd);
 
 int atomisp_css_stop(struct atomisp_sub_device *asd,
@@ -658,7 +656,8 @@ int atomisp_css_set_acc_parameters(struct atomisp_acc_fw *acc_fw);
 
 int atomisp_css_isr_thread(struct atomisp_device *isp,
 			   bool *frame_done_found,
-			   bool *css_pipe_done);
+			   bool *css_pipe_done,
+			   bool *reset_wdt_timer);
 void atomisp_set_stop_timeout(unsigned int timeout);
 
 bool atomisp_css_valid_sof(struct atomisp_device *isp);

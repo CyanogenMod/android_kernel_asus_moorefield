@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "ia_css_types.h"
@@ -79,8 +86,8 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	if (sizeof(hrt_vaddress) > sizeof(hrt_data)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "size of hrt_vaddress can not be greater than hrt_data\n");
-		mmgr_free(code_addr);
-		code_addr = mmgr_NULL;
+		mmgr_free(spctrl_cfg->code_size);
+		spctrl_cfg->code_size = mmgr_NULL;
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
 
@@ -88,8 +95,8 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	if ((init_dmem_cfg->ddr_data_addr % HIVE_ISP_DDR_WORD_BYTES) != 0) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "DDR address pointer is not properly aligned for DMA transfer\n");
-		mmgr_free(code_addr);
-		code_addr = mmgr_NULL;
+		mmgr_free(spctrl_cfg->code_size);
+		spctrl_cfg->code_size = mmgr_NULL;
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
 #endif
@@ -213,22 +220,3 @@ ia_css_spctrl_sp_sw_state ia_css_spctrl_get_state(sp_ID_t sp_id)
 
 	return state;
 }
-
-int ia_css_spctrl_is_idle(sp_ID_t sp_id)
-{
-	int state = 0;
-	assert (sp_id < N_SP_ID);
-
-#ifdef HRT_CSIM
-	if (sp_id == SP0_ID)
-		state = (int)hrt_ctl_is_ready(SP);
-#if defined(HAS_SEC_SP)
-	else
-		state = (int)hrt_ctl_is_ready(SP2);
-#endif /* HAS_SEC_SP */
-#else /* HRT_CSIM */
-	state = sp_ctrl_getbit(sp_id, SP_SC_REG, SP_IDLE_BIT);
-#endif /* HRT_CSIM */
-	return state;
-}
-

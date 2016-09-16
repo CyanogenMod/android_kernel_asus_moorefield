@@ -67,7 +67,6 @@ struct atomisp_3a_statistics32 {
 	compat_uptr_t data;
 	compat_uptr_t rgby_data;
 	uint32_t exp_id;
-	uint32_t isp_config_id;
 };
 
 struct atomisp_metadata_with_type32 {
@@ -101,7 +100,7 @@ struct atomisp_morph_table32 {
 struct v4l2_framebuffer32 {
 	__u32			capability;
 	__u32			flags;
-	compat_uptr_t		base;
+	compat_uptr_t 		base;
 	struct v4l2_pix_format	fmt;
 };
 
@@ -263,7 +262,6 @@ struct atomisp_parameters32 {
 	 * frame, driver will send this id back with output frame together.
 	 */
 	uint32_t	isp_config_id;
-	uint32_t	per_frame_setting;
 };
 
 struct atomisp_acc_fw_load_to_pipe32 {

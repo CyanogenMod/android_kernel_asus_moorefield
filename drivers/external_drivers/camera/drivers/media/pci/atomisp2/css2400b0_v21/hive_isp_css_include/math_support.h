@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __MATH_SUPPORT_H
@@ -61,16 +68,6 @@
 #define CEIL_MUL2(a, b)      (((a) + (b) - 1) & ~((b) - 1))
 #define CEIL_SHIFT(a, b)     (((a) + (1 << (b)) - 1)>>(b))
 #define CEIL_SHIFT_MUL(a, b) (CEIL_SHIFT(a, b) << (b))
-
-
-/*To Find next power of 2 number from x */
-#define bit2(x)            ((x)      | ((x) >> 1))
-#define bit4(x)            (bit2(x)  | (bit2(x) >> 2))
-#define bit8(x)            (bit4(x)  | (bit4(x) >> 4))
-#define bit16(x)           (bit8(x)  | (bit8(x) >> 8))
-#define bit32(x)           (bit16(x) | (bit16(x) >> 16))
-#define NEXT_POWER_OF_2(x) (bit32(x-1) + 1)
-
 
 /* min and max should not be macros as they will evaluate their arguments twice.
    if you really need a macro (e.g. for CPP or for initializing an array)
@@ -143,45 +140,6 @@ STORAGE_CLASS_INLINE unsigned int ceil_shift(unsigned int a, unsigned int b)
 STORAGE_CLASS_INLINE unsigned int ceil_shift_mul(unsigned int a, unsigned int b)
 {
 	return CEIL_SHIFT_MUL(a, b);
-}
-
-
-/** @brief Next Power of Two
- *
- *  @param[in] unsigned number
- *
- *  @return next power of two
- *
- * This function rounds input to the nearest power of 2 (2^x)
- * towards infinity
- *
- * Input Range: 0 .. 2^(8*sizeof(int)-1)
- *
- * IF input is a power of 2
- *     out = in
- * OTHERWISE
- *     out = 2^(ceil(log2(in))
- *
- */
-
-STORAGE_CLASS_INLINE unsigned int ceil_pow2(unsigned int a)
-{
-	if (a == 0) {
-		return 1;
-	}
-	/* IF input is already a power of two*/
-	else if ((!((a)&((a)-1)))) {
-		return a;
-	}
-	else {
-		unsigned int v = a;
-		v |= v>>1;
-		v |= v>>2;
-		v |= v>>4;
-		v |= v>>8;
-		v |= v>>16;
-		return (v+1);
-	}
 }
 
 #endif /* !defined(PIPE_GENERATION) */

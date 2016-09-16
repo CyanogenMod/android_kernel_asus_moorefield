@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "ia_css_iterator.host.h"
@@ -18,10 +25,6 @@
 #include "ia_css_err.h"
 #define IA_CSS_INCLUDE_CONFIGURATIONS
 #include "ia_css_isp_configs.h"
-
-static const struct ia_css_iterator_configuration default_config = {
-	.input_info = (struct ia_css_frame_info *)NULL,
-};
 
 void
 ia_css_iterator_config(
@@ -42,15 +45,13 @@ ia_css_iterator_configure(
 	const struct ia_css_binary *binary,
 	const struct ia_css_frame_info *in_info)
 {
-	struct ia_css_frame_info my_info = IA_CSS_BINARY_DEFAULT_FRAME_INFO;
-	struct ia_css_iterator_configuration config = default_config;
-
-	config.input_info    = &binary->in_frame_info;
-	config.internal_info = &binary->internal_frame_info;
-	config.output_info   = &binary->out_frame_info[0];
-	config.vf_info       = &binary->vf_frame_info;
-	config.dvs_envelope  = &binary->dvs_envelope;
-
+	struct ia_css_frame_info my_info;
+	struct ia_css_iterator_configuration config = {
+		&binary->in_frame_info,
+		&binary->internal_frame_info,
+		&binary->out_frame_info[0],
+		&binary->vf_frame_info,
+		&binary->dvs_envelope };
 	/* Use in_info iso binary->in_frame_info.
 	 * They can differ in padded width in case of scaling, e.g. for capture_pp.
 	 * Find out why.
@@ -73,8 +74,6 @@ ia_css_iterator_configure(
 		my_info.res.width    <<= binary->vf_downscale_log2;
 		my_info.res.height   <<= binary->vf_downscale_log2;
 	}
-
-	ia_css_configure_iterator(binary, &config);
-
+	ia_css_configure_iterator (binary, &config);
 	return IA_CSS_SUCCESS;
 }

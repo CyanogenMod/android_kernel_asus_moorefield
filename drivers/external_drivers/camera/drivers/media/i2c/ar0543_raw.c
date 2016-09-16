@@ -61,18 +61,18 @@
 #define VCM_THRESHOLD_MSB   0x06
 #define VCM_THRESHOLD_LSB   0x07
 
-#define RING_CTRL           0x1   /* enable Ringing */
-#define RING_MODE           0x15  /* Owen ARC MODE = 0x15 */
-#define VCM_FREQ            0x60  /* Owen 87Hz Resonant freq. */
-#define VCM_TRSH_MValue     0x00  /* Owen Threshold MSB */
-#define VCM_TRSH_LValue     0xa0  /* Owen Threshold LSB */
+#define RING_CTRL           0x1   //enable Ringing
+#define RING_MODE           0x15  //Owen ARC MODE = 0x15
+#define VCM_FREQ            0x60  //Owen 87Hz Resonant freq.
+#define VCM_TRSH_MValue     0x00  //Owen Threshold MSB
+#define VCM_TRSH_LValue     0xa0  //Owen Threshold LSB
 
 
 /* divides a by b using half up rounding and div/0 prevention
  * (result is 0 if b == 0) */
 #define divsave_rounded(a, b)	(((b) != 0) ? (((a)+((b)>>1))/(b)) : (-1))
 
-/* For LED FLASH Controll+++ */
+//For LED FLASH Controll+++
 #ifdef CONFIG_PF450CL
 #define FLED_DRIVER_ENT "FLED_DRIVER_ENT"
 #define FLED_DRIVER_ENF "FLED_DRIVER_ENF"
@@ -80,11 +80,10 @@
 static int flash_ent;
 static int flash_enf;
 #endif
-/* For LED FLASH Controll--- */
+//For LED FLASH Controll---
 
-/* Add for ATD command+++ */
-/*extern int build_version;*/
-/* Add build version -> user:3, userdebug:2, eng:1 */
+//Add for ATD command+++
+extern int build_version; //Add build version -> user:3, userdebug:2, eng:1
 struct v4l2_subdev *main_sd;
 
 int ATD_ar0543_raw_status = 0;
@@ -92,43 +91,37 @@ static char camera_module_otp[60];
 
 static void *ar0543_raw_otp_read(struct v4l2_subdev *sd);
 
-static ssize_t ar0543_raw_show_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t ar0543_raw_show_status(struct device *dev,struct device_attribute *attr,char *buf)
 {
-	pr_info("%s: get ar0543_raw status (%d) !!\n",
-			__func__, ATD_ar0543_raw_status);
-	/* Check sensor connect status,
-	just do it  in begining for ATD camera status */
+	printk("%s: get ar0543_raw status (%d) !!\n", __func__, ATD_ar0543_raw_status);
+	//Check sensor connect status, just do it  in begining for ATD camera status
 
-	return sprintf(buf, "%d\n", ATD_ar0543_raw_status);
+	return sprintf(buf,"%d\n", ATD_ar0543_raw_status);
 }
 
-static ssize_t ar0543_raw_read_otp(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t ar0543_raw_read_otp(struct device *dev,struct device_attribute *attr,char *buf)
 {
-	pr_info("%s: get ar0543 module OTP %s !!\n",
-		 __func__, camera_module_otp);
-	/* Check sensor OTP value,
-	just do it in begining for ATD camera status */
+	printk("%s: get ar0543 module OTP %s !!\n", __func__, camera_module_otp);
+	//Check sensor OTP value, just do it in begining for ATD camera status
 /*
 	if(build_version != 1){ //not eng, need to read otp first
 		ar0543_raw_otp_read(main_sd);
 	}
 */
-	return sprintf(buf, "%s", camera_module_otp);
+	return sprintf(buf,"%s", camera_module_otp);
 }
 
-static DEVICE_ATTR(ar0543_raw_status, S_IRUGO, ar0543_raw_show_status, NULL);
-static DEVICE_ATTR(ar0543_raw_read_otp, S_IRUGO, ar0543_raw_read_otp, NULL);
+static DEVICE_ATTR(ar0543_raw_status, S_IRUGO,ar0543_raw_show_status,NULL);
+static DEVICE_ATTR(ar0543_raw_read_otp, S_IRUGO,ar0543_raw_read_otp,NULL);
 
 static struct attribute *ar0543_raw_attributes[] = {
 	&dev_attr_ar0543_raw_status.attr,
 	&dev_attr_ar0543_raw_read_otp.attr,
 	NULL
 };
-/* Add for ATD command--- */
+//Add for ATD command---
 
-/* Add for vcm +++ */
+//Add for vcm +++
 #if 0
 static int vcm_i2c_rd8(struct i2c_client *client, u8 reg, u8 *val)
 {
@@ -156,7 +149,7 @@ static int vcm_i2c_rd8(struct i2c_client *client, u8 reg, u8 *val)
 
 static int vcm_i2c_wr8(struct i2c_client *client, u8 reg, u8 val)
 {
-	int err;
+        int err;
 	struct i2c_msg msg;
 	u8 buf[2];
 	buf[0] = reg;
@@ -166,16 +159,15 @@ static int vcm_i2c_wr8(struct i2c_client *client, u8 reg, u8 val)
 	msg.len = 2;
 	msg.buf = &buf[0];
 
-	err = i2c_transfer(client->adapter, &msg, 1);
+        err = i2c_transfer(client->adapter, &msg, 1);
 
-	if (err != 1) {
-		pr_info("%s: rear camera vcm i2c fail, err code = %d\n",
-			__func__, err);
+	if (err != 1){
+                printk("%s: rear camera vcm i2c fail, err code = %d\n", __func__, err);
 		return -EIO;
-	}
+        }
 	return 0;
 }
-/* Add for vcm --- */
+//Add for vcm ---
 
 static int
 ar0543_raw_read_reg(struct i2c_client *client, u16 len, u16 reg, u16 *val)
@@ -271,8 +263,7 @@ again:
 }
 
 static int
-ar0543_raw_write_reg(struct i2c_client *client, u16 data_length,
-			u16 reg, u16 val)
+ar0543_raw_write_reg(struct i2c_client *client, u16 data_length, u16 reg, u16 val)
 {
 	int ret;
 	unsigned char data[4] = {0};
@@ -323,8 +314,8 @@ ar0543_raw_write_reg(struct i2c_client *client, u16 data_length,
  * Read/modify/write a value to a register in the  sensor device.
  * Returns zero if successful, or non-zero otherwise.
  */
-static int ar0543_raw_rmw_reg(struct i2c_client *client, u16 data_length,
-				u16 reg, u16 mask, u16 set)
+static int ar0543_raw_rmw_reg(struct i2c_client *client, u16 data_length, u16 reg,
+			   u16 mask, u16 set)
 {
 	int err;
 	u16 val[AR0543_RAW_SHORT_MAX];
@@ -339,7 +330,7 @@ static int ar0543_raw_rmw_reg(struct i2c_client *client, u16 data_length,
 
 	err = ar0543_raw_read_reg(client, data_length, reg, val);
 	if (err) {
-		v4l2_err(client, "ar0543_raw_rmw_reg error exit,read failed\n");
+		v4l2_err(client, "ar0543_raw_rmw_reg error exit, read failed\n");
 		return -EINVAL;
 	}
 
@@ -360,8 +351,7 @@ static int ar0543_raw_rmw_reg(struct i2c_client *client, u16 data_length,
 
 	err = ar0543_raw_write_reg(client, data_length, reg, val[0]);
 	if (err) {
-		v4l2_err(client,
-			"ar0543_raw_rmw_reg error exit, write failed\n");
+		v4l2_err(client, "ar0543_raw_rmw_reg error exit, write failed\n");
 		return -EINVAL;
 	}
 
@@ -471,7 +461,8 @@ static int ar0543_raw_write_reg_array(struct i2c_client *client,
 					       next->reg.sreg, next->val,
 					       next->val2);
 			if (err) {
-				v4l2_err(client, "%s: rwm error, aborted\n", __func__);
+				v4l2_err(client, "%s: rwm error, "
+						"aborted\n", __func__);
 				return err;
 			}
 			break;
@@ -481,10 +472,9 @@ static int ar0543_raw_write_reg_array(struct i2c_client *client,
 			 * If next address is not consecutive, data needs to be
 			 * flushed before proceed.
 			 */
-			if (!__ar0543_raw_write_reg_is_consecutive(client,
-								&ctrl, next)) {
-				err = __ar0543_raw_flush_reg_array(client,
-									&ctrl);
+			if (!__ar0543_raw_write_reg_is_consecutive(client, &ctrl,
+								next)) {
+				err = __ar0543_raw_flush_reg_array(client, &ctrl);
 				if (err)
 					return err;
 			}
@@ -508,21 +498,19 @@ static int ar0543_raw_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 	int ret = 0;
 	u8 msb, lsb;
 
-	value = clamp(value, 0, VCM_MAX_FOCUS_POS);
-	msb = (((value >> 8) & 0x03) | RING_CTRL<<2);
-	lsb = (value & 0xff);
+        value = clamp(value, 0, VCM_MAX_FOCUS_POS);
+        msb = (((value >> 8) & 0x03)| RING_CTRL<<2);  //owen for Arc enable
+        lsb = (value & 0xff);
 
-	/* pr_info("%s: ========== FOCUS_POS:%x,%x,%x\n", __func__,
-		value,msb,lsb); */
-	ret = vcm_i2c_wr8(client, VCM_CODE_MSB, msb);
-	ret = vcm_i2c_wr8(client, VCM_CODE_LSB, lsb);
+        //printk("%s: ========== FOCUS_POS:%x,%x,%x \n", __func__, value,msb,lsb);
+        ret = vcm_i2c_wr8(client, VCM_CODE_MSB, msb);
+        ret = vcm_i2c_wr8(client, VCM_CODE_LSB, lsb);
 
-	/* ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT,
-		AR0543_RAW_VCM_CODE, value); */
+	//ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT, AR0543_RAW_VCM_CODE, value);
 	if (ret == 0) {
 		dev->number_of_steps = value - dev->focus;
 		dev->focus = value;
-	/* getnstimeofday(&(dev->timestamp_t_focus_abs)); */
+	//	getnstimeofday(&(dev->timestamp_t_focus_abs));
 	}
 	return ret;
 }
@@ -571,247 +559,257 @@ static int ar0543_raw_q_focus_abs(struct v4l2_subdev *sd, s32 *value)
 	if (val & ATOMISP_FOCUS_STATUS_MOVING)
 		*value  = dev->focus - dev->number_of_steps;
 	else
-		*value  = dev->focus;
+		*value  = dev->focus ;
 
 	return 0;
 }
 
-/* For DIT VCM Debug Interface+++ */
+//For DIT VCM Debug Interface+++
 #define	VCM_PROC_FILE	"driver/camera_vcm"
 static struct proc_dir_entry *vcm_proc_file;
 
 static int vcm_proc_read(struct seq_file *buf, void *v)
 {
-	s32 vcm_steps;
-	ar0543_raw_q_focus_abs(main_sd, &vcm_steps);
-	pr_info("vcm_proc_read vcm_steps %d\n", vcm_steps);
-	seq_printf(buf, "%d\n", vcm_steps);
-	return 0;
+    s32 vcm_steps;
+    ar0543_raw_q_focus_abs(main_sd, &vcm_steps);
+    pr_info("vcm_proc_read vcm_steps %d\n", vcm_steps);
+    seq_printf(buf, "%d\n", vcm_steps);
+    return 0;
 }
 
-static int vcm_proc_open(struct inode *inode, struct  file *file)
-{
-	return single_open(file, vcm_proc_read, NULL);
+static int vcm_proc_open(struct inode *inode, struct  file *file) {
+    return single_open(file, vcm_proc_read, NULL);
 }
 
 static ssize_t vcm_proc_write(struct file *filp, const char __user *buff,
-	    size_t len, loff_t *off)
+            size_t len, loff_t *off)
 {
-	char buffer[256];
-	s32 value;
-	int ret = 0;
+    char buffer[256];
+    s32 value;
 
-	if (len > 256)
-		len = 256;
+    if (len > 256)
+        len = 256;
 
-	pr_info("vcm_proc_write %s\n", buff);
-	if (copy_from_user(buffer, buff, len)) {
-		pr_info(KERN_INFO "%s: proc write to buffer failed.\n",
-				__func__);
-		return -EFAULT;
-	}
+    pr_info("vcm_proc_write %s\n", buff);
+    if (copy_from_user(buffer, buff, len)) {
+        printk(KERN_INFO "%s: proc write to buffer failed.\n", __func__);
+        return -EFAULT;
+    }
+    if (!strncmp("setabs",buffer,6)) {
+        sscanf(&buffer[7],"%d",&value);
+        printk("set position to %d\n", value);
+        ar0543_raw_t_focus_abs(main_sd, value);
+    } else if(!strncmp("setrel",buffer,6)){
+        sscanf(&buffer[7],"%d",&value);
+        printk("add position %d\n", value);
+        ar0543_raw_t_focus_rel(main_sd, value);
+    } else {
+        pr_info("command not support\n");
+    }
 
-	if (!strncmp("setabs", buffer, 6)) {
-		ret = sscanf(&buffer[7], "%d", &value);
-		pr_info("set position to %d\n", value);
-		ar0543_raw_t_focus_abs(main_sd, value);
-	} else if (!strncmp("setrel", buffer, 6)) {
-		ret = sscanf(&buffer[7], "%d", &value);
-		pr_info("add position %d\n", value);
-		ar0543_raw_t_focus_rel(main_sd, value);
-	} else {
-		pr_info("command not support\n");
-	}
-
-	return len;
+    return len;
 }
 
 static const struct file_operations vcm_fops = {
-	.owner = THIS_MODULE,
-	.open = vcm_proc_open,
-	.write = vcm_proc_write,
-	.read = seq_read,
+        .owner = THIS_MODULE,
+        .open = vcm_proc_open,
+        .write = vcm_proc_write,
+        .read = seq_read,
 };
 
 void create_vcm_proc_file(void)
 {
-	vcm_proc_file = proc_create(VCM_PROC_FILE, 0666, NULL, &vcm_fops);
-	if (vcm_proc_file)
-		pr_info("proc file create sucessed!\n");
-	else
-		pr_info("proc file create failed!\n");
+    vcm_proc_file = proc_create(VCM_PROC_FILE, 0666, NULL,&vcm_fops);
+    if(vcm_proc_file){
+        printk("proc file create sucessed!\n");
+    }
+    else{
+        printk("proc file create failed!\n");
+    }
 }
-/* For DIT VCM Debug Interface--- */
+//For DIT VCM Debug Interface---
 
-/* For LED FLASH Controll+++ */
+//For LED FLASH Controll+++
 #ifdef CONFIG_PF450CL
 #define	LED_PROC_FILE	"driver/camera_flash"
 static struct proc_dir_entry *led_proc_file;
 
-ssize_t led_proc_read(struct file *file, char __user *buf,
-			size_t size, loff_t *ppos)
+ssize_t led_proc_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 {
-	return sprintf(buf, "Not support this command\n");
+    return sprintf(buf, "Not support this command\n");
 }
 
 static int led_proc_open_show(struct seq_file *buf, void *v)
 {
-	seq_puts(buf, "Not support this command\n");
-	return 0;
+    seq_printf(buf, "Not support this command\n");
+    return 0;
 }
 
 
-static int led_proc_open(struct inode *inode, struct  file *file)
-{
-	return single_open(file, led_proc_open_show, NULL);
+static int led_proc_open(struct inode *inode, struct  file *file) {
+    return single_open(file, led_proc_open_show, NULL);
 }
 
 static ssize_t led_proc_write(struct file *filp, const char __user *buff,
-	    size_t len, loff_t *off)
+            size_t len, loff_t *off)
 {
-	char buffer[256];
-	/* s32 value; */
-	int ret;
+    char buffer[256];
+//    s32 value;
+    int ret;
 
-	if (len > 256)
-		len = 256;
+    if (len > 256)
+        len = 256;
 
-	pr_info("led_proc_write %s\n", buff);
-	if (copy_from_user(buffer, buff, len)) {
-		pr_info(KERN_INFO "%s: proc write to buffer failed.\n",
-				__func__);
-		return -EFAULT;
-	}
+    pr_info("led_proc_write %s\n", buff);
+    if (copy_from_user(buffer, buff, len)) {
+        printk(KERN_INFO "%s: proc write to buffer failed.\n", __func__);
+        return -EFAULT;
+    }
 
-	/* FLED_DRIVER_ENT 159 */
-	if (flash_ent < 0) {
-		ret = gpio_request(159, FLED_DRIVER_ENT);
-		if (ret < 0) {
-			pr_info("%s not available.\n", FLED_DRIVER_ENT);
-			return ret;
-		}
-		gpio_direction_output(159, 0);
-		flash_ent = 159;
-	}
+    //FLED_DRIVER_ENT 159
+    if (flash_ent < 0) {
+        ret = gpio_request(159, FLED_DRIVER_ENT);
+        if (ret < 0) {
+            printk("%s not available.\n", FLED_DRIVER_ENT);
+            return ret;
+        }
+        gpio_direction_output(159, 0);
+        flash_ent = 159;
+    }
 
-	/* FLED_DRIVER_ENF 174 */
-	if (flash_enf < 0) {
-		ret = gpio_request(174, FLED_DRIVER_ENF);
-		if (ret < 0) {
-			pr_info("%s not available.\n", FLED_DRIVER_ENF);
-			return ret;
-		}
-		gpio_direction_output(174, 0);
-		flash_enf = 174;
-	}
+    //FLED_DRIVER_ENF 174
+    if (flash_enf < 0) {
+        ret = gpio_request(174, FLED_DRIVER_ENF);
+        if (ret < 0) {
+            printk("%s not available.\n", FLED_DRIVER_ENF);
+            return ret;
+        }
+        gpio_direction_output(174, 0);
+        flash_enf = 174;
+    }
 
-	if (!strncmp("set_torch_on", buffer, 12)) {
-		pr_info("set torch on\n");
-		gpio_set_value(flash_ent, 0);
-		gpio_set_value(flash_enf, 0);
-		msleep(20);
-		gpio_set_value(flash_ent, 1);
-	} else if (!strncmp("set_torch_off", buffer, 13)) {
-		pr_info("set torch off\n");
-		gpio_set_value(flash_ent, 0);
-		gpio_set_value(flash_enf, 0);
-		msleep(20);
-	} else if (!strncmp("set_flash_on", buffer, 12)) {
-		pr_info("set flash on\n");
-		gpio_set_value(flash_ent, 0);
-		gpio_set_value(flash_enf, 0);
-		msleep(20);
-		gpio_set_value(flash_ent, 1);
-		msleep(20);
-		gpio_set_value(flash_enf, 1);
-		/*msleep < 20ms can sleep for up to 20ms*/
-		msleep(20);
-		gpio_set_value(flash_ent, 0);
-		msleep(20);
-	} else if (!strncmp("set_flash_off", buffer, 13)) {
-		pr_info("set flash off\n");
-		gpio_set_value(flash_ent, 0);
-		gpio_set_value(flash_enf, 0);
-		msleep(20);
-	} else {
-		pr_info("command not support\n");
-	}
+    if (!strncmp("set_torch_on",buffer,12)) {
+        printk("set torch on\n");
+        gpio_set_value(flash_ent, 0);
+        gpio_set_value(flash_enf, 0);
+        msleep(10);
+        gpio_set_value(flash_ent, 1);
+    } else if(!strncmp("set_torch_off",buffer,13)){
+        printk("set torch off\n");
+        gpio_set_value(flash_ent, 0);
+        gpio_set_value(flash_enf, 0);
+        msleep(10);
+    } else if(!strncmp("set_flash_on",buffer,12)){
+        printk("set flash on\n");
+        gpio_set_value(flash_ent, 0);
+        gpio_set_value(flash_enf, 0);
+        msleep(10);
+        gpio_set_value(flash_ent, 1);
+        msleep(1);
+        gpio_set_value(flash_enf, 1);
+        msleep(1);
+        gpio_set_value(flash_ent, 0);
+        msleep(1);
+    } else if(!strncmp("set_flash_off",buffer,13)){
+        printk("set flash off\n");
+        gpio_set_value(flash_ent, 0);
+        gpio_set_value(flash_enf, 0);
+        msleep(10);
+    } else {
+        pr_info("command not support\n");
+    }
 
-	return len;
+    return len;
 }
 
 static const struct file_operations led_fops = {
-	.owner = THIS_MODULE,
-	.open = led_proc_open,
-	.write = led_proc_write,
-	.read = led_proc_read,
+        .owner = THIS_MODULE,
+        .open = led_proc_open,
+        .write = led_proc_write,
+        .read = led_proc_read,
 };
 
 void create_led_proc_file(void)
 {
-	led_proc_file = proc_create(LED_PROC_FILE, 0666, NULL, &led_fops);
-	if (led_proc_file)
-		pr_info("led proc file create sucessed!\n");
-	else
-		pr_info("led proc file create failed!\n");
+    led_proc_file = proc_create(LED_PROC_FILE, 0666, NULL,&led_fops);
+    if(led_proc_file){
+        printk("led proc file create sucessed!\n");
+    }
+    else{
+        printk("led proc file create failed!\n");
+    }
 }
 #endif
-/* For LED FLASH Controll--- */
+//For LED FLASH Controll---
 
 static int ar0543_raw_real_to_register_gain(u16 gain, u16 *real_gain)
 {
-	u16 reg_gain;
-	u16 cg, asc1;
-/* u16 gain_value; */
-	u16 calculated_gain;
-#if 0
-	/*Cap max gain to use only analog portion.*/
-	if (_gain > 255)
-		gain = 255 * 256;
-	else
-		gain = _gain * 256;
-#endif
-	/*Use 2nd stage as soon as possible*/
-	if (gain < 22) {
-		calculated_gain = gain * 2;
-		cg = 0x0;
-		asc1 = 0x0;
-	} else if (gain < 32) {
-		calculated_gain = gain * 6 / 4;
-		cg = 0x0;
-		asc1 = 0x100;
-	} else if (gain < 43) {
-		calculated_gain = gain;
-		cg = 0x800;
-		asc1 = 0x0;
-	} else if (gain < 48) {
-		calculated_gain = gain * 768 / 0x400;
-		cg = 0x800;
-		asc1 = 0x100;
-	} else if (gain < 64) {
-		calculated_gain = gain * 682 / 0x400;
-		cg = 0x400;
-		asc1 = 0x0;
-	} else if (gain < 85) {
-		calculated_gain = gain * 2 / 4;
-		cg = 0xc00;
-		asc1 = 0x0;
-	} else if (gain < 128) {
-		calculated_gain = gain * 384 / 0x400;
-		cg = 0xc00;
-		asc1 = 0x100;
-	} else {
-		calculated_gain = gain / 4;
-		cg = 0xc00;
-		asc1 = 0x200;
-	}
-	reg_gain = calculated_gain;
-/* pr_info("%s gain %d calculated_gain %x\n", __func__, gain, reg_gain); */
-	reg_gain |= cg;
-	reg_gain |= asc1;
-	*real_gain = reg_gain;
 
-	return 0;
+                u16 reg_gain;
+                u16 cg, asc1;
+//		u16 gain_value;
+		u16 calculated_gain;
+#if 0
+                if (_gain > 255)
+			gain = 255 * 256; /*Cap max gain to use only analog portion.*/
+		else
+			gain = _gain * 256;
+#endif
+                if (gain < 22) /*Use 2nd stage as soon as possible*/
+                {
+				calculated_gain = gain * 2;
+                                cg = 0x0;
+                                asc1 = 0x0;
+                }
+                else if (gain < 32)
+                {
+				calculated_gain = gain * 6 / 4;
+                                cg = 0x0;
+                                asc1 = 0x100;
+                }
+                else if (gain < 43)
+                {
+				calculated_gain = gain;
+                                cg = 0x800;
+                                asc1 = 0x0;
+                }
+                else if (gain < 48)
+                {
+				calculated_gain = gain * 768 / 0x400;
+                                cg = 0x800;
+                                asc1 = 0x100;
+                }
+                else if (gain < 64)
+                {
+				calculated_gain = gain * 682 / 0x400;
+                                cg = 0x400;
+                                asc1 = 0x0;
+                }
+                else if (gain < 85)
+                {
+				calculated_gain = gain * 2 / 4;
+                                cg = 0xc00;
+                                asc1 = 0x0;
+                }
+                else if (gain < 128)
+                {
+				calculated_gain = gain * 384 / 0x400;
+                                cg = 0xc00;
+                                asc1 = 0x100;
+                }
+                else
+                {
+				calculated_gain = gain / 4;
+                                cg = 0xc00;
+                                asc1 = 0x200;
+                }
+		reg_gain = calculated_gain;
+		//printk("%s gain %d calculated_gain %x\n", __func__, gain, reg_gain);
+                reg_gain |= cg;
+                reg_gain |= asc1;
+		*real_gain = reg_gain;
+
+		return 0;
 }
 
 static long ar0543_raw_set_exposure(struct v4l2_subdev *sd, u16 coarse_itg,
@@ -856,8 +854,8 @@ static long ar0543_raw_set_exposure(struct v4l2_subdev *sd, u16 coarse_itg,
 	ret = ar0543_raw_real_to_register_gain(a_gain, &real_gain);
 	real_gain |= 0x1000;
 
-/* pr_info("%s write gain %x fine %x coarse %x frame_length %x\n", __func__, */
-/* real_gain, fine_itg, coarse_itg, frame_length); */
+//	printk("%s write gain %x fine %x coarse %x frame_length %x\n", __func__,
+//		real_gain, fine_itg, coarse_itg, frame_length);
 
 	/* set global gain */
 	ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT,
@@ -897,13 +895,12 @@ static long ar0543_raw_s_exposure(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-/* pr_info("%s analog %x digital %x\n", __func__, analog_gain, digital_gain); */
-	return ar0543_raw_set_exposure(sd, coarse_itg, fine_itg,
-					analog_gain, digital_gain);
+	//printk("%s analog %x digital %x\n", __func__, analog_gain, digital_gain);
+	return ar0543_raw_set_exposure(sd, coarse_itg, fine_itg, analog_gain, digital_gain);
 }
 
-static int ar0543_raw_read_reg_array(struct i2c_client *client,
-				u16 size, u16 addr, void *data)
+static int ar0543_raw_read_reg_array(struct i2c_client *client, u16 size, u16 addr,
+				  void *data)
 {
 	u8 *buf = data;
 	u16 index;
@@ -911,8 +908,8 @@ static int ar0543_raw_read_reg_array(struct i2c_client *client,
 
 	for (index = 0; index + AR0543_RAW_BYTE_MAX <= size;
 	     index += AR0543_RAW_BYTE_MAX) {
-		ret = ar0543_raw_read_reg(client, AR0543_RAW_BYTE_MAX,
-				addr + index, (u16 *)&buf[index]);
+		ret = ar0543_raw_read_reg(client, AR0543_RAW_BYTE_MAX, addr + index,
+				       (u16 *)&buf[index]);
 		if (ret)
 			return ret;
 	}
@@ -931,19 +928,17 @@ static int ar0543_raw_otp_switch_bank(struct v4l2_subdev *sd, u16 bank)
 	int retry = 100;
 	u16 ready;
 
-	/* pr_info("%s Read bank addr 0x%X\n",__func__,bank); */
-	/* choose to only read record type 0x30 */
-	ret = ar0543_raw_rmw_reg(client, AR0543_RAW_16BIT,
-				AR0543_RAW_OTP_RECORD_TYPE, 0xFF00, bank);
+	//pr_info("%s Read bank addr 0x%X\n",__func__,bank);
+	// choose to only read record type 0x30
+	ret = ar0543_raw_rmw_reg(client, AR0543_RAW_16BIT, AR0543_RAW_OTP_RECORD_TYPE, 0xFF00, bank);
 	if (ret) {
 		v4l2_err(client, "%s: failed to choose the record type\n",
 			 __func__);
 		return ret;
 	}
 
-	/* auto read start */
-	ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT,
-					AR0543_RAW_OTP_AUTO_READ, 0x0010);
+	// auto read start
+	ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT, AR0543_RAW_OTP_AUTO_READ, 0x0010);
 	if (ret) {
 		v4l2_err(client, "%s: failed to read start automatically\n",
 			 __func__);
@@ -954,7 +949,8 @@ static int ar0543_raw_otp_switch_bank(struct v4l2_subdev *sd, u16 bank)
 		ret = ar0543_raw_read_reg(client, AR0543_RAW_16BIT,
 				       AR0543_RAW_OTP_AUTO_READ, &ready);
 		if (ret) {
-			v4l2_err(client, "%s: failed to read OTP memory	status\n", __func__);
+			v4l2_err(client, "%s: failed to read OTP memory "
+					 "status\n", __func__);
 			return ret;
 		}
 		if (ready & AR0543_RAW_OTP_READY_REG_DONE)
@@ -967,8 +963,7 @@ static int ar0543_raw_otp_switch_bank(struct v4l2_subdev *sd, u16 bank)
 	}
 
 	if (!(ready & AR0543_RAW_OTP_READY_REG_OK)) {
-		v4l2_err(client,
-			"%s: Bank 0x%x OTP memory wasn't read successfully\n",
+		v4l2_err(client, "%s: Bank 0x%x OTP memory wasn't read successfully\n",
 			  __func__, bank);
 		return -EIO;
 	}
@@ -983,60 +978,56 @@ __ar0543_raw_otp_read(struct v4l2_subdev *sd, struct ar0543_raw_af_data *buf)
 	int ret;
 	u16 read_value[10], i;
 
-	/* RESET_REGISTER_REG_RD_EN */
-	ret = ar0543_raw_rmw_reg(client, AR0543_RAW_16BIT,
-				AR0543_RAW_OTP_READ_EN, 0x20, 1);
+	// RESET_REGISTER_REG_RD_EN
+	ret = ar0543_raw_rmw_reg(client, AR0543_RAW_16BIT, AR0543_RAW_OTP_READ_EN, 0x20, 1);
 	if (ret) {
 		v4l2_err(client, "%s: failed to reset register REG_RD_EN\n",
 			 __func__);
 		return ret;
 	}
 
-	/* disable streaming */
-	ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT,
-					AR0543_RAW_OTP_READ_EN, 0x0610);
+	// disable streaming
+	ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT, AR0543_RAW_OTP_READ_EN, 0x0610);
 	if (ret) {
 		v4l2_err(client, "%s: failed to disable streaming\n",
 			 __func__);
 		return ret;
 	}
 
-	/* timing parameters for otp read */
-	ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT,
-					AR0543_RAW_OTP_TIMING, 0xCD95);
+	// timing parameters for otp read
+	ret = ar0543_raw_write_reg(client, AR0543_RAW_16BIT, AR0543_RAW_OTP_TIMING, 0xCD95);
 	if (ret) {
-		v4l2_err(client,
-			"%s: failed to set timing parameters for OTPM read\n",
+		v4l2_err(client, "%s: failed to set timing parameters for OTPM read\n",
 			 __func__);
 		return ret;
 	}
 
-	/* Decide OTP Bank */
-	ret = ar0543_raw_otp_switch_bank(sd, 0x32);
-	if (ret) { /* fail */
-	/* pr_info("%s Switch to bank 2 fail, try bank 1\n",__func__); */
-		ret = ar0543_raw_otp_switch_bank(sd, 0x31);
-		if (ret) {
-			ret = ar0543_raw_otp_switch_bank(sd, 0x30);
-			if (ret)
+	//Decide OTP Bank
+	ret = ar0543_raw_otp_switch_bank(sd,0x32); //bank2
+	if(ret) { //fail
+		//pr_info("%s Switch to bank 2 fail, try bank 1\n",__func__);
+		ret = ar0543_raw_otp_switch_bank(sd,0x31); //bank1
+		if(ret) {
+			//pr_info("%s Switch to bank 1 fail, try bank 0\n",__func__);
+			ret = ar0543_raw_otp_switch_bank(sd,0x30); //bank0
+			if(ret) {
+				//pr_info("%s Switch to bank 0 fail, otp read fail !!\n",__func__);
 				return -EIO;
+			}
 		}
 	}
 
-	/* Read OTP value */
-	for (i = 0; i < 10; i++) {
-		ar0543_raw_read_reg(client, AR0543_RAW_8BIT,
-				AR0543_RAW_OTP_AF_INF_POS_H+i, &read_value[i]);
+	//Read OTP value
+	for (i=0; i<10; i++) {
+		ar0543_raw_read_reg(client, AR0543_RAW_8BIT, AR0543_RAW_OTP_AF_INF_POS_H+i, &read_value[i]);
 	}
 
-	/* Return OTP value */
-	snprintf(camera_module_otp, sizeof(camera_module_otp),
-		"0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X\n",
-		read_value[0], read_value[1], read_value[2], read_value[3],
-		read_value[4], read_value[5], read_value[6], read_value[7],
-		read_value[8], read_value[9]);
+	//Return OTP value
+	snprintf(camera_module_otp, sizeof(camera_module_otp), "0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X\n"
+		, read_value[0], read_value[1], read_value[2], read_value[3], read_value[4]
+		, read_value[5], read_value[6], read_value[7], read_value[8], read_value[9]);
 
-	pr_info("%s OTP value: %s", __func__, camera_module_otp);
+	pr_info("%s OTP value: %s",__func__, camera_module_otp);
 
 	buf->af_inf_pos = read_value[0]<<8 | read_value[1];
 	buf->af_1m_pos = read_value[2]<<8 | read_value[3];
@@ -1095,7 +1086,8 @@ static u8 *ar0543_raw_fuseid_read(struct v4l2_subdev *sd)
 	fuseid = kmalloc(sizeof(*fuseid) * AR0543_RAW_FUSEID_SIZE, GFP_KERNEL);
 
 	if (!fuseid) {
-		v4l2_err(client, "%s: no memory available when reading FUSEID.\n", __func__);
+		v4l2_err(client, "%s: no memory available when reading "
+				 "FUSEID.\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1157,13 +1149,11 @@ out:
 	return 0;
 }
 
-static long ar0543_raw_ioctl(struct v4l2_subdev *sd,
-				unsigned int cmd, void *arg)
+static long ar0543_raw_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
-		return ar0543_raw_s_exposure(sd,
-			(struct atomisp_exposure *)arg);
+		return ar0543_raw_s_exposure(sd, (struct atomisp_exposure *)arg);
 	case ATOMISP_IOC_G_SENSOR_PRIV_INT_DATA:
 		return ar0543_raw_g_priv_int_data(sd, arg);
 	default:
@@ -1176,15 +1166,14 @@ static int ar0543_raw_init_registers(struct v4l2_subdev *sd)
 {
 	int ret;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	vcm_i2c_wr8(client, 0x01, 0x01); /* vcm init test */
+        vcm_i2c_wr8(client, 0x01, 0x01); // vcm init test
 
-	/* owen  Arc function initial setting */
+	//owen  Arc function initial setting
 	vcm_i2c_wr8(client, VCM_MODE, RING_MODE);
 	vcm_i2c_wr8(client, VCM_MOVE_TIME, VCM_FREQ);
 	vcm_i2c_wr8(client, VCM_THRESHOLD_MSB,  VCM_TRSH_MValue);
 	vcm_i2c_wr8(client, VCM_THRESHOLD_LSB,  VCM_TRSH_LValue);
-	/* pr_info("%s: ========== initial setting:%x,%x,%x,%x\n",
-	__func__, RING_MODE,VCM_FREQ,VCM_TRSH_MValue,VCM_TRSH_LValue); */
+	//printk("%s: ========== initial setting:%x,%x,%x,%x \n", __func__, RING_MODE,VCM_FREQ,VCM_TRSH_MValue,VCM_TRSH_LValue);
 	ret  = ar0543_raw_write_reg_array(client, ar0543_raw_reset_register);
 	return ret;
 }
@@ -1199,7 +1188,7 @@ static int __ar0543_raw_init(struct v4l2_subdev *sd, u32 val)
 	ret = ar0543_raw_init_registers(sd);
 
 	/*set VCM to home position */
-	/* ret |= ar0543_raw_t_focus_abs(sd, HOME_POS); */
+	//ret |= ar0543_raw_t_focus_abs(sd, HOME_POS);
 
 	/* restore settings */
 	ar0543_raw_res = ar0543_raw_res_preview;
@@ -1220,7 +1209,8 @@ static int __ar0543_raw_init(struct v4l2_subdev *sd, u32 val)
 		dev->keeps_focus_pos = fw_version >= PR3_3_FW;
 	}
 	if (!dev->keeps_focus_pos) {
-		v4l2_warn(sd, "VCM does not maintain focus position in standby mode, using software workaround\n");
+		v4l2_warn(sd, "VCM does not maintain focus position in standby"
+			      "mode, using software workaround\n");
 	}
 
 	return ret;
@@ -1271,31 +1261,31 @@ static int power_up(struct v4l2_subdev *sd)
 		dev_err(&client->dev, "gpio failed 1\n");
 	msleep(20);
 
-/* For LED FLASH Controll+++ */
+//For LED FLASH Controll+++
 #ifdef CONFIG_PF450CL
-	/* FLED_DRIVER_ENT 159 */
+	//FLED_DRIVER_ENT 159
 	if (flash_ent < 0) {
 		ret = gpio_request(159, FLED_DRIVER_ENT);
 		if (ret < 0) {
-			pr_info("%s not available.\n", FLED_DRIVER_ENT);
+			printk("%s not available.\n", FLED_DRIVER_ENT);
 			return ret;
 		}
 		gpio_direction_output(159, 0);
 		flash_ent = 159;
 	}
 
-	/* FLED_DRIVER_ENF 174 */
+	//FLED_DRIVER_ENF 174
 	if (flash_enf < 0) {
 		ret = gpio_request(174, FLED_DRIVER_ENF);
 		if (ret < 0) {
-			pr_info("%s not available.\n", FLED_DRIVER_ENF);
+			printk("%s not available.\n", FLED_DRIVER_ENF);
 			return ret;
 		}
 		gpio_direction_output(174, 0);
 		flash_enf = 174;
 	}
 #endif
-/* For LED FLASH Controll--- */
+//For LED FLASH Controll---
 
 	return 0;
 
@@ -1314,7 +1304,7 @@ static int power_down(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	dev_info(&client->dev, "%s\n", __func__);
+       dev_info(&client->dev, "%s\n", __func__);
 
 	ret = dev->platform_data->flisclk_ctrl(sd, 0);
 	if (ret)
@@ -1359,12 +1349,12 @@ static int ar0543_raw_s_power(struct v4l2_subdev *sd, int on)
 	struct ar0543_raw_device *dev = to_ar0543_raw_sensor(sd);
 	int ret;
 
-	pr_info("%s: s %d\n", __func__, on);
+	printk("%s: s %d\n",__FUNCTION__, on);
 
 	mutex_lock(&dev->input_lock);
 	ret = __ar0543_raw_s_power(sd, on);
 	mutex_unlock(&dev->input_lock);
-	pr_info("%s: e\n", __func__);
+        printk("%s: e\n",__FUNCTION__);
 	return ret;
 }
 
@@ -1436,8 +1426,7 @@ ar0543_raw_get_intg_factor(struct i2c_client *client,
 	line_length_pck = data[1];
 
 	memset(data, 0, AR0543_RAW_SHORT_MAX * sizeof(u16));
-	if (ar0543_raw_read_reg(client, 8,
-			AR0543_RAW_COARSE_INTG_TIME_MIN, data))
+	if (ar0543_raw_read_reg(client, 8, AR0543_RAW_COARSE_INTG_TIME_MIN, data))
 		return -EINVAL;
 	coarse_integration_time_min = data[0];
 	coarse_integration_time_max_margin = data[1];
@@ -1454,8 +1443,7 @@ ar0543_raw_get_intg_factor(struct i2c_client *client,
 
 	for (; next->type != AR0543_RAW_TOK_TERM; next++) {
 		if (next->type == AR0543_RAW_16BIT) {
-			if (next->reg.sreg ==
-					AR0543_RAW_FINE_INTEGRATION_TIME) {
+			if (next->reg.sreg == AR0543_RAW_FINE_INTEGRATION_TIME) {
 				buf.fine_integration_time_def = next->val;
 				break;
 			}
@@ -1487,8 +1475,7 @@ ar0543_raw_get_intg_factor(struct i2c_client *client,
 	buf.binning_factor_y =
 			((read_mode & AR0543_RAW_READ_MODE_Y_ODD_INC) + 1) / 2;
 
-	pr_info("%s binning x %d y %d\n", __func__,
-			buf.binning_factor_x, buf.binning_factor_y);
+	printk("%s binning x %d y %d\n", __func__, buf.binning_factor_x, buf.binning_factor_y);
 	/* Get the cropping and output resolution to ISP for this mode. */
 
 	ret = ar0543_raw_read_reg(client, AR0543_RAW_16BIT,
@@ -1497,20 +1484,20 @@ ar0543_raw_get_intg_factor(struct i2c_client *client,
 		return ret;
 	buf.crop_horizontal_start = value;
 
-	ret = ar0543_raw_read_reg(client, AR0543_RAW_16BIT,
-				AR0543_RAW_VERTICAL_START_H, &value);
+	ret = ar0543_raw_read_reg(client, AR0543_RAW_16BIT, AR0543_RAW_VERTICAL_START_H,
+				&value);
 	if (ret)
 		return ret;
 	buf.crop_vertical_start = value;
 
-	ret = ar0543_raw_read_reg(client, AR0543_RAW_16BIT,
-				AR0543_RAW_HORIZONTAL_END_H, &value);
+	ret = ar0543_raw_read_reg(client, AR0543_RAW_16BIT, AR0543_RAW_HORIZONTAL_END_H,
+				&value);
 	if (ret)
 		return ret;
 	buf.crop_horizontal_end = value;
 
-	ret = ar0543_raw_read_reg(client, AR0543_RAW_16BIT,
-				AR0543_RAW_VERTICAL_END_H, &value);
+	ret = ar0543_raw_read_reg(client, AR0543_RAW_16BIT, AR0543_RAW_VERTICAL_END_H,
+				&value);
 	if (ret)
 		return ret;
 	buf.crop_vertical_end = value;
@@ -1526,10 +1513,9 @@ ar0543_raw_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 	buf.output_height = value;
-	pr_info("%s crop hori %d - %d vert %d - %d output %d x %d\n", __func__,
-		buf.crop_horizontal_start, buf.crop_horizontal_end,
-		buf.crop_vertical_start, buf.crop_vertical_end,
-		buf.output_width, buf.output_height);
+	printk("%s crop hori %d - %d vert %d - %d output %d x %d\n", __func__, buf.crop_horizontal_start, buf.crop_horizontal_end,
+								buf.crop_vertical_start, buf.crop_vertical_end,
+								buf.output_width, buf.output_height);
 	memcpy(&info->data, &buf, sizeof(buf));
 
 	return 0;
@@ -1566,8 +1552,7 @@ static int ar0543_raw_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
 	if (value > AR0543_RAW_VCM_SLEW_STEP_MAX)
 		return -EINVAL;
 
-	return ar0543_raw_rmw_reg(client, AR0543_RAW_16BIT,
-				AR0543_RAW_VCM_SLEW_STEP,
+	return ar0543_raw_rmw_reg(client, AR0543_RAW_16BIT, AR0543_RAW_VCM_SLEW_STEP,
 				AR0543_RAW_VCM_SLEW_STEP_MASK, value);
 }
 
@@ -1579,22 +1564,20 @@ static int ar0543_raw_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
 	if (value > AR0543_RAW_VCM_SLEW_TIME_MAX)
 		return -EINVAL;
 
-	return ar0543_raw_write_reg(client, AR0543_RAW_16BIT,
-				AR0543_RAW_VCM_SLEW_TIME, value);
+	return ar0543_raw_write_reg(client, AR0543_RAW_16BIT, AR0543_RAW_VCM_SLEW_TIME,
+				 value);
 }
 
 static int ar0543_raw_g_focal(struct v4l2_subdev *sd, s32 *val)
 {
-	*val = (AR0543_RAW_FOCAL_LENGTH_NUM << 16) |
-		AR0543_RAW_FOCAL_LENGTH_DEM;
+	*val = (AR0543_RAW_FOCAL_LENGTH_NUM << 16) | AR0543_RAW_FOCAL_LENGTH_DEM;
 	return 0;
 }
 
 static int ar0543_raw_g_fnumber(struct v4l2_subdev *sd, s32 *val)
 {
 	/*const f number for ar0543_raw*/
-	*val = (AR0543_RAW_F_NUMBER_DEFAULT_NUM << 16) |
-		AR0543_RAW_F_NUMBER_DEM;
+	*val = (AR0543_RAW_F_NUMBER_DEFAULT_NUM << 16) | AR0543_RAW_F_NUMBER_DEM;
 	return 0;
 }
 
@@ -1602,8 +1585,7 @@ static int ar0543_raw_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
 {
 	*val = (AR0543_RAW_F_NUMBER_DEFAULT_NUM << 24) |
 		(AR0543_RAW_F_NUMBER_DEM << 16) |
-		(AR0543_RAW_F_NUMBER_DEFAULT_NUM << 8) |
-		AR0543_RAW_F_NUMBER_DEM;
+		(AR0543_RAW_F_NUMBER_DEFAULT_NUM << 8) | AR0543_RAW_F_NUMBER_DEM;
 	return 0;
 }
 
@@ -1663,7 +1645,7 @@ static struct ar0543_raw_control ar0543_raw_controls[] = {
 			.flags = 0,
 		},
 		.tweak = ar0543_raw_t_focus_abs,
-		/* .query = ar0543_raw_q_focus_abs, */
+		//.query = ar0543_raw_q_focus_abs,
 	},
 	{
 		.qc = {
@@ -1795,8 +1777,7 @@ static struct ar0543_raw_control *ar0543_raw_find_control(u32 id)
 	return NULL;
 }
 
-static int ar0543_raw_queryctrl(struct v4l2_subdev *sd,
-				struct v4l2_queryctrl *qc)
+static int ar0543_raw_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
 	struct ar0543_raw_device *dev = to_ar0543_raw_sensor(sd);
 	struct ar0543_raw_control *ctrl = ar0543_raw_find_control(qc->id);
@@ -2000,9 +1981,9 @@ static int ar0543_raw_s_mbus_fmt(struct v4l2_subdev *sd,
 	struct camera_mipi_info *ar0543_raw_info = NULL;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-/* u16 stream_on; */
+//	u16 stream_on;
 
-	pr_info("%s: s\n", __func__);
+	printk("%s: s \n",__FUNCTION__);
 
 	ar0543_raw_info = v4l2_get_subdev_hostdata(sd);
 	if (ar0543_raw_info == NULL)
@@ -2016,8 +1997,7 @@ static int ar0543_raw_s_mbus_fmt(struct v4l2_subdev *sd,
 		return ret;
 	}
 	dev->fmt_idx = get_resolution_index(fmt->width, fmt->height);
-	pr_info("%s: __get_resolution_index[%d] %dx%d\n", __func__,
-		dev->fmt_idx, fmt->width, fmt->height);
+	printk("%s: __get_resolution_index[%d] %dx%d\n",__FUNCTION__, dev->fmt_idx, fmt->width, fmt->height);
 	/* Sanity check */
 	if (unlikely(dev->fmt_idx == -1)) {
 		mutex_unlock(&dev->input_lock);
@@ -2026,8 +2006,7 @@ static int ar0543_raw_s_mbus_fmt(struct v4l2_subdev *sd,
 	}
 
 	ar0543_raw_def_reg = ar0543_raw_res[dev->fmt_idx].regs;
-	pr_info("%s RES %s selected\n", __func__,
-		ar0543_raw_res[dev->fmt_idx].desc);
+	printk("%s RES %s selected\n", __func__, ar0543_raw_res[dev->fmt_idx].desc);
 	ret = ar0543_raw_write_reg_array(client, ar0543_raw_def_reg);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
@@ -2046,14 +2025,13 @@ static int ar0543_raw_s_mbus_fmt(struct v4l2_subdev *sd,
 	dev->fine_itg = 0;
 	dev->gain = 0;
 
-	ret = ar0543_raw_get_intg_factor(client, ar0543_raw_info,
-				ar0543_raw_def_reg);
+	ret = ar0543_raw_get_intg_factor(client, ar0543_raw_info, ar0543_raw_def_reg);
 	mutex_unlock(&dev->input_lock);
 	if (ret) {
 		v4l2_err(sd, "failed to get integration_factor\n");
 		return -EINVAL;
 	}
-	pr_info("%s: e\n", __func__);
+        printk("%s: e\n",__FUNCTION__);
 	return 0;
 }
 
@@ -2085,8 +2063,8 @@ static int ar0543_raw_detect(struct i2c_client *client, u16 *id, u8 *revision)
 		return -ENODEV;
 
 	/* check sensor chip model and revision IDs */
-	if (ar0543_raw_read_reg(client, AR0543_RAW_16BIT,
-				AR0543_RAW_SC_CMMN_CHIP_ID, id)) {
+	if (ar0543_raw_read_reg(client, AR0543_RAW_16BIT, AR0543_RAW_SC_CMMN_CHIP_ID,
+				id)) {
 		v4l2_err(client, "Reading sensor_id error.\n");
 		return -ENODEV;
 	}
@@ -2095,12 +2073,12 @@ static int ar0543_raw_detect(struct i2c_client *client, u16 *id, u8 *revision)
 		v4l2_err(client,
 			"sensor ID error, sensor_id = 0x%x\n", *id);
 		return -ENODEV;
-	} else{
-	      pr_info("sensor ID, sensor_id = 0x%x\n", *id);
+	}else{
+              printk("sensor ID, sensor_id = 0x%x\n", *id);
 	}
 
-	if (ar0543_raw_read_reg(client, AR0543_RAW_8BIT,
-				AR0543_RAW_SC_CMMN_REV_ID, &reg)) {
+	if (ar0543_raw_read_reg(client, AR0543_RAW_8BIT, AR0543_RAW_SC_CMMN_REV_ID,
+				&reg)) {
 		v4l2_err(client, "Reading sensor_rev_id error.\n");
 		return -ENODEV;
 	}
@@ -2119,19 +2097,17 @@ static int ar0543_raw_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ar0543_raw_device *dev = to_ar0543_raw_sensor(sd);
-/* u16 stream_on; */
+//	u16 stream_on;
 
-	pr_info("%s enable %d\n", __func__, enable);
+	printk("%s enable %d\n", __func__, enable);
 	mutex_lock(&dev->input_lock);
 	if (enable) {
 		if (!dev->keeps_focus_pos) {
 			struct ar0543_raw_reg ar0543_raw_stream_enable[] = {
 				ar0543_raw_streaming[0],
-				/* VCM_NEW_CODE */
-				{AR0543_RAW_16BIT, {0x30F2}, 0x0000},
+				{AR0543_RAW_16BIT, {0x30F2}, 0x0000}, /* VCM_NEW_CODE */
 				INIT_VCM_CONTROL,
-				/* VCM_NEW_CODE */
-				{AR0543_RAW_16BIT, {0x30F2}, 0x0000},
+				{AR0543_RAW_16BIT, {0x30F2}, 0x0000}, /* VCM_NEW_CODE */
 				{AR0543_RAW_TOK_DELAY, {0}, 60},
 				{AR0543_RAW_TOK_TERM, {0}, 0}
 			};
@@ -2139,11 +2115,9 @@ static int ar0543_raw_s_stream(struct v4l2_subdev *sd, int enable)
 			ar0543_raw_stream_enable[1].val = dev->focus + 1;
 			ar0543_raw_stream_enable[3].val = dev->focus;
 
-			ret = ar0543_raw_write_reg_array(client,
-						ar0543_raw_stream_enable);
+			ret = ar0543_raw_write_reg_array(client, ar0543_raw_stream_enable);
 		} else {
-			ret = ar0543_raw_write_reg_array(client,
-						ar0543_raw_streaming);
+			ret = ar0543_raw_write_reg_array(client, ar0543_raw_streaming);
 		}
 
 		if (ret != 0) {
@@ -2154,8 +2128,7 @@ static int ar0543_raw_s_stream(struct v4l2_subdev *sd, int enable)
 		dev->streaming = 1;
 	} else {
 
-		ret = ar0543_raw_write_reg_array(client,
-					ar0543_raw_soft_standby);
+		ret = ar0543_raw_write_reg_array(client, ar0543_raw_soft_standby);
 		if (ret != 0) {
 			mutex_unlock(&dev->input_lock);
 			v4l2_err(client, "write_reg_array err\n");
@@ -2164,17 +2137,15 @@ static int ar0543_raw_s_stream(struct v4l2_subdev *sd, int enable)
 		dev->streaming = 0;
 	}
 
-	/* Do not restore settings here,
-	as we do not set parameters when
-	switching resolution in video recording */
-	/* ar0543_raw_res = ar0543_raw_res_preview; */
-	/* N_RES = N_RES_PREVIEW; */
+	//Do not restore settings here, as we do not set parameters when switching resolution in video recording
+	//ar0543_raw_res = ar0543_raw_res_preview;
+	//N_RES = N_RES_PREVIEW;
 
 	/*ar0543_raw_read_reg(client, AR0543_RAW_8BIT, 0x100, &stream_on);
-	pr_info("%s stream_on %d\n", __func__, stream_on);
+	printk("%s stream_on %d\n", __func__, stream_on);
 
 	ar0543_raw_read_reg(client, AR0543_RAW_16BIT, 0x31AE, &stream_on);
-	pr_info("%s dual-lane %d\n", __func__, stream_on);*/
+	printk("%s dual-lane %d\n", __func__, stream_on);*/
 
 	mutex_unlock(&dev->input_lock);
 	return 0;
@@ -2265,35 +2236,34 @@ static int ar0543_raw_s_config(struct v4l2_subdev *sd,
 
 #ifdef CONFIG_ME372CG
 
-	if (HW_ID == 0xFF)
-		HW_ID = Read_HW_ID();
+        if (HW_ID == 0xFF){
+                HW_ID = Read_HW_ID();
+        }
 
-	if (HW_ID == HW_ID_PR || HW_ID == HW_ID_MP) {
-		/* Check for ME372CG or flashless ++ */
-		int PCB_ID10;
-		ret = gpio_request(118, "PCB_ID10");
-		if (ret) {
-			pr_err("%s: failed to request gpio(pin 118)\n",
-				__func__);
-			return -EINVAL;
-		}
+        if(HW_ID == HW_ID_PR || HW_ID == HW_ID_MP){
+                //Check for ME372CG or flashless ++
+                int PCB_ID10;
+                ret = gpio_request(118,"PCB_ID10");
+                if (ret) {
+                        pr_err("%s: failed to request gpio(pin 118)\n", __func__);
+                        return -EINVAL;
+                }
 
-		ret = gpio_direction_input(118);
-		PCB_ID10 = gpio_get_value(118);
-		pr_info("%s: PCB_ID10 %d\n", __func__, PCB_ID10);
-		gpio_free(118);
+                ret = gpio_direction_input(118);
+                PCB_ID10 = gpio_get_value(118);
+                printk("%s: PCB_ID10 %d\n", __func__, PCB_ID10);
+                gpio_free(118);
 
-		/* PCBID: 0->IntelISP, !=0->iCatch */
-		if (PCB_ID10 != 0) {
-			pr_info("%s Pass register this sensor\n", __func__);
-			return -ENODEV;
-		}
-		/* Check for ME372CG or flashless -- */
-	} else {
-		pr_info("%s SKU:0x%x Pass register this sensor\n",
-			HW_ID, __func__);
-		return -ENODEV;
-	}
+                //PCBID: 0->IntelISP, !=0->iCatch
+                if(PCB_ID10!=0) {
+                        printk("%s Pass register this sensor\n",__func__);
+                        return -ENODEV;
+                }
+                //Check for ME372CG or flashless --
+        } else {
+                printk("%s SKU:0x%x Pass register this sensor\n",HW_ID,__func__);
+                return -ENODEV;
+        }
 #endif
 
 	dev->platform_data = pdata;
@@ -2320,8 +2290,8 @@ static int ar0543_raw_s_config(struct v4l2_subdev *sd,
 	ret = __ar0543_raw_s_power(sd, 1);
 	if (ret) {
 		v4l2_err(client, "ar0543_raw power-up err.\n");
-		/* mutex_unlock(&dev->input_lock); */
-		/* return ret; */
+		//mutex_unlock(&dev->input_lock);
+		//return ret;
 	}
 
 	ret = dev->platform_data->csi_cfg(sd, 1);
@@ -2332,7 +2302,7 @@ static int ar0543_raw_s_config(struct v4l2_subdev *sd,
 	ret = ar0543_raw_detect(client, &sensor_id, &sensor_revision);
 	if (ret) {
 		v4l2_err(client, "ar0543_raw_detect err s_config.\n");
-		/* goto fail_detect; */
+		//goto fail_detect;
 	}
 
 	sensor_revision = 0;
@@ -2358,7 +2328,7 @@ static int ar0543_raw_s_config(struct v4l2_subdev *sd,
 
 	return 0;
 
-/* fail_detect: */
+//fail_detect:
 	dev->platform_data->csi_cfg(sd, 0);
 fail_csi_cfg:
 	__ar0543_raw_s_power(sd, 0);
@@ -2431,8 +2401,7 @@ ar0543_raw_get_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 {
 	struct ar0543_raw_device *dev = to_ar0543_raw_sensor(sd);
 	struct v4l2_mbus_framefmt *format =
-			__ar0543_raw_get_pad_format(dev, fh,
-			fmt->pad, fmt->which);
+			__ar0543_raw_get_pad_format(dev, fh, fmt->pad, fmt->which);
 
 	if (format == NULL)
 		return -EINVAL;
@@ -2447,8 +2416,7 @@ ar0543_raw_set_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 {
 	struct ar0543_raw_device *dev = to_ar0543_raw_sensor(sd);
 	struct v4l2_mbus_framefmt *format =
-			__ar0543_raw_get_pad_format(dev, fh,
-						fmt->pad, fmt->which);
+			__ar0543_raw_get_pad_format(dev, fh, fmt->pad, fmt->which);
 
 	if (format == NULL)
 		return -EINVAL;
@@ -2478,17 +2446,16 @@ ar0543_raw_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *param)
 		N_RES = N_RES_VIDEO;
 		break;
 	case CI_MODE_STILL_CAPTURE:
-		/* ar0543_raw_res = ar0543_raw_res_still; */
-		/* N_RES = N_RES_STILL; */
-		/* break; */
+		//ar0543_raw_res = ar0543_raw_res_still;
+		//N_RES = N_RES_STILL;
+		//break;
 	default:
 		ar0543_raw_res = ar0543_raw_res_preview;
 		N_RES = N_RES_PREVIEW;
 	}
 
 	/* Reset sensor mode */
-	/* we do not reset sensor mode,
-	as we now only have one s_mbus_fmt following s_parm
+	/* we do not reset sensor mode, as we now only have one s_mbus_fmt following s_parm
 	dev->fmt_idx = 0;
 	dev->fps = ar0543_raw_res[dev->fmt_idx].fps;
 	dev->pixels_per_line = ar0543_raw_res[dev->fmt_idx].pixels_per_line;
@@ -2636,22 +2603,22 @@ static int ar0543_raw_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	create_vcm_proc_file(); /* For DIT VCM Debug Interface+++ */
+	create_vcm_proc_file(); //For DIT VCM Debug Interface+++
 
 #ifdef CONFIG_PF450CL
-	create_led_proc_file(); /* For LED FLASH Controll+++ */
+	create_led_proc_file(); //For LED FLASH Controll+++
 #endif
 
-	/* Add for ATD command+++ */
+	//Add for ATD command+++
 	dev->sensor_i2c_attribute.attrs = ar0543_raw_attributes;
 
-	/* Register sysfs hooks */
+	// Register sysfs hooks
 	ret = sysfs_create_group(&client->dev.kobj, &dev->sensor_i2c_attribute);
 	if (ret) {
 		dev_err(&client->dev, "Not able to create the sysfs\n");
 		return ret;
 	}
-	/* Add for ATD command--- */
+	//Add for ATD command---
 
 	mutex_init(&dev->input_lock);
 

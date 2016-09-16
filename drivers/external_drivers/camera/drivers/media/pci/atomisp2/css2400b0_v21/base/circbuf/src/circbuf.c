@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "ia_css_circbuf.h"
@@ -19,9 +26,7 @@
 #ifdef __SP
 #include <hive_isp_css_sp_api_modified.h>
 #include <ia_css_sp_file_id.sp.h>
-#ifndef SP_FILE_ID
 #define SP_FILE_ID SP_FILE_ID_CIRCBUF /* overrule default in ia_css_sp_assert_level.sp.h */
-#endif
 #include <ia_css_sp_assert_level.sp.h>
 #endif
 
@@ -318,9 +323,6 @@ ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
 		/* copy the element from the source to the destination */
 		ia_css_circbuf_elem_cpy(&cb->elems[chunk_src],
 					     &cb->elems[chunk_dest]);
-
-		/* clear the source position */
-		ia_css_circbuf_elem_init(&cb->elems[chunk_src]);
 
 		/* adjust the source/terminal positions */
 		chunk_src = ia_css_circbuf_get_pos_at_offset(cb, chunk_src, -1);

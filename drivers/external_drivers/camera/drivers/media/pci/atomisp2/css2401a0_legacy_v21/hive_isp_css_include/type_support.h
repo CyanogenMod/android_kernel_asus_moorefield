@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __TYPE_SUPPORT_H_INCLUDED__
@@ -50,9 +57,6 @@
 #endif
 
 #elif defined(__HIVECC)
-#ifndef PIPE_GENERATION
-#include <hive/cell_support.h> /* for HAVE_STDINT */
-#endif
 #define __INDIRECT_STDINT_INCLUDE
 #include <stdint/stdint.h>
 #include <stdbool.h>
@@ -70,9 +74,7 @@
 #define HOST_ADDRESS(x) (unsigned long)(x)
 
 #elif defined(__GNUC__)
-#ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
-#endif
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>

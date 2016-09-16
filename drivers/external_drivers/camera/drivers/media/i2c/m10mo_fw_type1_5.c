@@ -21,7 +21,7 @@
 #include <linux/atomisp_platform.h>
 #include <media/m10mo_atomisp.h>
 #include <linux/module.h>
-#include <linux/m10mo.h>
+#include "m10mo.h"
 
 static int m10mo_set_high_speed(struct v4l2_subdev *sd)
 {

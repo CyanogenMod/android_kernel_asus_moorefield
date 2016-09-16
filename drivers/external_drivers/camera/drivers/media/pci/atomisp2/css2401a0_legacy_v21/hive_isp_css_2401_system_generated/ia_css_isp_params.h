@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 /* Generated code: do not edit or commmit. */
@@ -46,7 +53,7 @@ enum ia_css_parameter_ids {
 	IA_CSS_OB_ID,
 	IA_CSS_OUTPUT_ID,
 	IA_CSS_SC_ID,
-	IA_CSS_BDS_ID,
+	IA_CSS_RAW_ID,
 	IA_CSS_TNR_ID,
 	IA_CSS_MACC_ID,
 	IA_CSS_SDIS_HORICOEF_ID,
@@ -95,7 +102,7 @@ struct ia_css_memory_offsets {
 		struct ia_css_isp_parameter ob;
 		struct ia_css_isp_parameter output;
 		struct ia_css_isp_parameter sc;
-		struct ia_css_isp_parameter bds;
+		struct ia_css_isp_parameter raw;
 		struct ia_css_isp_parameter tnr;
 		struct ia_css_isp_parameter macc;
 		struct ia_css_isp_parameter sdis_horiproj;

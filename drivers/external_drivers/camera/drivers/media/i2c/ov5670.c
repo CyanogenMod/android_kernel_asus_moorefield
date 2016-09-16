@@ -38,9 +38,6 @@
 #include <media/v4l2-chip-ident.h>
 #include <linux/io.h>
 #include "ov5670.h"
-#include <linux/m10mo_workaround.h>
-#include <linux/HWVersion.h>
-#include <asm/intel-mid.h>
 //#include "decode_lib.h"
 
 #define OV5670_DEBUG_EN 0
@@ -53,6 +50,7 @@ static struct i2c_client* client_local = NULL;
 extern int ov5670_update_awb_gain(struct v4l2_subdev *sd);
 u8 ov5670_otp_data[24];		//store otp data
 int ATD_ov5670_status = 0;		//camera state, 1:ok 0:start_err
+static int binning_sum;
 //Add for ATD read camera status
 static ssize_t ov5670_show_status(struct device *dev,struct device_attribute *attr,char *buf)
 {
@@ -534,14 +532,14 @@ static long __ov5670_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 		return ret;
 
 	  if(gain >= 1*128 && gain < 2*128){
+		  printk(KERN_ALERT"ASUSov5670 0x366A=0x00");
+		  ov5670_write_reg(client, OV5670_8BIT, 0x366A, 0x00);
+	  }else if(gain >= 2*128 && gain < 4*128){
 		  printk(KERN_ALERT"ASUSov5670 0x366A=0x01");
 		  ov5670_write_reg(client, OV5670_8BIT, 0x366A, 0x01);
-	  }else if(gain >= 2*128 && gain < 4*128){
+	  }else if(gain >= 4*128 && gain < 8*128){
 		  printk(KERN_ALERT"ASUSov5670 0x366A=0x03");
 		  ov5670_write_reg(client, OV5670_8BIT, 0x366A, 0x03);
-	  }else if(gain >= 4*128 && gain < 8*128){
-		  printk(KERN_ALERT"ASUSov5670 0x366A=0x07");
-		  ov5670_write_reg(client, OV5670_8BIT, 0x366A, 0x07);
 	  }else if(gain >= 8*128){
 		  printk(KERN_ALERT"ASUSov5670 0x366A=0x07");
 		  ov5670_write_reg(client, OV5670_8BIT, 0x366A, 0x07);
@@ -697,6 +695,10 @@ static long ov5670_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
 		return ov5670_s_exposure(sd, arg);
+	case ATOMISP_IOC_S_BINNING_SUM:
+		binning_sum = *(int*)arg;
+		printk("Set low-light mode %d\n", binning_sum);
+	       return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1136,9 +1138,6 @@ static int ov5670_s_power(struct v4l2_subdev *sd, int on)
 //	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	int ret = 0;
-#ifdef CONFIG_VIDEO_M10MO
-    notify_m10mo_front_camera_power_status(on);
-#endif
 	if (on == 0) {
 		ret = power_down(sd);
 		if (dev->vcm_driver && dev->vcm_driver->power_down)
@@ -1147,11 +1146,6 @@ static int ov5670_s_power(struct v4l2_subdev *sd, int on)
 
 		}
 	} else {
-#ifdef CONFIG_VIDEO_M10MO
-        if(m10mo_status_fac()) {
-            (void) m10mo_s_power_for_ov5670(0);
-        }
-#endif
 		if (dev->vcm_driver && dev->vcm_driver->power_up)
 			ret = dev->vcm_driver->power_up(sd);
 		if (ret)
@@ -1215,6 +1209,11 @@ static int nearest_resolution_index(int w, int h)
 		}
 	}
 
+	// if((binning_sum == 1) && (idx + 1 < dev->entries_curr_table)){
+	// 	idx++;
+	// 	printk("Select binning sum mode idx = %d\n",idx);
+	// }
+	printk("%s, index = %d\n", __func__, idx);
 	return idx;
 }
 
@@ -1380,7 +1379,7 @@ static int ov5670_s_stream(struct v4l2_subdev *sd, int enable)
 	struct ov5670_device *dev = to_ov5670_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-	printk("@%s: %d\n", __func__, enable);
+	//printk("@%s:\n", __func__);
 	mutex_lock(&dev->input_lock);
 
 	ret = ov5670_write_reg(client, OV5670_8BIT, OV5670_SW_STREAM,

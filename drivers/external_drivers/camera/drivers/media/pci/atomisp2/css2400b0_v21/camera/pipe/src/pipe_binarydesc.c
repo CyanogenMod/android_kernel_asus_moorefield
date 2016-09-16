@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "ia_css_pipe_binarydesc.h"
@@ -55,8 +62,6 @@ static void pipe_binarydesc_get_offline(
 	descr->enable_reduced_pipe = false;
 	descr->enable_dz = true;
 	descr->enable_xnr = false;
-	descr->enable_dpc = false;
-	descr->enable_capture_pp_bli = false;
 	descr->enable_fractional_ds = false;
 	descr->dvs_env.width = 0;
 	descr->dvs_env.height = 0;
@@ -95,7 +100,7 @@ void ia_css_pipe_get_copy_binarydesc(
 	copy_descr->continuous = false;
 	copy_descr->two_ppc = (pipe->stream->config.pixels_per_clock == 2);
 	copy_descr->enable_dz = false;
-	copy_descr->isp_pipe_version = IA_CSS_PIPE_VERSION_1;
+	copy_descr->isp_pipe_version = 1;
 	IA_CSS_LEAVE_PRIVATE("");
 }
 void ia_css_pipe_get_vfpp_binarydesc(
@@ -315,8 +320,6 @@ enum ia_css_err ia_css_pipe_get_preview_binarydesc(
 	preview_descr->enable_fractional_ds =
 	    pipe->extra_config.enable_fractional_ds;
 
-	preview_descr->enable_dpc = pipe->config.enable_dpc;
-
 	preview_descr->isp_pipe_version = pipe->config.isp_pipe_version;
 	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
 	return IA_CSS_SUCCESS;
@@ -389,8 +392,6 @@ enum ia_css_err ia_css_pipe_get_video_binarydesc(
 		video_descr->isp_pipe_version = pipe->config.isp_pipe_version;
 		video_descr->enable_fractional_ds =
 		    pipe->extra_config.enable_fractional_ds;
-		video_descr->enable_dpc =
-			pipe->config.enable_dpc;
 
 #if defined(IS_ISP_2500_SYSTEM)
 /*
@@ -461,7 +462,7 @@ enum ia_css_err ia_css_pipe_get_video_binarydesc(
 }
 
 void ia_css_pipe_get_yuvscaler_binarydesc(
-	struct ia_css_pipe const * const pipe,
+	struct ia_css_pipe * const pipe,
 	struct ia_css_binary_descr *yuv_scaler_descr,
 	struct ia_css_frame_info *in_info,
 	struct ia_css_frame_info *out_info,
@@ -469,7 +470,6 @@ void ia_css_pipe_get_yuvscaler_binarydesc(
 	struct ia_css_frame_info *vf_info)
 {
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
-	struct ia_css_frame_info *this_vf_info = NULL;
 
 	assert(pipe != NULL);
 	assert(in_info != NULL);
@@ -490,15 +490,11 @@ void ia_css_pipe_get_yuvscaler_binarydesc(
 	 * fails
 	 */
 
-	if (vf_info) {
-		this_vf_info = (vf_info->res.width == 0 &&
-			vf_info->res.height == 0) ? NULL : vf_info;
-	}
-
 	pipe_binarydesc_get_offline(pipe,
 			       IA_CSS_BINARY_MODE_CAPTURE_PP,
 			       yuv_scaler_descr,
-			       in_info, out_infos, this_vf_info);
+			       in_info, out_infos,
+			       (vf_info->res.width == 0 && vf_info->res.height == 0) ? NULL : vf_info);
 
 	yuv_scaler_descr->enable_fractional_ds = true;
 	IA_CSS_LEAVE_PRIVATE("");
@@ -539,50 +535,29 @@ void ia_css_pipe_get_capturepp_binarydesc(
 			       capture_pp_descr,
 			       in_info, out_infos, vf_info);
 
-	capture_pp_descr->enable_capture_pp_bli =
-		pipe->config.default_capture_config.enable_capture_pp_bli;
 	capture_pp_descr->enable_fractional_ds = true;
 	capture_pp_descr->enable_xnr =
 		pipe->config.default_capture_config.enable_xnr != 0;
 	IA_CSS_LEAVE_PRIVATE("");
 }
 
-/* lookup table for high quality primary binaries */
-static unsigned int primary_hq_binary_modes[NUM_PRIMARY_HQ_STAGES] =
-{
-	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE0,
-	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE1,
-	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE2,
-	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE3,
-	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE4,
-	IA_CSS_BINARY_MODE_PRIMARY_HQ_STAGE5
-};
-
 void ia_css_pipe_get_primary_binarydesc(
 	struct ia_css_pipe const * const pipe,
 	struct ia_css_binary_descr *prim_descr,
 	struct ia_css_frame_info *in_info,
 	struct ia_css_frame_info *out_info,
-	struct ia_css_frame_info *vf_info,
-	unsigned int stage_idx)
+	struct ia_css_frame_info *vf_info)
 {
-	enum ia_css_pipe_version pipe_version = pipe->config.isp_pipe_version;
-	int mode;
+	int mode = IA_CSS_BINARY_MODE_PRIMARY;
 	unsigned int i;
 	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
 
 	assert(pipe != NULL);
 	assert(in_info != NULL);
 	assert(out_info != NULL);
-	assert(stage_idx < NUM_PRIMARY_HQ_STAGES);
 	/* vf_info can be NULL - example video_binarydescr */
 	/*assert(vf_info != NULL);*/
 	IA_CSS_ENTER_PRIVATE("");
-
-	if (pipe_version == IA_CSS_PIPE_VERSION_2_6_1)
-		mode = primary_hq_binary_modes[stage_idx];
-	else
-		mode = IA_CSS_BINARY_MODE_PRIMARY;
 
 	if (ia_css_util_is_input_format_yuv(pipe->stream->config.input_config.format))
 		mode = IA_CSS_BINARY_MODE_COPY;
@@ -620,10 +595,7 @@ void ia_css_pipe_get_primary_binarydesc(
 		 * if continuous viewfinder is required, then we must select
 		 * a striped one. Otherwise we prefer to use a non-striped
 		 * since it has better performance. */
-		if (pipe_version == IA_CSS_PIPE_VERSION_2_6_1)
-			prim_descr->striped = false;
-		else
-			prim_descr->striped = prim_descr->continuous && (!pipe->stream->stop_copy_preview || !pipe->stream->disable_cont_vf);
+		prim_descr->striped = prim_descr->continuous && !pipe->stream->stop_copy_preview;
 	}
 	IA_CSS_LEAVE_PRIVATE("");
 }
@@ -731,10 +703,10 @@ void ia_css_pipe_get_pre_de_binarydesc(
 	for (i = 1; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
 		out_infos[i] = NULL;
 
-	if (pipe->config.isp_pipe_version == IA_CSS_PIPE_VERSION_1)
+	if (pipe->config.isp_pipe_version == 1)
 		pipe_binarydesc_get_offline(pipe, IA_CSS_BINARY_MODE_PRE_ISP,
 				       pre_de_descr, in_info, out_infos, NULL);
-	else if (pipe->config.isp_pipe_version == IA_CSS_PIPE_VERSION_2_2) {
+	else {
 		pipe_binarydesc_get_offline(pipe, IA_CSS_BINARY_MODE_PRE_DE,
 				       pre_de_descr, in_info, out_infos, NULL);
 	}
@@ -839,35 +811,5 @@ void ia_css_pipe_get_post_anr_binarydesc(
 			       post_anr_descr, in_info, out_infos, vf_info);
 
 	post_anr_descr->isp_pipe_version = pipe->config.isp_pipe_version;
-	IA_CSS_LEAVE_PRIVATE("");
-}
-
-void ia_css_pipe_get_ldc_binarydesc(
-	struct ia_css_pipe const * const pipe,
-	struct ia_css_binary_descr *ldc_descr,
-	struct ia_css_frame_info *in_info,
-	struct ia_css_frame_info *out_info)
-{
-	unsigned int i;
-	struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
-
-	assert(pipe != NULL);
-	assert(in_info != NULL);
-	assert(out_info != NULL);
-	IA_CSS_ENTER_PRIVATE("");
-
-	*in_info = *out_info;
-	in_info->format = IA_CSS_FRAME_FORMAT_YUV420;
-	in_info->raw_bit_depth = 0;
-	ia_css_frame_info_set_width(in_info, in_info->res.width, 0);
-
-	out_infos[0] = out_info;
-	for (i = 1; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
-		out_infos[i] = NULL;
-
-	pipe_binarydesc_get_offline(pipe, IA_CSS_BINARY_MODE_CAPTURE_PP,
-			       ldc_descr, in_info, out_infos, NULL);
-	ldc_descr->enable_dvs_6axis =
-		    pipe->extra_config.enable_dvs_6axis;
 	IA_CSS_LEAVE_PRIVATE("");
 }

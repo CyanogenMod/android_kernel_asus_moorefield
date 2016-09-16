@@ -51,8 +51,7 @@
  * line 0 effective data size(byte): 76
  * line 1 effective data size(byte): 113
  */
-static const uint32_t
-	imx135_embedded_effective_size[IMX135_EMBEDDED_DATA_LINE_NUM]
+static const uint32_t imx135_embedded_effective_size[IMX135_EMBEDDED_DATA_LINE_NUM]
 	=  {76, 113};
 
 static enum atomisp_bayer_order imx_bayer_order_mapping[] = {
@@ -67,8 +66,7 @@ imx_read_reg(struct i2c_client *client, u16 len, u16 reg, u16 *val)
 {
 	struct i2c_msg msg[2];
 	u16 data[IMX_SHORT_MAX];
-	int ret, i;
-	int retry = 0;
+	int err, i;
 
 	if (len > IMX_BYTE_MAX) {
 		dev_err(&client->dev, "%s error, invalid data length\n",
@@ -76,33 +74,27 @@ imx_read_reg(struct i2c_client *client, u16 len, u16 reg, u16 *val)
 		return -EINVAL;
 	}
 
-	do {
-		memset(msg, 0 , sizeof(msg));
-		memset(data, 0 , sizeof(data));
+	memset(msg, 0 , sizeof(msg));
+	memset(data, 0 , sizeof(data));
 
-		msg[0].addr = client->addr;
-		msg[0].flags = 0;
-		msg[0].len = I2C_MSG_LENGTH;
-		msg[0].buf = (u8 *)data;
-		/* high byte goes first */
-		data[0] = cpu_to_be16(reg);
+	msg[0].addr = client->addr;
+	msg[0].flags = 0;
+	msg[0].len = I2C_MSG_LENGTH;
+	msg[0].buf = (u8 *)data;
+	/* high byte goes first */
+	data[0] = cpu_to_be16(reg);
 
-		msg[1].addr = client->addr;
-		msg[1].len = len;
-		msg[1].flags = I2C_M_RD;
-		msg[1].buf = (u8 *)data;
+	msg[1].addr = client->addr;
+	msg[1].len = len;
+	msg[1].flags = I2C_M_RD;
+	msg[1].buf = (u8 *)data;
 
-		ret = i2c_transfer(client->adapter, msg, 2);
-		if (ret != 2) {
-			dev_err(&client->dev,
-			  "retrying i2c read from offset 0x%x error %d... %d\n",
-			  reg, ret, retry);
-			msleep(20);
-		}
-	} while (ret != 2 && retry++ < I2C_RETRY_COUNT);
-
-	if (ret != 2)
-		return -EIO;
+	err = i2c_transfer(client->adapter, msg, 2);
+	if (err != 2) {
+		if (err >= 0)
+			err = -EIO;
+		goto error;
+	}
 
 	/* high byte comes first */
 	if (len == IMX_8BIT) {
@@ -114,29 +106,26 @@ imx_read_reg(struct i2c_client *client, u16 len, u16 reg, u16 *val)
 	}
 
 	return 0;
+
+error:
+	dev_err(&client->dev, "read from offset 0x%x error %d", reg, err);
+	return err;
 }
 
 static int imx_i2c_write(struct i2c_client *client, u16 len, u8 *data)
 {
 	struct i2c_msg msg;
+	const int num_msg = 1;
 	int ret;
-	int retry = 0;
 
-	do {
-		msg.addr = client->addr;
-		msg.flags = 0;
-		msg.len = len;
-		msg.buf = data;
+	msg.addr = client->addr;
+	msg.flags = 0;
+	msg.len = len;
+	msg.buf = data;
 
-		ret = i2c_transfer(client->adapter, &msg, 1);
-		if (ret != 1) {
-			dev_err(&client->dev,
-				"retrying i2c write transfer... %d\n", retry);
-				msleep(20);
-		}
-	} while (ret != 1 && retry++ < I2C_RETRY_COUNT);
+	ret = i2c_transfer(client->adapter, &msg, 1);
 
-	return ret == 1 ? 0 : -EIO;
+	return ret == num_msg ? 0 : -EIO;
 }
 
 int
@@ -1151,13 +1140,11 @@ static int imx_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = imx_test_pattern(&dev->sd);
 		break;
 	case V4L2_CID_VFLIP:
-		dev_dbg(&client->dev, "%s: CID_VFLIP:%d.\n",
-			__func__, ctrl->val);
+		dev_dbg(&client->dev, "%s: CID_VFLIP:%d.\n", __func__, ctrl->val);
 		ret = imx_v_flip(&dev->sd, ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
-		dev_dbg(&client->dev, "%s: CID_HFLIP:%d.\n",
-			__func__, ctrl->val);
+		dev_dbg(&client->dev, "%s: CID_HFLIP:%d.\n", __func__, ctrl->val);
 		ret = imx_h_flip(&dev->sd, ctrl->val);
 		break;
 	case V4L2_CID_FOCUS_ABSOLUTE:
@@ -1512,16 +1499,11 @@ static const struct v4l2_ctrl_config imx_controls[] = {
  * Returns the value of gap or -1 if fail.
  */
 #define LARGEST_ALLOWED_RATIO_MISMATCH 600
-static int distance(struct imx_resolution const *res, u32 w, u32 h,
-		bool keep_ratio)
+static int distance(struct imx_resolution const *res, u32 w, u32 h)
 {
 	unsigned int w_ratio;
 	unsigned int h_ratio;
 	int match;
-	unsigned int allowed_ratio_mismatch = LARGEST_ALLOWED_RATIO_MISMATCH;
-
-	if (!keep_ratio)
-		allowed_ratio_mismatch = ~0;
 
 	if (w == 0)
 		return -1;
@@ -1534,7 +1516,7 @@ static int distance(struct imx_resolution const *res, u32 w, u32 h,
 	match   = abs(((w_ratio << 13) / h_ratio) - ((int)8192));
 
 	if ((w_ratio < (int)8192) || (h_ratio < (int)8192)  ||
-		(match > allowed_ratio_mismatch))
+		(match > LARGEST_ALLOWED_RATIO_MISMATCH))
 		return -1;
 
 	return w_ratio + h_ratio;
@@ -1551,11 +1533,10 @@ static int nearest_resolution_index(struct v4l2_subdev *sd, int w, int h)
 	int min_dist = INT_MAX;
 	const struct imx_resolution *tmp_res = NULL;
 	struct imx_device *dev = to_imx_sensor(sd);
-	bool again = 1;
-retry:
+
 	for (i = 0; i < dev->entries_curr_table; i++) {
 		tmp_res = &dev->curr_res_table[i];
-		dist = distance(tmp_res, w, h, again);
+		dist = distance(tmp_res, w, h);
 		if (dist == -1)
 			continue;
 		if (dist < min_dist) {
@@ -1572,14 +1553,6 @@ retry:
 		}
 	}
 
-	/*
-	 * FIXME!
-	 * only IMX135 for Saltbay use this algorithm
-	 */
-	if (idx == -1 && again == true && dev->new_res_sel_method) {
-		again = false;
-		goto retry;
-	}
 	return idx;
 }
 
@@ -1681,8 +1654,7 @@ static int imx_s_mbus_fmt(struct v4l2_subdev *sd,
 	res = &dev->curr_res_table[dev->fmt_idx];
 
 	/* Adjust the FPS selection based on the resolution selected */
-	dev->fps_index = __imx_nearest_fps_index(dev->targetfps,
-						res->fps_options);
+	dev->fps_index = __imx_nearest_fps_index(dev->targetfps, res->fps_options);
 	dev->fps = res->fps_options[dev->fps_index].fps;
 	dev->regs = res->fps_options[dev->fps_index].regs;
 	if (!dev->regs)
@@ -1746,8 +1718,7 @@ static int imx_s_mbus_fmt(struct v4l2_subdev *sd,
 	 */
 	switch (dev->sensor_id) {
 	case IMX135_ID:
-		ret = imx_read_reg(client, 2,
-				IMX135_OUTPUT_DATA_FORMAT_REG, &data);
+		ret = imx_read_reg(client, 2, IMX135_OUTPUT_DATA_FORMAT_REG, &data);
 		if (ret)
 			goto out;
 		/*
@@ -1817,8 +1788,7 @@ static int imx_detect(struct i2c_client *client, u16 *id, u8 *revision)
 		return -ENODEV;
 	}
 
-	if (*id == IMX132_ID || *id == IMX175_ID ||
-		*id == IMX208_ID || *id == IMX219_ID)
+	if (*id == IMX132_ID || *id == IMX175_ID || *id == IMX208_ID || *id == IMX219_ID)
 		goto found;
 
 	if (imx_read_reg(client, IMX_16BIT, IMX134_135_CHIP_ID, id)) {
@@ -1962,8 +1932,7 @@ static int imx_enum_frameintervals(struct v4l2_subdev *sd,
 	fival->width = dev->curr_res_table[i].width;
 	fival->height = dev->curr_res_table[i].height;
 	fival->discrete.numerator = 1;
-	fival->discrete.denominator =
-			dev->curr_res_table[i].fps_options[index].fps;
+	fival->discrete.denominator = dev->curr_res_table[i].fps_options[index].fps;
 	mutex_unlock(&dev->input_lock);
 	return 0;
 out:
@@ -2011,8 +1980,6 @@ static int __update_imx_device_settings(struct imx_device *dev, u16 sensor_id)
 			dev->mode_tables = &imx_sets[IMX135_SALTBAY];
 			dev->vcm_driver = &imx_vcms[IMX135_SALTBAY];
 			dev->otp_driver = &imx_otps[IMX135_SALTBAY];
-			/* FIXME! */
-			dev->new_res_sel_method = true;
 		}
 		break;
 	case IMX134_ID:
@@ -2300,17 +2267,15 @@ static int __imx_s_frame_interval(struct v4l2_subdev *sd,
 		 * with current setting, not use this one, as may have
 		 * unexpected result, e.g. PLL, IQ.
 		 */
-		dev_dbg(&client->dev,
-			"Sensor is streaming, not apply new sensor setting\n");
+		dev_dbg(&client->dev, "Sensor is streaming, not apply new sensor setting\n");
 		if (fps > res->fps_options[dev->fps_index].fps) {
 			/*
 			 * Does not support increase fps based on low fps
 			 * setting, as the high fps setting could not be used,
 			 * and fps requested is above current setting fps.
 			 */
-			dev_warn(&client->dev,
-			"Could not support fps: %d, keep current: %d.\n",
-			fps, dev->fps);
+			dev_warn(&client->dev, "Could not support fps: %d, keep current: %d.\n",
+					fps, dev->fps);
 			return 0;
 		}
 	} else {
@@ -2342,9 +2307,9 @@ static int __imx_s_frame_interval(struct v4l2_subdev *sd,
 		 * 2: consider use pixel per line for more range?
 		 */
 		if (dev->lines_per_frame * dev->fps / fps >
-			MAX_LINES_PER_FRAME) {
+				MAX_LINES_PER_FRAME) {
 			dev_warn(&client->dev,
-		"adjust lines_per_frame out of range, try to use max value.\n");
+					"adjust lines_per_frame out of range, try to use max value.\n");
 			lines_per_frame = MAX_LINES_PER_FRAME;
 		} else {
 			lines_per_frame = lines_per_frame * dev->fps / fps;

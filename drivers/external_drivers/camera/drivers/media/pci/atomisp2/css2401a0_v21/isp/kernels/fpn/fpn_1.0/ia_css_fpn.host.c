@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include <assert_support.h>
@@ -71,19 +78,20 @@ ia_css_fpn_configure(
 	const struct ia_css_binary     *binary,
 	const struct ia_css_frame_info *info)
 {
-	struct ia_css_frame_info my_info = IA_CSS_BINARY_DEFAULT_FRAME_INFO;
-	const struct ia_css_fpn_configuration config = {
-		&my_info
-	};
-
-	my_info.res.width       = CEIL_DIV(info->res.width, 2);		/* Packed by 2x */
-	my_info.res.height      = info->res.height;
-	my_info.padded_width    = CEIL_DIV(info->padded_width, 2);	/* Packed by 2x */
-	my_info.format          = info->format;
-	my_info.raw_bit_depth   = FPN_BITS_PER_PIXEL;
-	my_info.raw_bayer_order = info->raw_bayer_order;
-	my_info.crop_info       = info->crop_info;
-
+	const struct ia_css_frame_info my_info =
+		{ { CEIL_DIV(info->res.width, 2), /* Packed by 2x */
+		    info->res.height
+		  },
+		  CEIL_DIV(info->padded_width, 2), /* Packed by 2x */
+		  info->format,
+		  FPN_BITS_PER_PIXEL,
+		  info->raw_bayer_order,
+		  { info->crop_info.start_column,
+		    info->crop_info.start_line
+		  }
+		};
+	const struct ia_css_fpn_configuration config =
+		{ &my_info };
 	ia_css_configure_fpn(binary, &config);
 }
 

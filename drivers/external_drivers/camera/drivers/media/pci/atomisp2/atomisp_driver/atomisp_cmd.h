@@ -31,7 +31,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "atomisp_internal.h"
-
+#include <linux/hid-holtekff.h>
 #include "ia_css_types.h"
 #include "ia_css.h"
 
@@ -44,10 +44,6 @@ struct atomisp_css_frame;
 #define MEMORY_SPACE_ENABLE	1
 #define INTR_IER		24
 #define INTR_IIR		16
-
-#ifdef CONFIG_GMIN_INTEL_MID
-extern int atomisp_punit_hpll_freq;
-#endif
 
 /*
  * Helper function
@@ -286,18 +282,10 @@ int atomisp_digital_zoom(struct atomisp_sub_device *asd, int flag,
 			 __s32 *value);
 
 /*
- * Function  set camera_prefiles.xml current sensor pixel array size
+ * Function to get current sensor output effective resolution
  */
-int atomisp_set_array_res(struct atomisp_sub_device *asd,
+int atomisp_get_effective_res(struct atomisp_sub_device *asd,
 			struct atomisp_resolution  *config);
-
-/*
- * Function to calculate real zoom region for every pipe
- */
-int atomisp_calculate_real_zoom_region(struct atomisp_sub_device *asd,
-			struct atomisp_css_dz_config   *dz_config,
-			enum atomisp_css_pipe_id css_pipe_id);
-
 
 int atomisp_cp_dvs_6axis_config(struct atomisp_sub_device *asd,
 			struct atomisp_dvs_6axis_config *user_6axis_config,
@@ -406,9 +394,4 @@ int atomisp_inject_a_fake_event(struct atomisp_sub_device *asd, int *event);
  */
 int atomisp_get_invalid_frame_num(struct video_device *vdev,
 			int *invalid_frame_num);
-
-int atomisp_mrfld_power_up(struct atomisp_device *isp);
-int atomisp_mrfld_power_down(struct atomisp_device *isp);
-int atomisp_runtime_suspend(struct device *dev);
-int atomisp_runtime_resume(struct device *dev);
 #endif /* __ATOMISP_CMD_H__ */

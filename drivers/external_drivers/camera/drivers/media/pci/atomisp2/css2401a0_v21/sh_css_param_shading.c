@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include <math_support.h>
@@ -19,11 +26,11 @@
 #include "sh_css_defs.h"
 #include "sh_css_internal.h"
 #include "ia_css_debug.h"
-#include "ia_css_pipe_binarydesc.h"
 
 #include "sh_css_hrt.h"
 
 #include "platform_support.h"
+
 
 /* Bilinear interpolation on shading tables:
  * For each target point T, we calculate the 4 surrounding source points:
@@ -118,6 +125,10 @@ crop_and_interpolate(unsigned int cropped_width,
 		/* calculate target point and make sure it falls within
 		   the table */
 		ty = out_start_row + i * out_cell_size;
+#if 0
+		ty = min(ty, (int)sensor_height-1);
+		ty = min(ty, (int)table_cell_h);
+#endif
 
 		/* calculate closest source points in shading table and
 		   make sure they fall within the table */
@@ -221,6 +232,21 @@ sh_css_params_shading_id_table_generate(
 	*target_table = result;
 }
 
+static struct sh_css_bds_factor sc_scale_factors_list[] = {
+	{1, 1, SH_CSS_BDS_FACTOR_1_00},
+	{5, 4, SH_CSS_BDS_FACTOR_1_25},
+	{3, 2, SH_CSS_BDS_FACTOR_1_50},
+	{2, 1, SH_CSS_BDS_FACTOR_2_00},
+	{9, 4, SH_CSS_BDS_FACTOR_2_25},
+	{5, 2, SH_CSS_BDS_FACTOR_2_50},
+	{3, 1, SH_CSS_BDS_FACTOR_3_00},
+	{4, 1, SH_CSS_BDS_FACTOR_4_00},
+	{9, 2, SH_CSS_BDS_FACTOR_4_50},
+	{5, 1, SH_CSS_BDS_FACTOR_5_00},
+	{6, 1, SH_CSS_BDS_FACTOR_6_00},
+	{8, 1, SH_CSS_BDS_FACTOR_8_00}
+};
+
 void
 prepare_shading_table(const struct ia_css_shading_table *in_table,
 		      unsigned int sensor_binning,
@@ -237,7 +263,6 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 		     padded_width,
 		     left_cropping,
 		     i;
-	unsigned int bds_numerator, bds_denominator;
 	int right_padding;
 
 	struct ia_css_shading_table *result;
@@ -255,21 +280,22 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	   shading correction is performed in the bayer domain (before bayer
 	   down scaling). */
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
+	if(2*ISP_VEC_NELEMS == 0){
+		printk("FATAL!! @%s ISP_VEC_NELEMS = 0 !? \n",__func__);
+	}
 	padded_width = CEIL_MUL(binary->effective_in_frame_res.width + 2*ISP_VEC_NELEMS,
 					2*ISP_VEC_NELEMS);
 #endif
 	input_height  = binary->in_frame_info.res.height;
 	input_width   = binary->in_frame_info.res.width;
 	left_padding  = binary->left_padding;
-	left_cropping = (binary->info->sp.pipeline.left_cropping == 0) ?
-			binary->dvs_envelope.width : 2*ISP_VEC_NELEMS;
-
-	sh_css_bds_factor_get_numerator_denominator
-		(bds_factor, &bds_numerator, &bds_denominator);
-
-	left_padding  = (left_padding + binary->info->sp.pipeline.left_cropping) * bds_numerator / bds_denominator - binary->info->sp.pipeline.left_cropping;
-	right_padding = (binary->internal_frame_info.res.width - binary->effective_in_frame_res.width * bds_denominator / bds_numerator - left_cropping) * bds_numerator / bds_denominator;
-	top_padding = binary->info->sp.pipeline.top_cropping * bds_numerator / bds_denominator - binary->info->sp.pipeline.top_cropping;
+	left_cropping = (binary->info->sp.pipeline.left_cropping == 0) ? 0 : 2*ISP_VEC_NELEMS;
+	if(sc_scale_factors_list[bds_factor].denominator == 0 || sc_scale_factors_list[bds_factor].numerator == 0){
+		printk("FATAL!! @%s [%d](%d,%d)\n",__func__,bds_factor,sc_scale_factors_list[bds_factor].denominator,sc_scale_factors_list[bds_factor].numerator);
+	}
+	left_padding  = (left_padding + binary->info->sp.pipeline.left_cropping) * sc_scale_factors_list[bds_factor].numerator / sc_scale_factors_list[bds_factor].denominator - binary->info->sp.pipeline.left_cropping;
+	right_padding = (binary->internal_frame_info.res.width - binary->effective_in_frame_res.width * sc_scale_factors_list[bds_factor].denominator / sc_scale_factors_list[bds_factor].numerator - left_cropping) * sc_scale_factors_list[bds_factor].numerator / sc_scale_factors_list[bds_factor].denominator;
+	top_padding = binary->info->sp.pipeline.top_cropping * sc_scale_factors_list[bds_factor].numerator / sc_scale_factors_list[bds_factor].denominator - binary->info->sp.pipeline.top_cropping;
 
 	/* We take into account the binning done by the sensor. We do this
 	   by cropping the non-binned part of the shading table and then

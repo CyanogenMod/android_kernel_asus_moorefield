@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __IA_CSS_PIPE_PUBLIC_H
@@ -51,22 +58,12 @@ enum ia_css_pipe_mode {
 #define IA_CSS_PIPE_MODE_NUM (IA_CSS_PIPE_MODE_YUVPP + 1)
 
 /**
- * Enumeration of pipe versions.
- * the order should match with definition in sh_css_defs.h
- */
-enum ia_css_pipe_version {
-	IA_CSS_PIPE_VERSION_1 = 1,		/**< ISP1.0 pipe */
-	IA_CSS_PIPE_VERSION_2_2 = 2,		/**< ISP2.2 pipe */
-	IA_CSS_PIPE_VERSION_2_6_1 = 3		/**< ISP2.6.1 pipe */
-};
-
-/**
  * Pipe configuration structure.
  */
 struct ia_css_pipe_config {
 	enum ia_css_pipe_mode mode;
 	/**< mode, indicates which mode the pipe should use. */
-	enum ia_css_pipe_version isp_pipe_version;
+	unsigned int isp_pipe_version;
 	/**< pipe version, indicates which imaging pipeline the pipe should use. */
 	struct ia_css_resolution input_effective_res;
 	/**< input effective resolution */
@@ -101,19 +98,8 @@ struct ia_css_pipe_config {
 	/**< Disabling digital zoom for a pipeline, if this is set to false,
 	     then setting a zoom factor will have no effect.
 	     In some use cases this provides better performance. */
-	bool enable_dpc;
-	/**< Disabling "Defect Pixel Correction" for a pipeline, if this is set
-	     to false. In some use cases this provides better performance. */
-	bool enable_vfpp_bci;
-	/**< Enabling BCI mode will cause yuv_scale binary to be picked up
-	     instead of vf_pp. This only applies to viewfinder post
-	     processing stages. */
 	struct ia_css_isp_config *p_isp_config;
 	/**< Pointer to ISP configuration */
-	struct ia_css_resolution gdc_in_buffer_res;
-	/**< GDC in buffer resolution. */
-	struct ia_css_point gdc_in_buffer_offset;
-	/**< GDC in buffer offset - indicates the pixel coordinates of the first valid pixel inside the buffer */
 };
 
 /**
@@ -138,11 +124,7 @@ struct ia_css_pipe_config {
 	IA_CSS_FRAME_DELAY_1,			/* dvs_frame_delay */ \
 	-1,					/* acc_num_execs */ \
 	false,					/* enable_dz */ \
-	false,					/* enable_dpc */ \
-	false,					/* enable_vfpp_bci */ \
-	NULL,					/* p_isp_config */\
-	{ 0, 0 },				/* gdc_in_buffer_res */ \
-	{ 0, 0 }				/* gdc_in_buffer_offset */ \
+	NULL					/* p_isp_config */\
 }
 
 /** Pipe info, this struct describes properties of a pipe after it's stream has
@@ -473,32 +455,4 @@ ia_css_pipe_get_qos_ext_state (struct ia_css_pipe *pipe,
 void
 ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
 			     struct ia_css_isp_config *config);
-
-/** @brief Set the scaler lut on this pipe. A copy of lut is made in the inuit
- *         address space. So the LUT can be freed by caller.
- * @param[in]  pipe        Pipe handle.
- * @param[in]  lut         Look up tabel
- *
- * @return
- * IA_CSS_SUCCESS 			: Success
- * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
- *
- * Note:
- * 1) Note that both GDC's are programmed with the same table.
- * 2) Current implementation ignores the pipe and overrides the
- *    global lut. This will be fixed in the future
- * 3) This function must be called before stream start
- * 4) For 2500, the function is a no-op.
- *
- */
-enum ia_css_err
-ia_css_pipe_set_bci_scaler_lut( struct ia_css_pipe *pipe,
-				const void *lut);
-/** @brief Checking of DVS statistics ability
- * @param[in]	pipe_info	The pipe info.
- * @return		true - has DVS statistics ability
- * 			false - otherwise
- */
-bool ia_css_pipe_has_dvs_stats(struct ia_css_pipe_info *pipe_info);
-
 #endif /* __IA_CSS_PIPE_PUBLIC_H */

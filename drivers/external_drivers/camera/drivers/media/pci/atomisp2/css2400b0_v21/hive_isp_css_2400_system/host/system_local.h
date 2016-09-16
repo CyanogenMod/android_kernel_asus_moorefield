@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __SYSTEM_LOCAL_H_INCLUDED__
@@ -28,8 +35,6 @@
 #ifdef __FIST__
 #define HRT_ADDRESS_WIDTH	32		/* Surprise, this is a local property and even differs per platform */
 #else
-/* HRT assumes 32 by default (see Linux/include/hrt/hive_types.h), overrule it in case it is different */
-#undef HRT_ADDRESS_WIDTH
 #define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property */
 #endif
 
@@ -86,9 +91,6 @@ static const hrt_address SP_CTRL_BASE[N_SP_ID] = {
 
 static const hrt_address SP_DMEM_BASE[N_SP_ID] = {
 	(hrt_address)0x0000000000300000ULL};
-
-static const hrt_address SP_PMEM_BASE[N_SP_ID] = {
-	(hrt_address)0x00000000000B0000ULL};
 
 /* MMU */
 #if defined (IS_ISP_2400_MAMOIADA_SYSTEM) || defined (IS_ISP_2401_MAMOIADA_SYSTEM)
@@ -208,9 +210,6 @@ static const hrt_address SP_CTRL_BASE[N_SP_ID] = {
 
 static const hrt_address SP_DMEM_BASE[N_SP_ID] = {
 	(hrt_address)0x00300000UL};
-
-static const hrt_address SP_PMEM_BASE[N_SP_ID] = {
-	(hrt_address)0x000B0000UL};
 
 /* MMU */
 #if defined (IS_ISP_2400_MAMOIADA_SYSTEM) || defined (IS_ISP_2401_MAMOIADA_SYSTEM)

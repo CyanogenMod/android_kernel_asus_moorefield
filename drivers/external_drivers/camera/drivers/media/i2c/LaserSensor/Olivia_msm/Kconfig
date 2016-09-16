@@ -1,5 +1,0 @@
-
-config OLIVIA_LASERSENSOR
-       tristate "Olivia Laser Sensor support"
-       ---help---
-         This is a Olivia Laser Sensor driver

@@ -104,43 +104,6 @@
 #define flashnode_suspend NULL
 #define flashnode_resume  NULL
 
-
-enum flashnode_torch_current{
-	FLASHNODE_TORCH_CURRENT_25MA, //0
-	FLASHNODE_TORCH_CURRENT_50MA,
-	FLASHNODE_TORCH_CURRENT_75MA,
-	FLASHNODE_TORCH_CURRENT_100MA,
-	FLASHNODE_TORCH_CURRENT_125MA,
-	FLASHNODE_TORCH_CURRENT_150MA,
-	FLASHNODE_TORCH_CURRENT_175MA,
-	FLASHNODE_TORCH_CURRENT_200MA,
-	FLASHNODE_TORCH_CURRENT_225MA,
-	FLASHNODE_TORCH_CURRENT_250MA, // 9
-	FLASHNODE_TORCH_CURRENT_NUM,
-};
-
-
-int inline flashnode_mapping_torch_intensity_driver(int light_intensity_percentage){
-    int ret;
-    ret = FLASHNODE_TORCH_CURRENT_25MA;
-    if(light_intensity_percentage > 10)
-        ret = FLASHNODE_TORCH_CURRENT_25MA;
-    if(light_intensity_percentage > 20)
-        ret = FLASHNODE_TORCH_CURRENT_50MA;
-    if(light_intensity_percentage > 30)
-        ret = FLASHNODE_TORCH_CURRENT_75MA;
-    if(light_intensity_percentage > 40)
-        ret = FLASHNODE_TORCH_CURRENT_100MA;
-    if(light_intensity_percentage > 60)
-        ret = FLASHNODE_TORCH_CURRENT_125MA;
-    if(light_intensity_percentage > 80)
-    	ret = FLASHNODE_TORCH_CURRENT_150MA;
-	if(light_intensity_percentage > 90)
-    	ret = FLASHNODE_TORCH_CURRENT_175MA;
-    return ret;
-}
-
-
 struct flashnode {
 	struct v4l2_subdev sd;
 	struct mutex power_lock;
@@ -168,8 +131,6 @@ static int high_torch_disable;
 #endif
 static struct workqueue_struct *flt_wq;
 static struct delayed_work flt_sensor_dowork;
-
-static int camera_open;
 
 struct flashnode_ctrl_id {
 	struct v4l2_queryctrl qc;
@@ -740,18 +701,6 @@ static int flashnode_s_power(struct v4l2_subdev *sd, int power)
 
 	mutex_lock(&flash->power_lock);
 
-//Due to the same i2c address issue, we should let i2c switch to SOC/External ISP for control.
-//Using GPIO 52 to control this i2c switch. LOW for SOC control;HIGH for External ISP control.
-	if(power == 1){
-		ret = gpio_request(52, "flash_enable");
-		gpio_direction_output(52, 0);
-		printk("Lower the GPIO52 when flash node on\n");
-	}else{
-		ret = gpio_request(52, "flash_enable");
-		gpio_direction_output(52, 1);
-		printk("Higher the GPIO52 when flash node off\n");
-	}
-
 	if (flash->power_count == !power) {
 		ret = __flashnode_s_power(flash, !!power);
 		if (ret < 0)
@@ -777,10 +726,8 @@ static void flashnode_torch_on_num(struct flashnode *flash , int intensity , int
 	if( num == 0){
 		ret = regmap_write(flash->map,FLASHNODE_CONTROL1,0x11);
 	}else if( num == 1){
-		//For Hight temperature LED (PR)
 		ret = regmap_write(flash->map,FLASHNODE_CONTROL1,0x01);
 	}else if( num == 2){
-		//For Low temperature LED   (PR)
 		ret = regmap_write(flash->map,FLASHNODE_CONTROL1,0x10);
 	}
 }
@@ -837,60 +784,6 @@ static long flashnode_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return 0;
 }
 
-int set_torch_on_via_SOC(bool enable){
-	int ret = 0;
-	printk("[TorchControl] Lower the GPIO52 when control flash node on (%d)\n",enable);
-
-	if(inner_flashnode==NULL) return -EINVAL;
-
-	ret = gpio_request(52, "flash_enable");
-	gpio_direction_output(52, 0);
-	if(enable){
-		flashnode_torch_on_num(inner_flashnode,100,1);
-	}else{
-		flashnode_flash_off(inner_flashnode);
-	}
-	ret = gpio_request(52, "flash_enable");
-	gpio_direction_output(52, 1);
-	printk("[TorchControl] Higher the GPIO52 when control flash node off\n");
-	return ret;
-}
-EXPORT_SYMBOL(set_torch_on_via_SOC);
-
-static ssize_t camera_show(struct file *dev, char *buffer, size_t count, loff_t *ppos)
-{
-	char *buff;
-	ssize_t ret = 0;
-	int len = 0;
-	int status;
-
-	status = Get_Camera_Status();
-	printk(KERN_INFO "[Camera_Status] get = %d/%d\n", camera_open,status);
-	buff = kmalloc(100,GFP_KERNEL);
-	if(!buff)
-		return -ENOMEM;
-
-	len += sprintf(buff+len, "%d\n", status);
-	ret = simple_read_from_buffer(buffer,count,ppos,buff,len);
-	kfree(buff);
-	return ret;
-}
-
-static ssize_t camera_store(struct file *dev, const char *buf, size_t count, loff_t *loff)
-{
-	int camera_status = -1;
-
-	sscanf(buf, "%d ", &camera_status);
-	if(camera_status > 0){
-		camera_open = 1;
-	}else{
-		camera_open = 0;
-	}
-	printk(KERN_INFO "[Camera_Status] get = %d , set = %d\n", camera_status, camera_open);
-	Set_Camera_Status(camera_open);
-	return count;
-}
-
 static ssize_t flashnode_show(struct file *dev, char *buffer, size_t count, loff_t *ppos)
 {
 
@@ -916,36 +809,27 @@ static ssize_t flashnode_store(struct file *dev, const char *buf, size_t count, 
 	int set_light = -1;
 	// int map_offset = FLASHNODE_TORCH_CURRENT_NUM;
 	int map_num;
-	int ret;
+
 
 	sscanf(buf, "%d", &set_light);
 	printk(KERN_INFO "[AsusFlash] Set light to %d\n", set_light);
 	if ( (set_light == light_record)){
 		return count;
 	}
-
-	if(inner_flashnode==NULL) return 0;
-
 	if(set_light < 0 || set_light >200){
 		return -1;
 	}else if (set_light == 0 ){
 		flashnode_flash_off(inner_flashnode);
 		light_record = set_light;
-		ret = gpio_request(52, "flash_enable");
-		gpio_direction_output(52, 1);
-		printk("Higher the GPIO52 when flash node off\n");
 	}else{
-		printk("Lower the GPIO52 when flash node on\n");
-		ret = gpio_request(52, "flash_enable");
-		gpio_direction_output(52, 0);
 		light_record = set_light;
 		flashnode_flash_off(inner_flashnode);
 		// map_num = set_light - (set_light % map_offset);
 		// map_num = map_num / (2 * map_offset);
-		map_num = flashnode_mapping_torch_intensity_driver(set_light);
+        map_num = flashnode_mapping_torch_intensity(set_light);
 		printk(KERN_INFO "[AsusFlash] Real set light to %d\n", map_num);
 		//set 2 for high tempature LED.
-		flashnode_torch_on_num(inner_flashnode,map_num,1);
+		flashnode_torch_on_num(inner_flashnode,map_num,2);
 	}
 
 	return count;
@@ -954,11 +838,6 @@ static ssize_t flashnode_store(struct file *dev, const char *buf, size_t count, 
 static const struct file_operations flash_proc_fops = {
 	.read = flashnode_show,
 	.write = flashnode_store,
-};
-
-static const struct file_operations camera_proc_fops = {
-	.read = camera_show,
-	.write = camera_store,
 };
 
 static const struct v4l2_subdev_core_ops flashnode_core_ops = {
@@ -1033,10 +912,10 @@ static int flashnode_gpio_init(struct i2c_client *client)
 				case HW_ID_SR2:
 				case HW_ID_ER:
 				case HW_ID_ER1_1:
+				case HW_ID_ER1_2:
 				case HW_ID_pre_PR:
 				case HW_ID_PR:
 				case HW_ID_MP:
-				case HW_ID_MP_SD:
 					printk("flashnode --> HW_ID = 0x%x\n", Read_HW_ID());
 					printk("flashnode --> PMIC GPIO4CTLO_REG pull high\n");
 					ret = intel_scu_ipc_iowrite8(GPIO4CTLO_REG, 0x31);
@@ -1050,8 +929,14 @@ static int flashnode_gpio_init(struct i2c_client *client)
 					break;
 			}
 			break;
-		default:
+		case PROJ_ID_ZE550ML:
+		case PROJ_ID_ZE551ML:
+		case PROJ_ID_ZR550ML:
+		case PROJ_ID_ZE500ML:
+		case PROJ_ID_ZE551ML_CKD:
 			printk("DISABLE FLASH FOR OTHER PROJECT in ZX550ML\n");
+			break;
+		default:
 			printk("Project ID is not defined\n");
 			break;
 	}//end switch
@@ -1069,10 +954,10 @@ static int flashnode_gpio_uninit(struct i2c_client *client)
 				case HW_ID_SR2:
 				case HW_ID_ER:
 				case HW_ID_ER1_1:
+				case HW_ID_ER1_2:
 				case HW_ID_pre_PR:
 				case HW_ID_PR:
 				case HW_ID_MP:
-				case HW_ID_MP_SD:
 					printk("flashnode --> HW_ID = 0x%x\n", Read_HW_ID());
 					printk("flashnode --> PMIC GPIO4CTLO_REG pull low\n");
 					ret = intel_scu_ipc_iowrite8(GPIO4CTLO_REG, 0x30);
@@ -1086,8 +971,14 @@ static int flashnode_gpio_uninit(struct i2c_client *client)
 					break;
 				}
 			break;
-		default:
+		case PROJ_ID_ZE550ML:
+		case PROJ_ID_ZE551ML:
+		case PROJ_ID_ZR550ML:
+		case PROJ_ID_ZE500ML:
+		case PROJ_ID_ZE551ML_CKD:
 			printk("DISABLE FLASH FOR CES in ZX550ML\n");
+			break;
+		default:
 			printk("Project ID is not defined\n");
 			break;
 	}//end switch
@@ -1097,12 +988,9 @@ static int flashnode_gpio_uninit(struct i2c_client *client)
 
 static void flt_do_work_function(struct work_struct *dat)
 {
-	struct flashnode *flash;
+	struct flashnode *flash = inner_flashnode;
 	int value;
 	int ret;
-
-	if(inner_flashnode==NULL) return;
-	flash = inner_flashnode;
 
 	pr_info("[%s] flashnode_interrupt_handler = %d\n", FLASHNODE_NAME,flash->irq);
 	ret = regmap_read(flash->map,FLASHNODE_FAULT,&value);
@@ -1168,10 +1056,7 @@ static int flashnode_probe(struct i2c_client *client,
 	int err;
 	struct flashnode *flash;
 	struct proc_dir_entry* proc_entry_flash;
-	struct proc_dir_entry* proc_entry_camera;
 	void* dummy = NULL;
-
-	camera_open = 0;
 
 	if (client->dev.platform_data == NULL) {
 		dev_err(&client->dev, "no platform data\n");
@@ -1199,7 +1084,9 @@ static int flashnode_probe(struct i2c_client *client,
 	}
 
 	flash->sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV_FLASH;
+
 	mutex_init(&flash->power_lock);
+
 	err = flashnode_gpio_init(client);
 	if (err) {
 		dev_err(&client->dev, "gpio request/direction_output fail");
@@ -1212,9 +1099,6 @@ static int flashnode_probe(struct i2c_client *client,
 	inner_flashnode = flash;
 
 
-	proc_entry_camera = proc_create_data("driver/camera_open", 0660, NULL, &camera_proc_fops, dummy);
-	proc_set_user(proc_entry_camera, 1000, 1000);
-
 	switch (Read_PROJ_ID()) {
 		case PROJ_ID_ZX550ML:
 			switch (Read_HW_ID()) {
@@ -1223,10 +1107,10 @@ static int flashnode_probe(struct i2c_client *client,
 				case HW_ID_SR2:
 				case HW_ID_ER:
 				case HW_ID_ER1_1:
+				case HW_ID_ER1_2:
 				case HW_ID_pre_PR:
 				case HW_ID_PR:
 				case HW_ID_MP:
-				case HW_ID_MP_SD:
 					printk("flashnode --> HW_ID = 0x%x\n", Read_HW_ID());
 					break;
 				default:
@@ -1234,8 +1118,14 @@ static int flashnode_probe(struct i2c_client *client,
 					break;
 			}
 			break;
-		default:
+		case PROJ_ID_ZE550ML:
+		case PROJ_ID_ZE551ML:
+		case PROJ_ID_ZR550ML:
+		case PROJ_ID_ZE500ML:
+		case PROJ_ID_ZE551ML_CKD:
 			printk("DISABLE FLASH FOR OTHER \n");
+			break;
+		default:
 			pr_info("Project ID is not defined\n");
 			break;
 		}//end switch
@@ -1268,7 +1158,6 @@ static int flashnode_remove(struct i2c_client *client)
 	media_entity_cleanup(&flash->sd.entity);
 	v4l2_device_unregister_subdev(sd);
 
-	inner_flashnode=NULL;
 
 	ret = flashnode_gpio_uninit(client);
 	if (ret < 0)

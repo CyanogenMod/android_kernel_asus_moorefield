@@ -203,6 +203,7 @@ struct atomisp_subdev_params {
 	enum atomisp_css_pipe_id s3a_enabled_pipe;
 
 	int s3a_output_bytes;
+	bool s3a_buf_data_valid;
 
 	bool dis_proj_data_valid;
 
@@ -249,28 +250,6 @@ struct atomisp_css_params_with_list {
 	struct list_head list;
 };
 
-struct atomisp_acc_fw {
-	struct atomisp_css_fw_info *fw;
-	unsigned int handle;
-	unsigned int flags;
-	unsigned int type;
-	struct {
-		size_t length;
-		unsigned long css_ptr;
-	} args[ATOMISP_ACC_NR_MEMORY];
-	struct list_head list;
-};
-
-struct atomisp_map {
-	ia_css_ptr ptr;
-	size_t length;
-	struct list_head list;
-	/* FIXME: should keep book which maps are currently used
-	 * by binaries and not allow releasing those
-	 * which are in use. Implement by reference counting.
-	 */
-};
-
 struct atomisp_sub_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[ATOMISP_SUBDEV_PADS_NUM];
@@ -297,18 +276,7 @@ struct atomisp_sub_device {
 	struct v4l2_ctrl *continuous_raw_buffer_size;
 	struct v4l2_ctrl *continuous_viewfinder;
 	struct v4l2_ctrl *enable_raw_buffer_lock;
-	struct v4l2_ctrl *ion_dev_fd;
 	struct v4l2_ctrl *disable_dz;
-
-	struct {
-		struct list_head fw;
-		struct list_head memory_maps;
-		struct atomisp_css_pipeline *pipeline;
-		bool extension_mode;
-		struct ida ida;
-		struct completion acc_done;
-		void *acc_stages;
-	} acc;
 
 	struct atomisp_subdev_params params;
 
@@ -327,13 +295,9 @@ struct atomisp_sub_device {
 	/* The list of metadata buffers which are ready for userspace to get */
 	struct list_head metadata_ready[ATOMISP_METADATA_TYPE_NUM];
 
-	/* The list of free and available s3a stat buffers for CSS */
 	struct list_head s3a_stats;
-	/* The list of s3a stat buffers which have been en-queued to CSS */
 	struct list_head s3a_stats_in_css;
-	/* The list of s3a stat buffers which are ready for userspace to get */
-	struct list_head s3a_stats_ready;
-
+	spinlock_t s3a_stats_lock;
 	struct list_head dis_stats;
 	struct list_head dis_stats_in_css;
 	spinlock_t dis_stats_lock;
@@ -375,19 +339,10 @@ struct atomisp_sub_device {
 	bool yuvpp_mode;	/* CSI2+ yuvpp pipe */
 
 	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID/32 + 1]; /* Record each Raw Buffer lock status */
-	int raw_buffer_locked_count;
 	spinlock_t raw_buffer_bitmap_lock;
 
-	struct timer_list wdt;
-	unsigned int wdt_duration;	/* in jiffies */
-	unsigned long wdt_expires;
-
-	struct atomisp_resolution sensor_array_res;
 	bool high_speed_mode; /* Indicate whether now is a high speed mode */
 	int pending_capture_request; /* Indicates the number of pending capture requests. */
-
-	unsigned int preview_exp_id;
-	unsigned int postview_exp_id;
 };
 
 extern const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[];

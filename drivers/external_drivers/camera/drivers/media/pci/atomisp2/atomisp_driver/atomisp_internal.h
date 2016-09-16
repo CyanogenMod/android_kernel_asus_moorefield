@@ -120,7 +120,7 @@
 
 #define ATOMISP_SC_TYPE_SIZE	2
 
-#define ATOMISP_ISP_TIMEOUT_DURATION		(36 * HZ)
+#define ATOMISP_ISP_TIMEOUT_DURATION		(2 * HZ)
 #define ATOMISP_EXT_ISP_TIMEOUT_DURATION        (6 * HZ)
 #define ATOMISP_ISP_FILE_TIMEOUT_DURATION	(60 * HZ)
 #define ATOMISP_WDT_KEEP_CURRENT_DELAY          0
@@ -131,7 +131,6 @@
 #define ATOMISP_CSS_EVENTS_MAX  16
 #define ATOMISP_CONT_RAW_FRAMES 15
 #define ATOMISP_METADATA_QUEUE_DEPTH_FOR_HAL	8
-#define ATOMISP_S3A_BUF_QUEUE_DEPTH_FOR_HAL	8
 
 #define ATOMISP_DELAYED_INIT_NOT_QUEUED	0
 #define ATOMISP_DELAYED_INIT_QUEUED	1
@@ -150,35 +149,27 @@
  */
 #define ATOMISP_MAX_ISR_LATENCY	1000
 
-/* Add new YUVPP pipe for SOC sensor. */
-#define ATOMISP_CSS_SUPPORT_YUVPP     1
+/*
+ * Add new YUVPP pipe for SOC sensor.
+ * a.ATOMISP_CSS_SUPPORT_YUVPP = 1
+ *    the css support YUVPP for SOC sensor.
+ * b.ATOMISP_CSS_SUPPORT_YUVPP = 0
+ *    the css no support YUVPP for SOC sensor
+ * c.Now, the FW has some issue about YUVPP pipe. so I disable YUVPP pipe for
+ *   SOC sensor
+ */
+#define ATOMISP_CSS_SUPPORT_YUVPP     0
 
 #define ATOMISP_CSS_OUTPUT_SECOND_INDEX     1
 #define ATOMISP_CSS_OUTPUT_DEFAULT_INDEX    0
 
-/*
- * ATOMISP_SOC_CAMERA
- * This is to differentiate between ext-isp and soc camera in
- * Moorefield/Baytrail platform.
- */
-#define ATOMISP_SOC_CAMERA(asd)  \
+#define ATOMISP_USE_YUVPP(asd)  \
 	(asd->isp->inputs[asd->input_curr].type == SOC_CAMERA \
 	&& asd->isp->inputs[asd->input_curr].camera_caps-> \
-	   sensor[asd->sensor_curr].stream_num == 1)
-
-#define ATOMISP_USE_YUVPP(asd)  \
-	(ATOMISP_SOC_CAMERA(asd) && ATOMISP_CSS_SUPPORT_YUVPP && \
-	!asd->copy_mode)
+	   sensor[asd->sensor_curr].stream_num == 1   \
+	&& ATOMISP_CSS_SUPPORT_YUVPP)
 
 #define ATOMISP_DEPTH_SENSOR_STREAMON_COUNT 2
-
-#define ATOMISP_DEPTH_DEFAULT_MASTER_SENSOR 0
-#define ATOMISP_DEPTH_DEFAULT_SLAVE_SENSOR 1
-
-#define ATOMISP_ION_DEVICE_FD_OFFSET   16
-#define ATOMISP_ION_SHARED_FD_MASK     (0xFFFF)
-#define ATOMISP_ION_DEVICE_FD_MASK     (~ATOMISP_ION_SHARED_FD_MASK)
-#define ION_FD_UNSET (-1)
 
 #define DIV_NEAREST_STEP(n, d, step) \
 	round_down((2 * (n) + (d) * (step))/(2 * (d)), (step))
@@ -240,6 +231,27 @@ struct atomisp_sw_contex {
 	int running_freq;
 };
 
+struct atomisp_acc_fw {
+	struct atomisp_css_fw_info *fw;
+	unsigned int handle;
+	unsigned int flags;
+	unsigned int type;
+	struct {
+		size_t length;
+		unsigned long css_ptr;
+	} args[ATOMISP_ACC_NR_MEMORY];
+	struct list_head list;
+};
+
+struct atomisp_map {
+	ia_css_ptr ptr;
+	size_t length;
+	struct list_head list;
+	/* FIXME: should keep book which maps are currently used
+	 * by binaries and not allow releasing those
+	 * which are in use. Implement by reference counting.
+	 */
+};
 
 #define ATOMISP_DEVICE_STREAMING_DISABLED	0
 #define ATOMISP_DEVICE_STREAMING_ENABLED	1
@@ -249,7 +261,9 @@ struct atomisp_sw_contex {
  * ci device struct
  */
 struct atomisp_device {
-	struct pci_dev *pdev;
+	u16 xe_flash_pulse;
+    u16 xe_flash_delay;
+    struct pci_dev *pdev;
 	struct device *dev;
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
@@ -260,6 +274,17 @@ struct atomisp_device {
 
 	struct pm_qos_request pm_qos;
 	s32 max_isr_latency;
+
+	struct {
+		struct list_head fw;
+		struct list_head memory_maps;
+		struct atomisp_css_pipeline *pipeline;
+		bool extension_mode;
+		struct ida ida;
+		struct completion acc_done;
+		void *acc_stages;
+	} acc;
+
 
 	/*
 	 * ISP modules
@@ -301,8 +326,10 @@ struct atomisp_device {
 	bool isp_fatal_error;
 	struct workqueue_struct *wdt_work_queue;
 	struct work_struct wdt_work;
+	struct timer_list wdt;
 	atomic_t wdt_count;
-	atomic_t wdt_work_queued;
+	unsigned int wdt_duration;	/* in jiffies */
+	unsigned long wdt_expires;
 
 	spinlock_t lock; /* Just for streaming below */
 
@@ -310,15 +337,12 @@ struct atomisp_device {
 
 	unsigned int mipi_frame_size;
 	const struct atomisp_dfs_config *dfs;
-	unsigned int hpll_freq;
 
 	bool css_initialized;
 };
 
 #define v4l2_dev_to_atomisp_device(dev) \
 	container_of(dev, struct atomisp_device, v4l2_dev)
-
-extern raw_spinlock_t pci_config_lock;
 
 extern struct device *atomisp_dev;
 
@@ -327,8 +351,8 @@ extern void *atomisp_kernel_malloc(size_t bytes);
 extern void atomisp_kernel_free(void *ptr);
 
 #define atomisp_is_wdt_running(a) timer_pending(&(a)->wdt)
-extern void atomisp_wdt_refresh(struct atomisp_sub_device *asd, unsigned int delay);
-extern void atomisp_wdt_start(struct atomisp_sub_device *asd);
-extern void atomisp_wdt_stop(struct atomisp_sub_device *asd, bool sync);
+extern void atomisp_wdt_refresh(struct atomisp_device *isp, unsigned int delay);
+extern void atomisp_wdt_start(struct atomisp_device *isp);
+extern void atomisp_wdt_stop(struct atomisp_device *isp, bool sync);
 
 #endif /* __ATOMISP_INTERNAL_H__ */

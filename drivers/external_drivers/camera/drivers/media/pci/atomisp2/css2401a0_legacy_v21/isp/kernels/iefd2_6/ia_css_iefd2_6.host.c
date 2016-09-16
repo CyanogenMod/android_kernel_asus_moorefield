@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef IA_CSS_NO_DEBUG
@@ -21,7 +28,7 @@
  */
 void
 ia_css_iefd2_6_vmem_encode(
-	struct iefd2_6_vmem_params *to,
+	struct ia_css_isp_iefd2_6_vmem_params *to,
 	const struct ia_css_iefd2_6_config *from,
 	size_t size)
 {
@@ -65,64 +72,52 @@ ia_css_iefd2_6_vmem_encode(
 
 		to->e_cued_x[0][base] = 0;
 		to->e_cued_a[0][base] = 0;
-		to->e_cued_b[0][base] = from->cu_ed_slopes_b[0];
+		to->e_cued_b[0][base] = from->cu_ed_slopes_b[1];
 
 		to->e_cu_dir_x[0][base] = 0;
 		to->e_cu_dir_a[0][base] = 0;
-		to->e_cu_dir_b[0][base] = from->cu_dir_sharp_slopes_b[0];
+		to->e_cu_dir_b[0][base] = from->cu_dir_sharp_slopes_b[1];
 
 		to->e_cu_non_dir_x[0][base] = 0;
 		to->e_cu_non_dir_a[0][base] = 0;
-		to->e_cu_non_dir_b[0][base] = from->cu_non_dir_sharp_slopes_b[0];
+		to->e_cu_non_dir_b[0][base] = from->cu_non_dir_sharp_slopes_b[1];
 
 		to->e_curad_x[0][base] = 0;
 		to->e_curad_a[0][base] = 0;
-		to->e_curad_b[0][base] = from->cu_radial_slopes_b[0];
+		to->e_curad_b[0][base] = from->cu_radial_slopes_b[1];
 
 		for (j = 1; j < 4; j++) {
-			to->e_cu_dir_a[0][base+j] = from->cu_dir_sharp_slopes_a[j-1];
-			to->e_cu_dir_b[0][base+j] = from->cu_dir_sharp_slopes_b[j-1];
-			to->e_cu_non_dir_a[0][base+j] = from->cu_non_dir_sharp_slopes_a[j-1];
-			to->e_cu_non_dir_b[0][base+j] = from->cu_non_dir_sharp_slopes_b[j-1];
+			to->e_cu_dir_a[0][base+j] = from->cu_dir_sharp_slopes_a[j];
+			to->e_cu_dir_b[0][base+j] = from->cu_dir_sharp_slopes_b[j];
+			to->e_cu_non_dir_a[0][base+j] = from->cu_non_dir_sharp_slopes_a[j];
+			to->e_cu_non_dir_b[0][base+j] = from->cu_non_dir_sharp_slopes_b[j];
 		}
 
 		for (j = 1; j < 5; j++) {
-			to->e_cu_dir_x[0][base+j] = from->cu_dir_sharp_points_x[j-1];
-			to->e_cu_non_dir_x[0][base+j] = from->cu_non_dir_sharp_points_x[j-1];
+			to->e_cu_dir_x[0][base+j] = from->cu_dir_sharp_points_x[j];
+			to->e_cu_non_dir_x[0][base+j] = from->cu_non_dir_sharp_points_x[j];
 		}
 
 
 		for (j = 1; j < 6; j++) {
-			to->e_cued_x[0][base+j] = from->cu_ed_points_x[j-1];
-			to->e_cued_a[0][base+j] = from->cu_ed_slopes_a[j-1];
-			to->e_cued_b[0][base+j] = from->cu_ed_slopes_b[j-1];
+			to->e_cued_x[0][base+j] = from->cu_ed_points_x[j];
+			to->e_cued_a[0][base+j] = from->cu_ed_slopes_a[j];
+			to->e_cued_b[0][base+j] = from->cu_ed_slopes_b[j];
 		}
-		to->e_cued_x[0][base+6] = from->cu_ed_points_x[5];
+		to->e_cued_x[0][base+6] = from->cu_ed_points_x[j];
 
 		for (j = 1; j < 6; j++) {
-			to->e_curad_x[0][base+j] = from->cu_radial_points_x[j-1];
-			to->e_curad_a[0][base+j] = from->cu_radial_slopes_a[j-1];
-			to->e_curad_b[0][base+j] = from->cu_radial_slopes_b[j-1];
+			to->e_curad_x[0][base+j] = from->cu_radial_points_x[j];
+			to->e_curad_a[0][base+j] = from->cu_radial_slopes_a[j];
+			to->e_curad_b[0][base+j] = from->cu_radial_slopes_b[j];
 		}
-		to->e_curad_x[0][base+6] = from->cu_radial_points_x[5];
-
-		/* Init asrrnd_lut */
-		to->asrrnd_lut[0][base] = 8192;
-		to->asrrnd_lut[0][base+1] = 4096;
-		to->asrrnd_lut[0][base+2] = 2048;
-		to->asrrnd_lut[0][base+3] = 1024;
-		to->asrrnd_lut[0][base+4] = 512;
-		to->asrrnd_lut[0][base+5] = 256;
-		to->asrrnd_lut[0][base+6] = 128;
-		to->asrrnd_lut[0][base+7] = 64;
-		to->asrrnd_lut[0][base+8] = 32;
+		to->e_curad_x[0][base+6] = from->cu_radial_points_x[j];
 	}
-
 }
 
 void
 ia_css_iefd2_6_encode(
-	struct iefd2_6_dmem_params *to,
+	struct ia_css_isp_iefd2_6_dmem_params *to,
 	const struct ia_css_iefd2_6_config *from,
 	size_t size)
 {
@@ -150,10 +145,10 @@ ia_css_iefd2_6_encode(
 	to->rad_cu_dir_sharp_x1		= from->rad_cu_dir_sharp_x1;
 	to->rad_cu_non_dir_sharp_x1	= from->rad_cu_non_dir_sharp_x1;
 	to->rad_dir_far_sharp_weight	= from->rad_dir_far_sharp_weight;
-	to->sharp_nega_lmt_txt		= from->sharp_nega_lmt_txt;
-	to->sharp_posi_lmt_txt		= from->sharp_posi_lmt_txt;
-	to->sharp_nega_lmt_dir		= from->sharp_nega_lmt_dir;
-	to->sharp_posi_lmt_dir		= from->sharp_posi_lmt_dir;
+	to->shrpn_nega_lmt_txt		= from->shrpn_nega_lmt_txt;
+	to->shrpn_posi_lmt_txt		= from->shrpn_posi_lmt_txt;
+	to->shrpn_nega_lmt_dir		= from->shrpn_nega_lmt_dir;
+	to->shrpn_posi_lmt_dir		= from->shrpn_posi_lmt_dir;
 	to->clamp_stitch		= from->clamp_stitch;
 	to->rad_enable			= from->rad_enable;
 	to->rad_x_origin		= from->rad_x_origin;
@@ -171,24 +166,10 @@ ia_css_iefd2_6_encode(
 	/* Setup for configurable units */
 	to->e_cued2_a		= from->cu_ed2_slopes_a;
 	to->e_cu_vssnlm_a	= from->cu_vssnlm_slopes_a;
-	to->e_cued2_x1		= from->cu_ed2_points_x[0];
-	to->e_cued2_x_diff	= from->cu_ed2_points_x[1] - from->cu_ed2_points_x[0];
-	to->e_cu_vssnlm_x1	= from->cu_vssnlm_points_x[0];
-	to->e_cu_vssnlm_x_diff  = from->cu_vssnlm_points_x[1] - from->cu_vssnlm_points_x[0];
+	to->e_cued2_b		= ((0-from->cu_ed2_points_x[1]) * from->cu_ed2_slopes_a)>>4;
+	to->e_cu_vssnlm_b	= ((0-from->cu_vssnlm_points_x[1]) * from->cu_vssnlm_slopes_a)>>4;
 }
 
-/* TODO: AM: This needs a proper implementation. */
-void
-ia_css_init_iefd2_6_state(
-	void *state,
-	size_t size)
-{
-	(void)state;
-	(void)size;
-}
-
-#ifndef IA_CSS_NO_DEBUG
-/* TODO: AM: This needs a proper implementation. */
 void
 ia_css_iefd2_6_debug_dtrace(
 	const struct ia_css_iefd2_6_config *config,
@@ -197,4 +178,3 @@ ia_css_iefd2_6_debug_dtrace(
 	(void)config;
 	(void)level;
 }
-#endif

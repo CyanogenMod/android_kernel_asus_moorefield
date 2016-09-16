@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __IA_CSS_XNR3_TYPES_H
@@ -30,12 +37,6 @@
  * \details The define specifies which fixed-point value represents 1.0.
  */
 #define IA_CSS_XNR3_CORING_SCALE (1 << 15)
-
-/**
- * \brief Scale of the XNR blending parameter.
- * \details The define specifies which fixed-point value represents 1.0.
- */
-#define IA_CSS_XNR3_BLENDING_SCALE (1 << 11)
 
 
 /**
@@ -71,28 +72,13 @@ struct ia_css_xnr3_coring_params {
 };
 
 /**
- * \brief XNR3 Blending Parameters
- * \details Blending parameters define the blending strength of filtered
- * output pixels with the original chroma pixels from before xnr3. The
- * blending strength is a fixed-point value between 0.0 and 1.0 (inclusive),
- * scaled with IA_CSS_XNR3_BLENDING_SCALE.
- * A higher number applies xnr filtering more strongly. A value of 1.0
- * disables the blending and returns the xnr3 filtered output, while a
- * value of 0.0 bypasses the entire xnr3 filter.
- */
-struct ia_css_xnr3_blending_params {
-	int strength;   /**< Blending strength */
-};
-
-/**
  * \brief XNR3 public parameters.
  * \details Struct with all parameters for the XNR3 kernel that can be set
  * from the CSS API.
  */
 struct ia_css_xnr3_config {
-	struct ia_css_xnr3_sigma_params    sigma;    /**< XNR3 sigma parameters */
-	struct ia_css_xnr3_coring_params   coring;   /**< XNR3 coring parameters */
-	struct ia_css_xnr3_blending_params blending; /**< XNR3 blending parameters */
+	struct ia_css_xnr3_sigma_params  sigma;   /**< XNR3 sigma parameters */
+	struct ia_css_xnr3_coring_params coring;  /**< XNR3 coring parameters */
 };
 
 #endif /* __IA_CSS_XNR3_TYPES_H */

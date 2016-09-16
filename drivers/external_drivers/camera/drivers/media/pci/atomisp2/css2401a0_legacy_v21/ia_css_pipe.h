@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __IA_CSS_PIPE_H__
@@ -44,21 +51,15 @@ struct ia_css_preview_settings {
 	NULL,				/* acc_pipe */\
 }
 
-
 struct ia_css_capture_settings {
 	struct ia_css_binary copy_binary;
-	/* we extend primary binary to multiple stages because in ISP2.6.1
-	 * the computation load is too high to fit in one single binary. */
-	struct ia_css_binary primary_binary[MAX_NUM_PRIMARY_STAGES];
-	unsigned int num_primary_stage;
+	struct ia_css_binary primary_binary;
 	struct ia_css_binary pre_isp_binary;
 	struct ia_css_binary anr_gdc_binary;
 	struct ia_css_binary post_isp_binary;
 	struct ia_css_binary capture_pp_binary;
 	struct ia_css_binary vf_pp_binary;
-	struct ia_css_binary capture_ldc_binary;
 	struct ia_css_binary *yuv_scaler_binary;
-	struct ia_css_frame *delay_frames[MAX_NUM_VIDEO_DELAY_FRAMES];
 	bool *is_output_stage;
 	unsigned int num_yuv_scaler;
 };
@@ -66,16 +67,13 @@ struct ia_css_capture_settings {
 #define IA_CSS_DEFAULT_CAPTURE_SETTINGS \
 { \
 	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* copy_binary */\
-	{IA_CSS_BINARY_DEFAULT_SETTINGS},	/* primary_binary */\
-	0,				/* num_primary_stage */\
+	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* primary_binary */\
 	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* pre_isp_binary */\
 	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* anr_gdc_binary */\
 	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* post_isp_binary */\
 	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* capture_pp_binary */\
 	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* vf_pp_binary */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* capture_ldc_binary */\
 	NULL,				/* yuv_scaler_binary */ \
-	{ NULL },			/* delay_frames[ref_frames] */ \
 	NULL,				/* is_output_stage */ \
 	0,				/* num_yuv_scaler */ \
 }
@@ -130,8 +128,6 @@ struct ia_css_yuvpp_settings {
 	0,					/* num_output */ \
 }
 
-struct osys_object;
-
 struct ia_css_pipe {
 	/* TODO: Remove stop_requested and use stop_requested in the pipeline */
 	bool                            stop_requested;
@@ -164,8 +160,6 @@ struct ia_css_pipe {
 		struct ia_css_capture_settings capture;
 		struct ia_css_yuvpp_settings yuvpp;
 	} pipe_settings;
-	hrt_vaddress scaler_pp_lut;
-	struct osys_object *osys_obj;
 
 	/* This number is unique per pipe each instance of css. This number is
 	 * reused as pipeline number also. There is a 1-1 mapping between pipe_num
@@ -201,8 +195,6 @@ struct ia_css_pipe {
 	{ NULL },				/* continuous_frames */ \
 	{ NULL },				/* cont_md_buffers */ \
 	{ IA_CSS_DEFAULT_PREVIEW_SETTINGS },	/* pipe_settings */ \
-	0,					/* scaler_pp_lut */ \
-	NULL,					/* osys object */ \
 	PIPE_ENTRY_EMPTY_TOKEN,			/* pipe_num */\
 }
 

@@ -724,8 +724,8 @@ static struct imx_reg const imx134_752_616_30fps[] = {
 	{ IMX_TOK_TERM, 0, 0 }
 };
 
-/* 1424x1168  */
-static struct imx_reg const imx134_1424_1168_30fps[] = {
+/* 1504x1232  */
+static struct imx_reg const imx134_1504_1232_30fps[] = {
 	GROUPED_PARAMETER_HOLD_ENABLE,
 	/* mode set clear */
 	{ IMX_8BIT, 0x3A43, 0x01 },
@@ -750,14 +750,14 @@ static struct imx_reg const imx134_1424_1168_30fps[] = {
 	{ IMX_8BIT, 0x0383, 0x01 },
 	{ IMX_8BIT, 0x0385, 0x01 },
 	{ IMX_8BIT, 0x0387, 0x01 },
-	{ IMX_8BIT, 0x0390, 0x00 },	/* binning */
-	{ IMX_8BIT, 0x0391, 0x11 },	/* no binning */
+	{ IMX_8BIT, 0x0390, 0x01 },	/* binning */
+	{ IMX_8BIT, 0x0391, 0x22 },	/* 2x2 binning */
 	{ IMX_8BIT, 0x0392, 0x00 },
-	{ IMX_8BIT, 0x0401, 0x02 },	/* resize */
+	{ IMX_8BIT, 0x0401, 0x00 },	/* no resize */
 	{ IMX_8BIT, 0x0404, 0x00 },
-	{ IMX_8BIT, 0x0405, 0x22 },	/* 34/16=2.125 */
-	{ IMX_8BIT, 0x4082, 0x00 },	/* ?? */
-	{ IMX_8BIT, 0x4083, 0x00 },	/* ?? */
+	{ IMX_8BIT, 0x0405, 0x10 },
+	{ IMX_8BIT, 0x4082, 0x01 },
+	{ IMX_8BIT, 0x4083, 0x01 },
 	{ IMX_8BIT, 0x7006, 0x04 },
 
 	/* Optionnal Function setting */
@@ -770,40 +770,40 @@ static struct imx_reg const imx134_1424_1168_30fps[] = {
 
 	/* Size setting */
 	{ IMX_8BIT, 0x0344, 0x00 },      /* x_addr_start[15:8]:136 */
-	{ IMX_8BIT, 0x0345, 0x80 },      /* x_addr_start[7:0] */
+	{ IMX_8BIT, 0x0345, 0x88 },      /* x_addr_start[7:0] */
 	{ IMX_8BIT, 0x0346, 0x00 },      /* y_addr_start[15:8]:0 */
 	{ IMX_8BIT, 0x0347, 0x00 },      /* y_addr_start[7:0] */
 	{ IMX_8BIT, 0x0348, 0x0C },      /* x_addr_end[15:8]:3145+134-1 */
-	{ IMX_8BIT, 0x0349, 0x51 },      /* x_addr_end[7:0] */
+	{ IMX_8BIT, 0x0349, 0x47 },      /* x_addr_end[7:0] */
 	{ IMX_8BIT, 0x034A, 0x09 },      /* y_addr_end[15:8]:2463 */
-	{ IMX_8BIT, 0x034B, 0xB1 },      /* y_addr_end[7:0] */
-	{ IMX_8BIT, 0x034C, 0x05 },      /* x_output_size[15:8]: 1424*/
-	{ IMX_8BIT, 0x034D, 0x90 },      /* x_output_size[7:0] */
-	{ IMX_8BIT, 0x034E, 0x04 },      /* y_output_size[15:8]:1168 */
-	{ IMX_8BIT, 0x034F, 0x90 },      /* y_output_size[7:0] */
+	{ IMX_8BIT, 0x034B, 0x9F },      /* y_addr_end[7:0] */
+	{ IMX_8BIT, 0x034C, 0x05 },      /* x_output_size[15:8]: 1508*/
+	{ IMX_8BIT, 0x034D, 0xE0 },      /* x_output_size[7:0] */
+	{ IMX_8BIT, 0x034E, 0x04 },      /* y_output_size[15:8]:1232 */
+	{ IMX_8BIT, 0x034F, 0xD0 },      /* y_output_size[7:0] */
 	{ IMX_8BIT, 0x0350, 0x00 },
 	{ IMX_8BIT, 0x0351, 0x00 },
 	{ IMX_8BIT, 0x0352, 0x00 },
 	{ IMX_8BIT, 0x0353, 0x00 },
 
-	{ IMX_8BIT, 0x0354, 0x0B },
-	{ IMX_8BIT, 0x0355, 0xD2 },
-	{ IMX_8BIT, 0x0356, 0x09 },
-	{ IMX_8BIT, 0x0357, 0xB2 },
+	{ IMX_8BIT, 0x0354, 0x05 },
+	{ IMX_8BIT, 0x0355, 0xE0 },
+	{ IMX_8BIT, 0x0356, 0x04 },
+	{ IMX_8BIT, 0x0357, 0xD0 },
 
 	{ IMX_8BIT, 0x301D, 0x30 },
 
 	{ IMX_8BIT, 0x3310, 0x05 },
-	{ IMX_8BIT, 0x3311, 0x90 },
+	{ IMX_8BIT, 0x3311, 0xE0 },
 	{ IMX_8BIT, 0x3312, 0x04 },
-	{ IMX_8BIT, 0x3313, 0x90 },
+	{ IMX_8BIT, 0x3313, 0xD0 },
 
 	{ IMX_8BIT, 0x331C, 0x02 },
 	{ IMX_8BIT, 0x331D, 0xD0 },
-	{ IMX_8BIT, 0x4084, 0x05 },
-	{ IMX_8BIT, 0x4085, 0x90 },
-	{ IMX_8BIT, 0x4086, 0x04 },
-	{ IMX_8BIT, 0x4087, 0x90 },
+	{ IMX_8BIT, 0x4084, 0x00 },
+	{ IMX_8BIT, 0x4085, 0x00 },
+	{ IMX_8BIT, 0x4086, 0x00 },
+	{ IMX_8BIT, 0x4087, 0x00 },
 	{ IMX_8BIT, 0x4400, 0x00 },
 
 	/* Global Timing Setting */
@@ -840,6 +840,7 @@ static struct imx_reg const imx134_1424_1168_30fps[] = {
 	{ IMX_8BIT, 0x3800, 0x00 },
 	{ IMX_TOK_TERM, 0, 0 }
 };
+
 
 /* 4 lane, 1/4 binning, 16/35 down scaling, 30fps, dvs */
 static struct imx_reg const imx134_240_196_30fps[] = {
@@ -2206,9 +2207,9 @@ struct imx_resolution imx134_res_preview[] = {
 struct imx_resolution imx134_res_still[] = {
 	{
 		.desc = "imx134_CIF_30fps",
-		.regs = imx134_1424_1168_30fps,
-		.width = 1424,
-		.height = 1168,
+		.regs = imx134_1504_1232_30fps,
+		.width = 1504,
+		.height = 1232,
 		.fps_options = {
 			{
 				 .fps = 30,
@@ -2282,12 +2283,12 @@ struct imx_resolution imx134_res_still[] = {
 		.width = 3280,
 		.height = 2464,
 		.fps_options = {
-			{
+                        {
 				/* WORKAROUND for FW performance limitation */
-				 .fps = 8,
-				 .pixels_per_line = 6400,
-				 .lines_per_frame = 5312,
-			},
+                                 .fps = 8,
+                                 .pixels_per_line = 6400,
+                                 .lines_per_frame = 5312,
+                        },
 			{
 				 .fps = 30,
 				 .pixels_per_line = 3600,

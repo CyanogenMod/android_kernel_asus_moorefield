@@ -921,6 +921,7 @@ err_gpio_enable:
 
 	case PROJ_ID_ZE550ML:
 	case PROJ_ID_ZE551ML:
+	case PROJ_ID_ZR550ML:
 	case PROJ_ID_ZE500ML:
 	case PROJ_ID_ZE551ML_CKD:
 
@@ -983,6 +984,7 @@ static int sky81296_gpio_uninit(struct i2c_client *client)
 
 	case PROJ_ID_ZE550ML:
 	case PROJ_ID_ZE551ML:
+	case PROJ_ID_ZR550ML:
 	case PROJ_ID_ZE500ML:
 	case PROJ_ID_ZE551ML_CKD:
 
@@ -1141,6 +1143,7 @@ static int sky81296_probe(struct i2c_client *client,
 
 	case PROJ_ID_ZE550ML:
 	case PROJ_ID_ZE551ML:
+	case PROJ_ID_ZR550ML:
 	case PROJ_ID_ZE500ML:
 	case PROJ_ID_ZE551ML_CKD:
 

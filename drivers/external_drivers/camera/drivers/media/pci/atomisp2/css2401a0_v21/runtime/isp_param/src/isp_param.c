@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include "memory_access.h"
@@ -119,23 +126,16 @@ ia_css_isp_param_allocate_isp_parameters(
 			css_params->params[pclass][mem].address = 0x0;
 			if (size) {
 				mem_params->params[pclass][mem].address = sh_css_calloc(1, size);
-				if (!mem_params->params[pclass][mem].address) {
-					err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-					goto cleanup;
-				}
+				if (!mem_params->params[pclass][mem].address)
+					return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 				if (pclass != IA_CSS_PARAM_CLASS_PARAM) {
 					css_params->params[pclass][mem].address = mmgr_malloc(size);
-					if (!css_params->params[pclass][mem].address) {
-						err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-						goto cleanup;
-					}
+					if (!css_params->params[pclass][mem].address)
+						return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 				}
 			}
 		}
 	}
-	return err;
-cleanup:
-	ia_css_isp_param_destroy_isp_parameters(mem_params, css_params);
 	return err;
 }
 

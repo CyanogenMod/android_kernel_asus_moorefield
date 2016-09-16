@@ -277,7 +277,7 @@ static int s5k8aay_reset(struct v4l2_subdev *sd)
 		return ret;
 
 	/* Allow startup code to run */
-	usleep_range(1000, 2000);
+	usleep_range(1000, 1000);
 
 	return 0;
 }
@@ -370,8 +370,7 @@ static int power_up(struct v4l2_subdev *sd)
 	if (ret)
 		goto fail_clk;
 
-	/*usleep_range should not use min == max args;*/
-	usleep_range(15, 30);
+	usleep_range(15, 15);
 
 	/* Release reset */
 	ret = dev->platform_data->gpio_ctrl(sd, 1);
@@ -379,7 +378,7 @@ static int power_up(struct v4l2_subdev *sd)
 		goto fail_gpio;
 
 	/* 100 us is needed between power up and first i2c transaction. */
-	usleep_range(100, 200);
+	usleep_range(100, 100);
 
 	return 0;
 

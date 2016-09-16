@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 
@@ -64,39 +71,6 @@ void gdc_lut_store(
 		gdc_reg_store(ID, lut_offset++, word_1);
 	}
 return;
-}
-
-/*
- * Input LUT format:
- * c0[0-1023], c1[0-1023], c2[0-1023] c3[0-1023]
- *
- * Output LUT format (interleaved):
- * c0[0], c1[0], c2[0], c3[0], c0[1], c1[1], c2[1], c3[1], ....
- * c0[1023], c1[1023], c2[1023], c3[1023]
- *
- * The first format needs c0[0], c1[0] (which are 1024 words apart)
- * to program gdc LUT registers. This makes it difficult to do piecemeal
- * reads in SP side gdc_lut_store
- *
- * Interleaved format allows use of contiguous bytes to store into
- * gdc LUT registers.
- *
- * See gdc_lut_store() definition in host/gdc.c vs sp/gdc_private.h
- *
- */
-void gdc_lut_convert_to_isp_format(const int in_lut[4][HRT_GDC_N],
-	int out_lut[4][HRT_GDC_N])
-{
-	unsigned int i;
-	int *out = (int *)out_lut;
-
-	for (i = 0; i < HRT_GDC_N; i++) {
-		out[0] = in_lut[0][i];
-		out[1] = in_lut[1][i];
-		out[2] = in_lut[2][i];
-		out[3] = in_lut[3][i];
-		out += 4;
-	}
 }
 
 int gdc_get_unity(

@@ -21,14 +21,8 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <asm/spid.h>
-#include <media/v4l2-device.h>
-#include <linux/acpi.h>
-#ifdef CONFIG_GMIN_INTEL_MID
-#include <linux/atomisp_gmin_platform.h>
-#else
 #include <media/v4l2-chip-ident.h>
-#endif
+#include <media/v4l2-device.h>
 #include "ov8858.h"
 
 static int ov8858_i2c_read(struct i2c_client *client, u16 len, u16 addr,
@@ -346,8 +340,7 @@ static int __ov8858_update_frame_timing(struct v4l2_subdev *sd,
 		__func__, *hts);
 
 	/* HTS = pixel_per_line / 2 */
-	ret = ov8858_write_reg(client, OV8858_16BIT,
-				OV8858_TIMING_HTS, *hts >> 1);
+	ret = ov8858_write_reg(client, OV8858_16BIT, OV8858_TIMING_HTS, *hts >> 1);
 	if (ret)
 		return ret;
 	dev_dbg(&client->dev, "%s OV8858_TIMING_VTS=0x%04x\n",
@@ -359,18 +352,13 @@ static int __ov8858_update_frame_timing(struct v4l2_subdev *sd,
 static int __ov8858_set_exposure(struct v4l2_subdev *sd, int exposure, int gain,
 				 int dig_gain, u16 *hts, u16 *vts)
 {
-	struct ov8858_device *dev = to_ov8858_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int exp_val, ret;
 	dev_dbg(&client->dev, "%s, exposure = %d, gain=%d, dig_gain=%d\n",
 		__func__, exposure, gain, dig_gain);
 
-	if (dev->limit_exposure_flag) {
-		if (exposure > *vts - OV8858_INTEGRATION_TIME_MARGIN)
-			exposure = *vts - OV8858_INTEGRATION_TIME_MARGIN;
-	} else {
-		if (*vts < exposure + OV8858_INTEGRATION_TIME_MARGIN)
-			*vts = (u16) exposure + OV8858_INTEGRATION_TIME_MARGIN;
+	if (*vts < exposure + OV8858_INTEGRATION_TIME_MARGIN) {
+		*vts = (u16) exposure + OV8858_INTEGRATION_TIME_MARGIN;
 	}
 
 	ret = __ov8858_update_frame_timing(sd, hts, vts);
@@ -412,16 +400,8 @@ static int __ov8858_set_exposure(struct v4l2_subdev *sd, int exposure, int gain,
 			return ret;
 	}
 
-	ret = ov8858_write_reg(client, OV8858_16BIT, OV8858_LONG_GAIN,
+	return ov8858_write_reg(client, OV8858_16BIT, OV8858_LONG_GAIN,
 				gain & 0x07ff);
-	if (ret)
-		return ret;
-
-	dev->gain = gain;
-	dev->exposure = exposure;
-	dev->digital_gain = dig_gain;
-
-	return 0;
 }
 
 static int ov8858_set_exposure(struct v4l2_subdev *sd, int exposure, int gain,
@@ -461,6 +441,12 @@ static int ov8858_set_exposure(struct v4l2_subdev *sd, int exposure, int gain,
 	ret = __ov8858_set_exposure(sd, exposure, gain, dig_gain, &hts, &vts);
 	if (ret)
 		goto out;
+
+	/* Updated the device variable. These are the current values. */
+	dev->gain = gain;
+	dev->exposure = exposure;
+	dev->digital_gain = dig_gain;
+
 out:
 	/* Group hold launch - delayed launch */
 	if (dev->streaming)
@@ -606,14 +592,7 @@ static int __ov8858_init(struct v4l2_subdev *sd)
 	dev->exposure = 256;
 	dev->gain = 16;
 	dev->digital_gain = 1024;
-	dev->limit_exposure_flag = false;
-#ifndef CONFIG_GMIN_INTEL_MID
-	if (SPID_PRODUCT_ID(INTEL, MOFD, TABLET, EP, PRO) ||
-	    SPID_PRODUCT_ID(INTEL, MOFD, TABLET, EP, ENG)) {
-		ov8858_BasicSettings[2].val = 0x02; /* pll1_pre_div = /2 */
-		ov8858_BasicSettings[3].val = 0x50; /* pll1_multiplier = 80 */
-	}
-#endif
+
 	dev_dbg(&client->dev, "%s: Writing basic settings to ov8858\n",
 		__func__);
 	return ov8858_write_reg_array(client, ov8858_BasicSettings);
@@ -635,51 +614,13 @@ static void ov8858_uninit(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov8858_device *dev = to_ov8858_sensor(sd);
-	struct v4l2_ctrl *ctrl;
 	dev_dbg(&client->dev, "%s:\n", __func__);
 
 	dev->exposure = 0;
 	dev->gain     = 0;
 	dev->digital_gain = 0;
-	dev->limit_exposure_flag = false;
-	mutex_unlock(&dev->input_lock);
-	ctrl = v4l2_ctrl_find(sd->ctrl_handler,
-				V4L2_CID_EXPOSURE_AUTO_PRIORITY);
-	if (ctrl)
-		v4l2_ctrl_s_ctrl(ctrl, V4L2_EXPOSURE_AUTO);
-	mutex_lock(&dev->input_lock);
 }
 
-static int ov8858_g_comp_delay(struct v4l2_subdev *sd, unsigned int *usec)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov8858_device *dev = to_ov8858_sensor(sd);
-	int ret = 0, exposure;
-	u16 vts, data;
-
-	if (dev->exposure == 0) {
-		ret = ov8858_read_reg(client, OV8858_16BIT,
-				       OV8858_LONG_EXPO + 1, &data);
-		if (ret)
-			return ret;
-		exposure = data;
-		exposure >>= 4;
-	} else {
-		exposure = dev->exposure;
-	}
-
-	ret = ov8858_read_reg(client, OV8858_16BIT, OV8858_TIMING_VTS, &vts);
-	if (ret || vts == 0)
-		vts = OV8858_DEPTH_VTS_CONST;
-
-	*usec = (exposure * 33333 / vts);
-	if (*usec >  OV8858_DEPTH_COMP_CONST)
-		*usec = *usec  - OV8858_DEPTH_COMP_CONST;
-	else
-		*usec = OV8858_DEPTH_COMP_CONST;
-
-	return 0;
-}
 static long ov8858_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -688,84 +629,11 @@ static long ov8858_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		return ov8858_s_exposure(sd, (struct atomisp_exposure *)arg);
 	case ATOMISP_IOC_G_SENSOR_PRIV_INT_DATA:
 		return ov8858_g_priv_int_data(sd, arg);
-	case ATOMISP_IOC_G_DEPTH_SYNC_COMP:
-		return ov8858_g_comp_delay(sd, (unsigned int *)arg);
 	default:
 		dev_err(&client->dev, "Unhandled command 0x%X\n", cmd);
 		return -EINVAL;
 	}
-}
-
-static int __power_ctrl(struct v4l2_subdev *sd, bool flag)
-{
-	int ret = 0;
-	struct ov8858_device *dev = to_ov8858_sensor(sd);
-#ifdef CONFIG_GMIN_INTEL_MID
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-#endif
-
-	if (!dev || !dev->platform_data)
-		return -ENODEV;
-
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->power_ctrl)
-		return dev->platform_data->power_ctrl(sd, flag);
-
-#ifdef CONFIG_GMIN_INTEL_MID
-	if (dev->platform_data->v2p8_ctrl) {
-		ret = dev->platform_data->v2p8_ctrl(sd, flag);
-		if (ret) {
-			dev_err(&client->dev,
-				"failed to power %s 2.8v power rail\n",
-				flag ? "up" : "down");
-			return ret;
-		}
-	}
-
-	if (dev->platform_data->v1p8_ctrl) {
-		ret = dev->platform_data->v1p8_ctrl(sd, flag);
-		if (ret) {
-			dev_err(&client->dev,
-				"failed to power %s 1.8v power rail\n",
-				flag ? "up" : "down");
-			if (dev->platform_data->v2p8_ctrl)
-				dev->platform_data->v2p8_ctrl(sd, 0);
-			return ret;
-		}
-	}
-
-	if (flag)
-		msleep(20); /* Wait for power lines to stabilize */
-#endif
-	return ret;
-}
-
-static int __gpio_ctrl(struct v4l2_subdev *sd, bool flag)
-{
-	struct i2c_client *client;
-	struct ov8858_device *dev;
-
-	if (!sd)
-		return -EINVAL;
-
-	client = v4l2_get_subdevdata(sd);
-	dev = to_ov8858_sensor(sd);
-
-	if (!client || !dev || !dev->platform_data)
-		return -ENODEV;
-
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->gpio_ctrl)
-		return dev->platform_data->gpio_ctrl(sd, flag);
-
-#ifdef CONFIG_GMIN_INTEL_MID
-	if (dev->platform_data->gpio0_ctrl)
-		return dev->platform_data->gpio0_ctrl(sd, flag);
-#endif
-
-	dev_err(&client->dev, "failed to find platform gpio callback\n");
-
-	return -EINVAL;
+	return 0;
 }
 
 static int power_up(struct v4l2_subdev *sd)
@@ -776,7 +644,7 @@ static int power_up(struct v4l2_subdev *sd)
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	/* Enable power */
-	ret = __power_ctrl(sd, 1);
+	ret = dev->platform_data->power_ctrl(sd, 1);
 	if (ret)
 		goto fail_power;
 
@@ -786,7 +654,7 @@ static int power_up(struct v4l2_subdev *sd)
 		goto fail_clk;
 
 	/* Release reset */
-	ret = __gpio_ctrl(sd, 1);
+	ret = dev->platform_data->gpio_ctrl(sd, 1);
 	if (ret)
 		goto fail_gpio;
 
@@ -796,10 +664,11 @@ static int power_up(struct v4l2_subdev *sd)
 	return 0;
 
 fail_gpio:
-	dev->platform_data->flisclk_ctrl(sd, 0);
+	dev->platform_data->gpio_ctrl(sd, 0);
 fail_clk:
-	__power_ctrl(sd, 0);
+	dev->platform_data->flisclk_ctrl(sd, 0);
 fail_power:
+	dev->platform_data->power_ctrl(sd, 0);
 	dev_err(&client->dev, "Sensor power-up failed\n");
 
 	return ret;
@@ -814,15 +683,15 @@ static int power_down(struct v4l2_subdev *sd)
 
 	ret = dev->platform_data->flisclk_ctrl(sd, 0);
 	if (ret)
-		dev_err(&client->dev, "flisclk off failed\n");
+		dev_err(&client->dev, "flisclk failed\n");
 
-	ret = __gpio_ctrl(sd, 0);
+	ret = dev->platform_data->gpio_ctrl(sd, 0);
 	if (ret)
-		dev_err(&client->dev, "gpio off failed\n");
+		dev_err(&client->dev, "Failed to set reset line off\n");
 
-	ret = __power_ctrl(sd, 0);
+	ret = dev->platform_data->power_ctrl(sd, 0);
 	if (ret)
-		dev_err(&client->dev, "power rail off failed.\n");
+		dev_err(&client->dev, "vprog failed.\n");
 
 	return ret;
 }
@@ -830,15 +699,16 @@ static int power_down(struct v4l2_subdev *sd)
 static int __ov8858_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct ov8858_device *dev = to_ov8858_sensor(sd);
-	int ret, r = 0;
+	int ret, r;
 
 	if (on == 0) {
 		ov8858_uninit(sd);
-		if (dev->vcm_driver && dev->vcm_driver->power_down)
-			r = dev->vcm_driver->power_down(sd);
 		ret = power_down(sd);
-		if (r != 0 && ret == 0)
-			ret = r;
+		if (dev->vcm_driver && dev->vcm_driver->power_down) {
+			r = dev->vcm_driver->power_down(sd);
+			if (ret == 0)
+				ret = r;
+		}
 	} else {
 		ret = power_up(sd);
 		if (ret)
@@ -875,7 +745,6 @@ static int ov8858_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-#ifndef CONFIG_GMIN_INTEL_MID
 static int ov8858_g_chip_ident(struct v4l2_subdev *sd,
 			       struct v4l2_dbg_chip_ident *chip)
 {
@@ -889,7 +758,6 @@ static int ov8858_g_chip_ident(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#endif
 /*
  * Return value of the specified register, first try getting it from
  * the register list and if not found, get from the sensor via i2c.
@@ -1081,7 +949,6 @@ static int ov8858_get_intg_factor(struct v4l2_subdev *sd,
 	unsigned int sys_pre_div;
 	unsigned int sclk_pdiv;
 	unsigned int sclk = ext_clk;
-	u16 hts;
 	int ret;
 
 	memset(&info->data, 0, sizeof(info->data));
@@ -1152,11 +1019,6 @@ static int ov8858_get_intg_factor(struct v4l2_subdev *sd,
 
 	m->coarse_integration_time_min = 0;
 	m->coarse_integration_time_max_margin = OV8858_INTEGRATION_TIME_MARGIN;
-	ret = ov8858_read_reg(client, OV8858_16BIT, OV8858_TIMING_HTS, &hts);
-	if (ret < 0)
-		return ret;
-	m->hts = hts;
-	dev_dbg(&client->dev, "%s: get HTS %d\n", __func__, hts);
 
 	/* OV Sensor do not use fine integration time. */
 	m->fine_integration_time_min = 0;
@@ -1490,29 +1352,7 @@ static int ov8858_s_stream(struct v4l2_subdev *sd, int enable)
 	struct ov8858_device *dev = to_ov8858_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-	u16 val;
 	dev_dbg(&client->dev, "%s: enable = %d\n", __func__, enable);
-
-	/* Set orientation */
-	ret = ov8858_read_reg(client, OV8858_8BIT, OV8858_FORMAT2, &val);
-	if (ret)
-		return ret;
-
-	ret = ov8858_write_reg(client, OV8858_8BIT, OV8858_FORMAT2,
-			       dev->hflip ? val | OV8858_FLIP_ENABLE :
-			       val & ~OV8858_FLIP_ENABLE);
-	if (ret)
-		return ret;
-
-	ret = ov8858_read_reg(client, OV8858_8BIT, OV8858_FORMAT1, &val);
-	if (ret)
-		return ret;
-
-	ret = ov8858_write_reg(client, OV8858_8BIT, OV8858_FORMAT1,
-			       dev->vflip ? val | OV8858_FLIP_ENABLE :
-			       val & ~OV8858_FLIP_ENABLE);
-	if (ret)
-		return ret;
 
 	mutex_lock(&dev->input_lock);
 	if (enable) {
@@ -1792,19 +1632,6 @@ static int ov8858_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (dev->vcm_driver && dev->vcm_driver->t_focus_abs)
 			return dev->vcm_driver->t_focus_abs(&dev->sd,
 							    ctrl->val);
-		return 0;
-	case V4L2_CID_EXPOSURE_AUTO_PRIORITY:
-		if (ctrl->val == V4L2_EXPOSURE_AUTO)
-			dev->limit_exposure_flag = false;
-		else if (ctrl->val == V4L2_EXPOSURE_APERTURE_PRIORITY)
-			dev->limit_exposure_flag = true;
-		return 0;
-	case V4L2_CID_HFLIP:
-		dev->hflip = ctrl->val;
-		return 0;
-	case V4L2_CID_VFLIP:
-		dev->vflip = ctrl->val;
-		return 0;
 	default:
 		dev_err(&client->dev, "%s: Error: Invalid ctrl: 0x%X\n",
 			__func__, ctrl->id);
@@ -1825,7 +1652,6 @@ static int ov8858_g_ctrl(struct v4l2_ctrl *ctrl)
 		if (dev->vcm_driver && dev->vcm_driver->q_focus_status)
 			return dev->vcm_driver->q_focus_status(&dev->sd,
 							       &(ctrl->val));
-		return 0;
 	case V4L2_CID_BIN_FACTOR_HORZ:
 		r_odd = ov8858_get_register_8bit(&dev->sd, OV8858_H_INC_ODD,
 						 dev->curr_res_table[i].regs);
@@ -1849,12 +1675,7 @@ static int ov8858_g_ctrl(struct v4l2_ctrl *ctrl)
 			return r_even;
 		ctrl->val = fls(r_odd + (r_even)) - 2;
 		return 0;
-	case V4L2_CID_HFLIP:
-		ctrl->val = dev->hflip;
-		break;
-	case V4L2_CID_VFLIP:
-		ctrl->val = dev->vflip;
-		break;
+
 	default:
 		dev_warn(&client->dev,
 			 "%s: Error: Invalid ctrl: 0x%X\n", __func__, ctrl->id);
@@ -1993,9 +1814,7 @@ static const struct v4l2_subdev_video_ops ov8858_video_ops = {
 };
 
 static const struct v4l2_subdev_core_ops ov8858_core_ops = {
-#ifndef CONFIG_GMIN_INTEL_MID
 	.g_chip_ident = ov8858_g_chip_ident,
-#endif
 	.queryctrl = v4l2_subdev_queryctrl,
 	.g_ctrl = v4l2_subdev_g_ctrl,
 	.s_ctrl = v4l2_subdev_s_ctrl,
@@ -2059,22 +1878,6 @@ static const struct v4l2_ctrl_config ctrl_run_mode = {
 
 static const struct v4l2_ctrl_config ctrls[] = {
 	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_VFLIP,
-		.name = "Vertical flip",
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.min = false,
-		.max = true,
-		.step = 1,
-	}, {
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_HFLIP,
-		.name = "Horizontal flip",
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.min = false,
-		.max = true,
-		.step = 1,
-	}, {
 		.ops = &ctrl_ops,
 		.id = V4L2_CID_EXPOSURE_ABSOLUTE,
 		.name = "Absolute exposure",
@@ -2171,14 +1974,6 @@ static const struct v4l2_ctrl_config ctrls[] = {
 		.max = OV8858_BIN_FACTOR_MAX,
 		.step = 1,
 		.flags = V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_VOLATILE,
-	}, {
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_EXPOSURE_AUTO_PRIORITY,
-		.name = "Exposure auto priority",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = V4L2_EXPOSURE_AUTO,
-		.max = V4L2_EXPOSURE_APERTURE_PRIORITY,
-		.step = 1,
 	}
 };
 
@@ -2187,10 +1982,7 @@ static int ov8858_probe(struct i2c_client *client,
 {
 	struct ov8858_device *dev;
 	unsigned int i;
-	int ret = 0;
-#ifdef CONFIG_GMIN_INTEL_MID
-	struct camera_sensor_platform_data *pdata;
-#endif
+	int ret;
 
 	dev_dbg(&client->dev, "%s:\n", __func__);
 
@@ -2203,50 +1995,20 @@ static int ov8858_probe(struct i2c_client *client,
 
 	mutex_init(&dev->input_lock);
 
-	if (id)
-		dev->i2c_id = id->driver_data;
+	dev->i2c_id = id->driver_data;
 	dev->fmt_idx = 0;
 	dev->sensor_id = OV_ID_DEFAULT;
 	dev->vcm_driver = &ov8858_vcms[OV8858_ID_DEFAULT];
 
 	v4l2_i2c_subdev_init(&(dev->sd), client, &ov8858_ops);
 
-#ifdef CONFIG_GMIN_INTEL_MID
-	if (ACPI_COMPANION(&client->dev)) {
-		pdata = gmin_camera_platform_data(&dev->sd,
-						  ATOMISP_INPUT_FORMAT_RAW_10,
-						  atomisp_bayer_order_bggr);
-		if (!pdata) {
-			dev_err(&client->dev,
-				"%s: failed to get acpi platform data\n",
-				__func__);
-			goto out_free;
-		}
-		ret = ov8858_s_config(&dev->sd, client->irq, pdata);
-		if (ret) {
-			dev_err(&client->dev,
-				"%s: failed to set config\n", __func__);
-			goto out_free;
-		}
-		ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
-		if (ret) {
-			dev_err(&client->dev,
-				"%s: failed to register subdev\n", __func__);
-			goto out_free;
-		}
-	}
-
-#else
 	if (client->dev.platform_data) {
 		ret = ov8858_s_config(&dev->sd, client->irq,
 				      client->dev.platform_data);
-		if (ret) {
-			dev_err(&client->dev,
-				"%s: failed to set config\n", __func__);
+		if (ret)
 			goto out_free;
-		}
 	}
-#endif
+
 	/*
 	 * sd->name is updated with sensor driver name by the v4l2.
 	 * change it to sensor name in this case.
@@ -2304,20 +2066,10 @@ static const struct i2c_device_id ov8858_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ov8858_id);
 
-#ifdef CONFIG_GMIN_INTEL_MID
-static struct acpi_device_id ov8858_acpi_match[] = {
-	{"INT3477"},
-	{},
-};
-#endif
-
 static struct i2c_driver ov8858_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = OV8858_NAME,
-#ifdef CONFIG_GMIN_INTEL_MID
-		.acpi_match_table = ACPI_PTR(ov8858_acpi_match),
-#endif
 	},
 	.probe = ov8858_probe,
 	.remove = ov8858_remove,

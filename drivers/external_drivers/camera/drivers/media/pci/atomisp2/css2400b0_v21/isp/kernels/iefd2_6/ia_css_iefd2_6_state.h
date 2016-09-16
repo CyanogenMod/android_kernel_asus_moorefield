@@ -1,15 +1,25 @@
 /*
- * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
+ * INTEL CONFIDENTIAL
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (C) 2010 - 2014 Intel Corporation.
+ * All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * The source code contained or described herein and all documents
+ * related to the source code ("Material") are owned by Intel Corporation
+ * or licensors. Title to the Material remains with Intel
+ * Corporation or its licensors. The Material contains trade
+ * secrets and proprietary and confidential information of Intel or its
+ * licensors. The Material is protected by worldwide copyright
+ * and trade secret laws and treaty provisions. No part of the Material may
+ * be used, copied, reproduced, modified, published, uploaded, posted,
+ * transmitted, distributed, or disclosed in any way without Intel's prior
+ * express written permission.
+ *
+ * No License under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or
+ * delivery of the Materials, either expressly, by implication, inducement,
+ * estoppel or otherwise. Any license under such intellectual property rights
+ * must be express and approved by Intel in writing.
  */
 
 #ifndef _IA_CSS_IEFD2_6_STATE_H
@@ -18,11 +28,9 @@
 #include "type_support.h"
 #include "vmem.h" /* for VMEM_ARRAY*/
 #include "iefd2_6_vssnlm.isp.h"
-#include "iefd2_6.isp.h"
 
-struct iefd2_6_vmem_state {
-	/* State buffers required for main IEFD2_6 */
-	VMEM_ARRAY(iefd2_6_input_lines[IEFD2_6_STATE_INPUT_BUFFER_HEIGHT], IEFD2_6_STATE_INPUT_BUFFER_WIDTH*ISP_NWAY);
+struct sh_css_isp_iefd2_6_vmem_state {
+
 	/* State buffers required for VSSNLM sub-kernel */
 	VMEM_ARRAY(vssnlm_input_y[VSSNLM_STATE_INPUT_BUFFER_HEIGHT], VSSNLM_STATE_INPUT_BUFFER_WIDTH*ISP_NWAY);
 	VMEM_ARRAY(vssnlm_input_diff_grad[1], VSSNLM_STATE_INPUT_BUFFER_WIDTH*ISP_NWAY);

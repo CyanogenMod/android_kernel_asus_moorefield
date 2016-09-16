@@ -1,15 +1,22 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
- * Copyright (c) 2015, Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (c) 2010 - 2014 Intel Corporation. All Rights Reserved.
  *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef __IA_CSS_S3A_TYPES_H
@@ -21,7 +28,7 @@
 
 #include <ia_css_frac.h>
 
-#if (defined(SYSTEM_css_skycam_c0_system)) && (! defined(PIPE_GENERATION) )
+#if (defined(SYSTEM_css_skycam_a0t_system) || defined(SYSTEM_css_skycam_c0_system)) && (! defined(PIPE_GENERATION) )
 #include "../../../../components/stats_3a/src/stats_3a_public.h"
 #endif
 
@@ -38,7 +45,7 @@
  */
 struct ia_css_3a_grid_info {
 
-#if defined(SYSTEM_css_skycam_c0_system)
+#if defined(SYSTEM_css_skycam_a0t_system) || defined(SYSTEM_css_skycam_c0_system)
 	uint32_t ae_enable;					/**< ae enabled in binary,
 								   0:disabled, 1:enabled */
 	struct ae_public_config_grid_config	ae_grd_info;	/**< see description in ae_public.h*/
@@ -97,22 +104,7 @@ struct ia_css_3a_grid_info {
 #endif
 };
 
-
-#if defined(SYSTEM_css_skycam_c0_system)
-#if defined USE_NEW_AE_STRUCT || defined USE_NEW_AWB_STRUCT
-#define DEFAULT_3A_GRID_INFO \
-{ \
-	0,				/* ae_enable */ \
-	{0,0,0,0,0,0,0},	        /* AE:     width,height,b_width,b_height,x_start,y_start*/ \
-	0,				/* awb_enable */ \
-	{0,0,0,0,0,0},			/* AWB:    width,height,b_width,b_height,x_start,y_start*/ \
-	0,				/* af_enable */ \
-	{0,0,0,0,0,0,0},		/* AF:     width,height,b_width,b_height,x_start,y_start,ff_en*/ \
-	0,				/* awb_fr_enable */ \
-	{0,0,0,0,0,0,0},                  /* AWB_FR: width,height,b_width,b_height,x_start,y_start,ff_en*/ \
-	0,				/* elem_bit_depth */ \
-}
-#else
+#if defined(SYSTEM_css_skycam_a0t_system) || defined(SYSTEM_css_skycam_c0_system)
 #define DEFAULT_3A_GRID_INFO \
 { \
 	0,				/* ae_enable */ \
@@ -125,8 +117,6 @@ struct ia_css_3a_grid_info {
 	{0,0,0,0,0,0,0},                  /* AWB_FR: width,height,b_width,b_height,x_start,y_start,ff_en*/ \
 	0,				/* elem_bit_depth */ \
 }
-#endif /* USE_NEW_AE_STRUCT || defined USE_NEW_AWB_STRUCT */
-
 #else
 #define DEFAULT_3A_GRID_INFO \
 { \

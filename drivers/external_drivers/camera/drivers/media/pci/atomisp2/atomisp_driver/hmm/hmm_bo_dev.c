@@ -31,6 +31,10 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 
+#ifdef CONFIG_ION_FOR_CAMERA
+#include <linux/ion.h>
+#endif
+
 #include "atomisp_internal.h"
 #include "hmm/hmm_common.h"
 #include "hmm/hmm_bo_dev.h"
@@ -55,8 +59,9 @@ int hmm_bo_device_init(struct hmm_bo_device *bdev,
 
 	ret = hmm_vm_init(&bdev->vaddr_space, vaddr_start, size);
 	if (ret) {
-		dev_err(atomisp_dev, "hmm_vm_init falied. vaddr_start = 0x%x, size = %d\n",
-			vaddr_start, size);
+		dev_err(atomisp_dev, "hmm_vm_init falied. "
+			     "vaddr_start = 0x%x, size = %d\n", vaddr_start,
+			     size);
 		goto vm_init_err;
 	}
 
@@ -64,6 +69,23 @@ int hmm_bo_device_init(struct hmm_bo_device *bdev,
 	INIT_LIST_HEAD(&bdev->active_bo_list);
 
 	spin_lock_init(&bdev->list_lock);
+#ifdef CONFIG_ION_FOR_CAMERA
+	/*
+	 * TODO:
+	 * The ion_dev should be defined by ION driver. But ION driver does
+	 * not implement it yet, will fix it when it is ready.
+	 */
+	if (!ion_dev)
+		goto vm_init_err;
+
+	bdev->iclient = ion_client_create(ion_dev, "atomisp");
+	if (IS_ERR_OR_NULL(bdev->iclient)) {
+		ret = PTR_ERR(bdev->iclient);
+		if (!bdev->iclient)
+			ret = -EINVAL;
+		goto vm_init_err;
+	}
+#endif
 	bdev->flag = HMM_BO_DEVICE_INITED;
 
 	return 0;
@@ -99,6 +121,17 @@ void hmm_bo_device_exit(struct hmm_bo_device *bdev)
 
 	isp_mmu_exit(&bdev->mmu);
 	hmm_vm_clean(&bdev->vaddr_space);
+#ifdef CONFIG_ION_FOR_CAMERA
+	if (bdev->iclient != NULL)
+		ion_client_destroy(bdev->iclient);
+#endif
+}
+
+void hmm_bo_device_cleanup_mmu_l2(struct hmm_bo_device *bdev)
+{
+	check_bodev_null_return_void(bdev);
+
+	isp_mmu_clean_l2(&bdev->mmu);
 }
 
 int hmm_bo_device_inited(struct hmm_bo_device *bdev)

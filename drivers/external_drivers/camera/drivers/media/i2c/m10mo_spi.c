@@ -26,7 +26,7 @@
 #include <linux/types.h>
 #include <media/v4l2-device.h>
 #include <media/m10mo_atomisp.h>
-#include <linux/m10mo.h>
+#include "m10mo.h"
 
 static inline int spi_xmit(struct spi_device *spi, const u8 *addr, const int len)
 {
