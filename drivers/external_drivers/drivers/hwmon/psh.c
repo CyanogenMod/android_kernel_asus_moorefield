@@ -305,7 +305,7 @@ int do_setup_ddr(struct device *dev)
 
 	if (getProjectId() == 0x17)
 		snprintf(fname, 40, "psh.bin.ze550ml");
-	else if (getProjectId() == 0x1F)
+	else if ((getProjectId() == 0x1F) || (getProjectId() == 0x1E))
 		snprintf(fname, 40, "psh.bin.ze551ml");
 	else if (getProjectId() == 0x1B)
 		snprintf(fname, 40, "psh.bin.zx550ml");
